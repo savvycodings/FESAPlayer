@@ -23,14 +23,6 @@
         "simulator": false
       }
     }
-  },
-  "submit": {
-    "production": {
-      "ios": {
-        "appleId": "knoome@proton.me",
-        "ascAppId": "",
-        "appleTeamId": "3A6K9M7643"
-      }
-    }
   }
 }
+
