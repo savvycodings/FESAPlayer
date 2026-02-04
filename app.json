@@ -1,0 +1,62 @@
+{
+  "expo": {
+    "name": "SA Player",
+    "slug": "saplayer",
+    "version": "1.0.0",
+    "sdkVersion": "54.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.saplayer.app",
+      "buildNumber": "1",
+      "infoPlist": {
+        "NSCameraUsageDescription": "This app needs access to your camera to scan Pokémon cards.",
+        "NSPhotoLibraryUsageDescription": "This app needs access to your photo library to select card images.",
+        "ITSAppUsesNonExemptEncryption": false
+      },
+      "scheme": "saplayer"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#ffffff"
+      },
+      "package": "com.saplayer.app",
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            {
+              "scheme": "saplayer"
+            }
+          ],
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
+        }
+      ]
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "2fe9f301-ca9e-4003-b72f-18f077865f9f"
+      },
+      "backendIp": "192.168.1.9"
+    },
+    "owner": "brrrkyle"
+  }
+}
