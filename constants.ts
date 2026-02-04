@@ -7,19 +7,22 @@ import { MistralIcon } from './src/components/MistralIcon'
 import { GeminiIcon } from './src/components/GeminiIcon'
 
 // Backend API URL - Same pattern as PayFastPayment and Better Auth client
-// Checks EXPO_PUBLIC_BACKEND_URL first (can be ngrok URL for mobile)
+// Production/TestFlight: use EXPO_PUBLIC_BACKEND_URL (Railway). Never use local IP in production.
 const getDomain = () => {
-  // Check EXPO_PUBLIC_BACKEND_URL first (can be ngrok URL)
-  if (process.env.EXPO_PUBLIC_BACKEND_URL) {
-    return process.env.EXPO_PUBLIC_BACKEND_URL
+  // 1) Explicit production URL (Railway) - no local network
+  const backend = process.env.EXPO_PUBLIC_BACKEND_URL
+  if (backend && (backend.startsWith('https://') || backend.startsWith('http://'))) {
+    return backend.replace(/\/$/, '')
   }
-  
-  // For web, use localhost or env var
+  // 2) Production env with prod API URL
+  if (process.env.EXPO_PUBLIC_ENV === 'PRODUCTION' && process.env.EXPO_PUBLIC_PROD_API_URL) {
+    return process.env.EXPO_PUBLIC_PROD_API_URL.replace(/\/$/, '')
+  }
+  // 3) Web dev: localhost
   if (Platform.OS === 'web') {
     return process.env.EXPO_PUBLIC_DEV_API_URL || 'http://localhost:3050'
   }
-  
-  // For mobile, use IP from app.json (same as PayFastPayment)
+  // 4) Mobile dev only: local IP (triggers local network prompt - not used in TestFlight when 1 is set)
   try {
     const devIp = Constants.expoConfig?.extra?.backendIp || '192.168.1.9'
     return `http://${devIp}:3050`
