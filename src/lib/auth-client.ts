@@ -4,24 +4,13 @@ import * as SecureStore from "expo-secure-store"
 import { Platform } from 'react-native'
 import Constants from 'expo-constants'
 
-// Get backend URL - same pattern as PayFastPayment and DOMAIN
+// Get backend URL - Local dev: use EXPO_PUBLIC_DEV_API_URL when ENV=DEVELOPMENT. Production: EXPO_PUBLIC_BACKEND_URL / EXPO_PUBLIC_BETTER_AUTH_URL (Railway).
 const getBackendUrl = () => {
-  // Check EXPO_PUBLIC_BACKEND_URL first (can be ngrok URL)
-  if (process.env.EXPO_PUBLIC_BACKEND_URL) {
-    return process.env.EXPO_PUBLIC_BACKEND_URL
-  }
-  
-  // Check Better Auth specific env var
-  if (process.env.EXPO_PUBLIC_BETTER_AUTH_URL) {
-    return process.env.EXPO_PUBLIC_BETTER_AUTH_URL
-  }
-  
-  // For web, use localhost
-  if (Platform.OS === 'web') {
-    return 'http://localhost:3050'
-  }
-  
-  // For mobile, use IP from app.json (same as PayFastPayment)
+  const devUrl = process.env.EXPO_PUBLIC_DEV_API_URL?.replace(/\/$/, '')
+  const prodUrl = (process.env.EXPO_PUBLIC_BACKEND_URL || process.env.EXPO_PUBLIC_BETTER_AUTH_URL)?.replace(/\/$/, '')
+  if (process.env.EXPO_PUBLIC_ENV === 'DEVELOPMENT' && devUrl) return devUrl
+  if (prodUrl) return prodUrl
+  if (Platform.OS === 'web') return devUrl || 'http://localhost:3050'
   try {
     const devIp = Constants.expoConfig?.extra?.backendIp || '192.168.1.9'
     return `http://${devIp}:3050`

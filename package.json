@@ -6,7 +6,8 @@
     "start": "expo start",
     "android": "expo run:android",
     "ios": "expo run:ios",
-    "web": "expo start --web"
+    "web": "expo start --web",
+    "web:local": "set EXPO_PUBLIC_BACKEND_URL=http://localhost:3050&& expo start --web"
   },
   "dependencies": {
     "@better-auth/expo": "^1.4.17",

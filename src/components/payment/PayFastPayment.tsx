@@ -7,27 +7,17 @@ import Ionicons from '@expo/vector-icons/Ionicons'
 import { ThemeContext } from '../../context'
 import { SPACING, TYPOGRAPHY, RADIUS } from '../../constants/layout'
 
-// Backend API URL - Automatically detects correct URL for platform
+// Backend API URL - Same logic as auth-client and constants: local dev uses EXPO_PUBLIC_DEV_API_URL when ENV=DEVELOPMENT
 const getBackendUrl = () => {
-  // Check environment variable first
-  if (process.env.EXPO_PUBLIC_BACKEND_URL) {
-    return process.env.EXPO_PUBLIC_BACKEND_URL
-  }
-  
-  // For web, use localhost
-  if (Platform.OS === 'web') {
-    return 'http://localhost:3050'
-  }
-  
-  // For mobile (Expo Go), use the development machine's IP
-  // This is usually shown in the Expo Dev Tools or Metro bundler
-  // Replace with your actual local IP address (e.g., 192.168.1.100)
-  // You can find it by running: ipconfig (Windows) or ifconfig (Mac/Linux)
+  const devUrl = process.env.EXPO_PUBLIC_DEV_API_URL?.replace(/\/$/, '')
+  const prodUrl = process.env.EXPO_PUBLIC_BACKEND_URL?.replace(/\/$/, '')
+  if (process.env.EXPO_PUBLIC_ENV === 'DEVELOPMENT' && devUrl) return devUrl
+  if (prodUrl) return prodUrl
+  if (Platform.OS === 'web') return devUrl || 'http://localhost:3050'
   try {
-    const devIp = Constants.expoConfig?.extra?.backendIp || '192.168.1.9' // Default, update this
+    const devIp = Constants.expoConfig?.extra?.backendIp || '192.168.1.9'
     return `http://${devIp}:3050`
   } catch (error) {
-    // Fallback if Constants is not available
     console.warn('Could not get backend IP from Constants, using default:', error)
     return 'http://192.168.1.9:3050'
   }

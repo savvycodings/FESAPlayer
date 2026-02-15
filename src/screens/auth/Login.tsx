@@ -7,6 +7,7 @@ import { LinearGradient } from 'expo-linear-gradient'
 import Ionicons from '@expo/vector-icons/Ionicons'
 import { useNavigation } from '@react-navigation/native'
 import { authClient } from '../../lib/auth-client'
+import AsyncStorage from '@react-native-async-storage/async-storage'
 
 // Helper function to get gradient colors based on theme
 const getButtonGradientColors = (theme: any): string[] => {
@@ -33,6 +34,7 @@ export function Login() {
   const [name, setName] = useState('')
   const [loading, setLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
+  const [authError, setAuthError] = useState<string | null>(null)
 
   const handleAuth = async () => {
     if (!email || !password) {
@@ -46,35 +48,40 @@ export function Login() {
     }
 
     setLoading(true)
+    setAuthError(null)
 
     try {
-      if (isSignUp) {
-        // Sign up with Better Auth
-        const result = await authClient.signUp.email({
-          email,
-          password,
-          name,
-        })
-        
-        if (result.error) {
-          Alert.alert('Error', result.error.message || 'Sign up failed')
-          return
-        }
-        
-        console.log('✅ Sign up successful:', result.data?.user?.email)
-      } else {
-        // Sign in with Better Auth
-        const result = await authClient.signIn.email({
-          email,
-          password,
-        })
-        
-        if (result.error) {
-          Alert.alert('Error', result.error.message || 'Sign in failed')
-          return
-        }
-        
-        console.log('✅ Sign in successful:', result.data?.user?.email)
+      let result
+
+      // Wrap auth call in a timeout so web doesn't hang forever
+      const authPromise = isSignUp
+        ? authClient.signUp.email({ email, password, name })
+        : authClient.signIn.email({ email, password })
+
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => {
+          reject(new Error('Request timed out. Please check that your backend is running and try again.'))
+        }, 15000)
+      })
+
+      result = await Promise.race([authPromise, timeoutPromise]) as any
+
+      if (result?.error) {
+        console.log('❌ Auth error result:', result.error)
+        const message = result.error.message || (isSignUp ? 'Sign up failed' : 'Sign in failed')
+        setAuthError(message)
+        Alert.alert('Error', message)
+        return
+      }
+      
+      console.log(isSignUp ? '✅ Sign up successful:' : '✅ Sign in successful:', result?.data?.user?.email)
+      
+      // Mark user as authenticated for RootNavigator (used on all platforms)
+      try {
+        await AsyncStorage.setItem('authToken', 'better-auth-session')
+        await AsyncStorage.setItem('hasSeenOnboarding', 'true')
+      } catch (storageError) {
+        console.warn('Failed to persist auth state:', storageError)
       }
       
       // Navigate to main app
@@ -82,7 +89,9 @@ export function Login() {
       navigation.replace('Main')
     } catch (error: any) {
       console.error('❌ Auth error:', error)
-      Alert.alert('Error', error.message || 'Something went wrong')
+      const message = error?.message || 'Something went wrong. Please check your internet connection and that the backend is reachable.'
+      setAuthError(message)
+      Alert.alert('Error', message)
     } finally {
       setLoading(false)
     }
@@ -190,6 +199,12 @@ export function Login() {
                   </Text>
                 </LinearGradient>
               </TouchableOpacity>
+
+              {authError && (
+                <Text style={styles.errorText}>
+                  {authError}
+                </Text>
+              )}
 
               <View style={styles.divider}>
                 <View style={styles.dividerLine} />
@@ -366,5 +381,12 @@ const getStyles = (theme: any) => StyleSheet.create({
     fontSize: TYPOGRAPHY.body,
     fontFamily: theme.boldFont,
     color: theme.tintColor || '#0281ff',
+  },
+  errorText: {
+    marginTop: SPACING.sm,
+    fontSize: TYPOGRAPHY.bodySmall,
+    fontFamily: theme.regularFont,
+    color: '#ff6b6b',
+    textAlign: 'center',
   },
 })

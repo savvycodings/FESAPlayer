@@ -6,20 +6,16 @@ import { OpenAIIcon } from './src/components/OpenAIIcon'
 import { MistralIcon } from './src/components/MistralIcon'
 import { GeminiIcon } from './src/components/GeminiIcon'
 
-// Backend API URL - Same pattern as PayFastPayment and Better Auth client
-// Checks EXPO_PUBLIC_BACKEND_URL first (can be ngrok URL for mobile)
+// Backend API URL - Local dev: use EXPO_PUBLIC_DEV_API_URL when set (e.g. http://localhost:3050). Production: EXPO_PUBLIC_BACKEND_URL (Railway).
 const getDomain = () => {
-  // Check EXPO_PUBLIC_BACKEND_URL first (can be ngrok URL)
-  if (process.env.EXPO_PUBLIC_BACKEND_URL) {
-    return process.env.EXPO_PUBLIC_BACKEND_URL
+  const devUrl = process.env.EXPO_PUBLIC_DEV_API_URL?.replace(/\/$/, '')
+  const prodUrl = process.env.EXPO_PUBLIC_BACKEND_URL?.replace(/\/$/, '') || process.env.EXPO_PUBLIC_PROD_API_URL?.replace(/\/$/, '')
+  // When running locally, prefer dev URL so app talks to your local server
+  if (process.env.EXPO_PUBLIC_ENV === 'DEVELOPMENT' && devUrl) {
+    return devUrl
   }
-  
-  // For web, use localhost or env var
-  if (Platform.OS === 'web') {
-    return process.env.EXPO_PUBLIC_DEV_API_URL || 'http://localhost:3050'
-  }
-  
-  // For mobile, use IP from app.json (same as PayFastPayment)
+  if (prodUrl) return prodUrl
+  if (Platform.OS === 'web') return devUrl || 'http://localhost:3050'
   try {
     const devIp = Constants.expoConfig?.extra?.backendIp || '192.168.1.9'
     return `http://${devIp}:3050`
