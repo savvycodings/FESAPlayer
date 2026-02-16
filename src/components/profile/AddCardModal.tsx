@@ -1,4 +1,4 @@
-import { View, StyleSheet, Modal, TouchableOpacity, ScrollView, TextInput, Alert, ActivityIndicator } from 'react-native'
+import { View, StyleSheet, Modal, TouchableOpacity, ScrollView, TextInput, Alert, ActivityIndicator, Image } from 'react-native'
 import { useContext, useState, useEffect } from 'react'
 import { Text } from '../ui/text'
 import Ionicons from '@expo/vector-icons/Ionicons'
@@ -6,6 +6,7 @@ import { ThemeContext } from '../../context'
 import { SPACING, TYPOGRAPHY, RADIUS } from '../../constants/layout'
 import * as ImagePicker from 'expo-image-picker'
 import * as FileSystem from 'expo-file-system'
+import { getPokemonTcgImageUrlFromSetNumber } from '../../utils/pokemonTcgImages'
 
 const CONDITION_OPTIONS = ['Mint', 'Near Mint', 'Lightly Played', 'Moderately Played', 'Heavily Played', 'Damaged'] as const
 // USD to ZAR for displaying API prices in South African Rand (override via env if needed)
@@ -55,6 +56,8 @@ export function AddCardModal({
   const [lookupResults, setLookupResults] = useState<{ id: string; name: string; set?: string; number?: string }[]>([])
   const [lookupLoading, setLookupLoading] = useState(false)
   const [cardInfo, setCardInfo] = useState<{ marketPrice?: number; ebayLastSold?: number; currency?: string } | null>(null)
+  const [cardImageUrl, setCardImageUrl] = useState<string | null>(null)
+  const [cardImageLoadError, setCardImageLoadError] = useState(false)
 
   useEffect(() => {
     if (visible) {
@@ -73,6 +76,8 @@ export function AddCardModal({
       setCardId(null)
       setLookupResults([])
       setCardInfo(null)
+      setCardImageUrl(null)
+      setCardImageLoadError(false)
     }
   }, [visible])
 
@@ -173,6 +178,7 @@ export function AddCardModal({
         image: image || undefined,
         cardId: cardId || undefined,
         set: set.trim() || undefined,
+        cardNumber: cardNumber.trim() || undefined,
         condition: condition.trim() || undefined,
         grade: grade ? parseInt(grade) : undefined,
         notes: notes.trim() || undefined,
@@ -207,6 +213,7 @@ export function AddCardModal({
     setRequestVaulting(false)
     setCardId(null)
     setCardNumber('')
+    setCardImageUrl(null)
     setLookupResults([])
     setCardInfo(null)
     onClose()
@@ -263,8 +270,11 @@ export function AddCardModal({
 
   const handleSelectLookupCard = async (item: { id: string; name: string; set?: string; number?: string }) => {
     setCardId(item.id)
+    setCardImageLoadError(false)
+    setCardImageUrl(null)
     setName(item.name)
-    if (item.set) setSet(item.set)
+    // Only set Set field from search result if it looks like a full name (not a short code like "PRE")
+    if (item.set && item.set.length > 6 && !/^[A-Z0-9]{2,5}$/i.test(item.set.trim())) setSet(item.set)
     if (item.number) setCardNumber(item.number)
     setLookupResults([])
     if (!apiBaseUrl) return
@@ -278,7 +288,11 @@ export function AddCardModal({
         ebayLastSold: data.ebayLastSold ?? undefined,
         currency: 'USD',
       })
-      console.log('[Add Card] API response for card', item.id, ':', data)
+      // Keep set as display name (e.g. "Prismatic Evolutions"), never overwrite with code (e.g. "PRE")
+      if (data.setName != null || data.setId != null) setSet(String(data.setName ?? data.setId ?? ''))
+      if (data.cardNumber != null) setCardNumber(String(data.cardNumber))
+      if (data.imageUrl) setCardImageUrl(data.imageUrl)
+      console.log('[Add Card] API response for card', item.id, ':', { ...data, imageUrl: data.imageUrl })
     } catch (e) {
       setCardInfo(null)
     }
@@ -336,7 +350,7 @@ export function AddCardModal({
               </View>
             </View>
 
-            {/* Card info: Name, Set, Card number */}
+            {/* Card info: Name, Card number, Set, then Image */}
             <View style={styles.inputSection}>
               <Text style={styles.inputLabel}>Name *</Text>
               <TextInput
@@ -362,27 +376,6 @@ export function AddCardModal({
               </View>
             )}
 
-            {/* Image Picker */}
-            <View style={styles.inputSection}>
-              <Text style={styles.inputLabel}>Image</Text>
-              <TouchableOpacity
-                style={styles.imagePickerButton}
-                onPress={handlePickImage}
-              >
-                {image ? (
-                  <View style={styles.imagePreview}>
-                    <Text style={styles.imagePreviewText}>Image selected</Text>
-                    <Ionicons name="checkmark-circle" size={20} color={theme.tintColor || '#73EC8B'} />
-                  </View>
-                ) : (
-                  <View style={styles.imagePickerPlaceholder}>
-                    <Ionicons name="image-outline" size={24} color="rgba(255, 255, 255, 0.5)" />
-                    <Text style={styles.imagePickerText}>Pick an image</Text>
-                  </View>
-                )}
-              </TouchableOpacity>
-            </View>
-
             {/* Set Input */}
             <View style={styles.inputSection}>
               <Text style={styles.inputLabel}>Set</Text>
@@ -393,6 +386,55 @@ export function AddCardModal({
                 placeholder="e.g., Obsidian Flames"
                 placeholderTextColor="rgba(255, 255, 255, 0.3)"
               />
+            </View>
+
+            {/* Image: prefer URL built from set+number (set-code map) so we never show stale/wrong API imageUrl. */}
+            <View style={styles.inputSection}>
+              <Text style={styles.inputLabel}>Image</Text>
+              {type === 'card' ? (
+                (() => {
+                  const builtUri = getPokemonTcgImageUrlFromSetNumber(set, cardNumber)
+                  const tcgUri = builtUri || cardImageUrl
+                  if (!tcgUri) {
+                    return (
+                      <View style={styles.cardImageBox}>
+                        <Text style={styles.noImageText}>No img found</Text>
+                      </View>
+                    )
+                  }
+                  if (cardImageLoadError) {
+                    return (
+                      <View style={styles.cardImageBox}>
+                        <Text style={styles.noImageText}>No img found</Text>
+                      </View>
+                    )
+                  }
+                  return (
+                    <View style={styles.cardImageBox}>
+                      <Image
+                        source={{ uri: tcgUri }}
+                        style={styles.cardImage}
+                        resizeMode="contain"
+                        onError={() => setCardImageLoadError(true)}
+                      />
+                    </View>
+                  )
+                })()
+              ) : (
+                <TouchableOpacity style={styles.imagePickerButton} onPress={handlePickImage}>
+                  {image ? (
+                    <View style={styles.imagePreview}>
+                      <Text style={styles.imagePreviewText}>Image selected</Text>
+                      <Ionicons name="checkmark-circle" size={20} color={theme.tintColor || '#73EC8B'} />
+                    </View>
+                  ) : (
+                    <View style={styles.imagePickerPlaceholder}>
+                      <Ionicons name="image-outline" size={24} color="rgba(255, 255, 255, 0.5)" />
+                      <Text style={styles.imagePickerText}>Pick an image</Text>
+                    </View>
+                  )}
+                </TouchableOpacity>
+              )}
             </View>
 
             {/* Look up card (get Pokedata ID + API response) */}
@@ -762,6 +804,25 @@ const getStyles = (theme: any) => StyleSheet.create({
     fontSize: TYPOGRAPHY.bodySmall,
     fontFamily: theme.regularFont,
     color: 'rgba(255, 255, 255, 0.8)',
+  },
+  cardImageBox: {
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderRadius: RADIUS.md,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+    overflow: 'hidden',
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 140,
+  },
+  cardImage: {
+    width: '100%',
+    height: 200,
+  },
+  noImageText: {
+    fontSize: TYPOGRAPHY.bodySmall,
+    fontFamily: theme.regularFont,
+    color: 'rgba(255, 255, 255, 0.5)',
   },
   imagePickerButton: {
     marginTop: SPACING.xs,

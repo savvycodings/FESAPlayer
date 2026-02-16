@@ -11,6 +11,7 @@ import { Section } from '../components/layout/Section'
 import { DOMAIN } from '../../constants'
 import * as ImagePicker from 'expo-image-picker'
 import { uploadImage, isExternalUrl } from '../utils/imageUpload'
+import { getPokemonTcgImageUrl, getPokemonTcgImageUrlFromSetNumber } from '../utils/pokemonTcgImages'
 import { authClient } from '../lib/auth-client'
 
 type ProfileStackParamList = {
@@ -258,22 +259,22 @@ export function Profile() {
       // Get session token
       const sessionToken = session.data.session.token
 
-      // ALWAYS ensure image is uploaded to Cloudinary (never save local file paths)
-      let imageUrl: string | null = null
+      // Store listings require a photo (Cloudinary). Never use Pokemon TCG artwork URLs for listings.
       const imageUri = cardImage?.uri || (typeof cardImage === 'string' ? cardImage : null)
-      
-      if (imageUri) {
-        if (isExternalUrl(imageUri)) {
-          // Already a Cloudinary/external URL - use as-is
-          imageUrl = imageUri
-        } else {
-          // Local file (file:// or blob:) - MUST upload to Cloudinary
-          try {
-            imageUrl = await uploadImage(imageUri, 'gradeit/listings')
-          } catch (error: any) {
-            Alert.alert('Upload Error', error.message || 'Failed to upload listing image')
-            return
-          }
+      const isPokemonTcgUrl = imageUri && typeof imageUri === 'string' && imageUri.includes('images.pokemontcg.io')
+      if (!imageUri || isPokemonTcgUrl) {
+        Alert.alert('Photo required', 'Please select a photo of your card. Listings must use a photo stored in Cloudinary.')
+        return
+      }
+      let imageUrl: string
+      if (isExternalUrl(imageUri)) {
+        imageUrl = imageUri
+      } else {
+        try {
+          imageUrl = await uploadImage(imageUri, 'gradeit/listings')
+        } catch (error: any) {
+          Alert.alert('Upload Error', error.message || 'Failed to upload listing image')
+          return
         }
       }
 
@@ -427,12 +428,26 @@ export function Profile() {
     const ebayZar = ebayNum != null ? Math.round(ebayNum * USD_TO_ZAR) : null
     const priceStr = valueZar > 0 ? `R${valueZar.toLocaleString('en-ZA')}` : 'R0'
     console.log('[Profile] product price —', collection.name, '| marketPrice (USD):', marketNum, '| ebayLastSold (USD):', ebayNum, '| valueZar:', valueZar, '| priceStr:', priceStr)
+    // Prefer URL built from set name + number (same as Add Card) so we get correct set code; fall back to API cardImageUrl.
+    const cardImageUrl = collection.cardImageUrl ?? null
+    const setForBuild = collection.set ?? collection.setId ?? collection.set_id
+    const numForBuild = collection.cardNumber ?? collection.number
+    const builtFromSetNumber = getPokemonTcgImageUrlFromSetNumber(setForBuild, numForBuild)
+    const tcgImageUrl =
+      builtFromSetNumber ||
+      cardImageUrl ||
+      getPokemonTcgImageUrl(collection.cardId)
+    const imageSource = tcgImageUrl
+      ? { uri: tcgImageUrl }
+      : collection.image
+        ? { uri: collection.image }
+        : require('../../assets/singles/Shining_Charizard_Secret.jpg')
     return {
       id: collection.id,
       name: collection.name,
       price: priceStr,
       ebayLastSoldZar: ebayZar ?? undefined,
-      image: collection.image ? { uri: collection.image } : require('../../assets/singles/Shining_Charizard_Secret.jpg'),
+      image: imageSource,
       isListed: collection.isListed || false,
       cardId: collection.cardId ?? undefined,
     }
@@ -641,8 +656,13 @@ export function Profile() {
             setIsListItemModalVisible(false)
             setSelectedProduct(null)
           }}
-          onList={async (price) => {
-            await createListing(selectedProduct.name, price, selectedProduct.image, selectedProduct.cardId)
+          onList={async (price, listingImageUri) => {
+            // Listing photo is required (uploaded to Cloudinary); never use TCG artwork for store listing
+            if (!listingImageUri) {
+              Alert.alert('Photo required', 'Please select a photo of your card to list it on your store.')
+              return
+            }
+            await createListing(selectedProduct.name, price, { uri: listingImageUri }, selectedProduct.cardId)
             setIsListItemModalVisible(false)
             setSelectedProduct(null)
           }}

@@ -1,5 +1,6 @@
-import { View, StyleSheet, Modal, TouchableOpacity, ScrollView, TextInput, Image } from 'react-native'
+import { View, StyleSheet, Modal, TouchableOpacity, ScrollView, TextInput, Image, Alert } from 'react-native'
 import { useContext, useState, useEffect } from 'react'
+import * as ImagePicker from 'expo-image-picker'
 import { Text } from '../ui/text'
 import Ionicons from '@expo/vector-icons/Ionicons'
 import { ThemeContext } from '../../context'
@@ -10,9 +11,12 @@ interface ListItemModalProps {
   productName: string
   productImage?: any
   onClose: () => void
-  onList: (price: number) => void
+  /** Called with price and the selected listing photo URI (required for new listings; omitted when editing). */
+  onList: (price: number, listingImageUri?: string) => void
   initialPrice?: number
   initialDescription?: string
+  /** When set, shows a "Remove listing" button at the bottom (for your store edit only). */
+  onRemoveListing?: () => void | Promise<void>
 }
 
 export function ListItemModal({
@@ -23,11 +27,15 @@ export function ListItemModal({
   onList,
   initialPrice,
   initialDescription,
+  onRemoveListing,
 }: ListItemModalProps) {
   const { theme } = useContext(ThemeContext)
   const styles = getStyles(theme)
   const [price, setPrice] = useState('')
   const [description, setDescription] = useState('')
+  const [listingImageUri, setListingImageUri] = useState<string | null>(null)
+
+  const isEditing = initialPrice !== undefined
 
   // Update fields when modal opens with initial values (for editing)
   useEffect(() => {
@@ -42,30 +50,69 @@ export function ListItemModal({
       } else {
         setDescription('')
       }
+      if (!isEditing) {
+        setListingImageUri(null)
+      }
     }
-  }, [visible, initialPrice, initialDescription])
+  }, [visible, initialPrice, initialDescription, isEditing])
 
-  const isEditing = initialPrice !== undefined
-
+  // Listing photo is required for new listings (store uses Cloudinary for listing images)
+  const hasRequiredImage = isEditing || !!listingImageUri
   const isValid = () => {
     const numericPrice = parseFloat(price.replace(/[^0-9.]/g, ''))
-    return numericPrice > 0 && description.trim().length > 0
+    return numericPrice > 0 && description.trim().length > 0 && hasRequiredImage
+  }
+
+  const handlePickListingImage = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync()
+    if (status !== 'granted') {
+      Alert.alert('Permission needed', 'Photo library access is required to add a listing photo.')
+      return
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      quality: 0.7,
+      aspect: [1, 1],
+    })
+    if (!result.canceled && result.assets[0]) {
+      setListingImageUri(result.assets[0].uri)
+    }
   }
 
   const handleList = () => {
-    if (isValid()) {
-      const numericPrice = parseFloat(price.replace(/[^0-9.]/g, ''))
-      onList(numericPrice)
-      setPrice('')
-      setDescription('')
-      onClose()
-    }
+    if (!isValid()) return
+    const numericPrice = parseFloat(price.replace(/[^0-9.]/g, ''))
+    onList(numericPrice, listingImageUri ?? undefined)
+    setPrice('')
+    setDescription('')
+    setListingImageUri(null)
+    onClose()
   }
 
   const handleClose = () => {
     setPrice('')
     setDescription('')
+    setListingImageUri(null)
     onClose()
+  }
+
+  const handleRemoveListing = () => {
+    Alert.alert(
+      'Remove listing',
+      'Are you sure you want to remove this listing from your store?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Remove',
+          style: 'destructive',
+          onPress: async () => {
+            await onRemoveListing?.()
+            handleClose()
+          },
+        },
+      ]
+    )
   }
 
   return (
@@ -107,6 +154,33 @@ export function ListItemModal({
                 <Text style={styles.productName} numberOfLines={2}>
                   {productName}
                 </Text>
+              </View>
+            )}
+
+            {/* Listing photo (required for new listings — stored in Cloudinary) */}
+            {!isEditing && (
+              <View style={styles.inputSection}>
+                <Text style={styles.inputLabel}>Listing photo (required)</Text>
+                <Text style={styles.inputHint}>
+                  Add a photo of your physical card. This will be shown on your store.
+                </Text>
+                <TouchableOpacity
+                  style={styles.imagePickerButton}
+                  onPress={handlePickListingImage}
+                  activeOpacity={0.8}
+                >
+                  {listingImageUri ? (
+                    <Image source={{ uri: listingImageUri }} style={styles.listingImagePreview} resizeMode="cover" />
+                  ) : (
+                    <View style={styles.imagePickerPlaceholder}>
+                      <Ionicons name="camera" size={32} color="rgba(255, 255, 255, 0.5)" />
+                      <Text style={styles.imagePickerPlaceholderText}>Tap to select photo</Text>
+                    </View>
+                  )}
+                </TouchableOpacity>
+                {!listingImageUri && (
+                  <Text style={styles.requiredBadge}>Required to list</Text>
+                )}
               </View>
             )}
 
@@ -153,6 +227,18 @@ export function ListItemModal({
             >
               <Text style={styles.listButtonText}>{isEditing ? 'Save Changes' : 'List Item'}</Text>
             </TouchableOpacity>
+
+            {/* Remove listing (only when editing your own store) */}
+            {isEditing && onRemoveListing && (
+              <TouchableOpacity
+                style={styles.removeButton}
+                onPress={handleRemoveListing}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="trash-outline" size={20} color={theme.destructiveColor || '#ef4444'} />
+                <Text style={styles.removeButtonText}>Remove listing</Text>
+              </TouchableOpacity>
+            )}
           </ScrollView>
         </View>
       </View>
@@ -232,7 +318,46 @@ const getStyles = (theme: any) =>
       fontFamily: theme.semiBoldFont,
       color: theme.textColor,
       fontWeight: '600',
-      marginBottom: SPACING.md,
+      marginBottom: SPACING.xs,
+    },
+    inputHint: {
+      fontSize: TYPOGRAPHY.caption,
+      fontFamily: theme.regularFont,
+      color: theme.mutedForegroundColor || 'rgba(255, 255, 255, 0.6)',
+      marginBottom: SPACING.sm,
+    },
+    imagePickerButton: {
+      width: '100%',
+      aspectRatio: 1,
+      maxHeight: 180,
+      borderRadius: RADIUS.md,
+      overflow: 'hidden',
+      backgroundColor: theme.cardBackground || '#000000',
+      borderWidth: 2,
+      borderStyle: 'dashed',
+      borderColor: 'rgba(255, 255, 255, 0.2)',
+    },
+    listingImagePreview: {
+      width: '100%',
+      height: '100%',
+    },
+    imagePickerPlaceholder: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+      padding: SPACING.lg,
+    },
+    imagePickerPlaceholderText: {
+      fontSize: TYPOGRAPHY.caption,
+      fontFamily: theme.regularFont,
+      color: 'rgba(255, 255, 255, 0.5)',
+      marginTop: SPACING.sm,
+    },
+    requiredBadge: {
+      fontSize: TYPOGRAPHY.caption,
+      fontFamily: theme.semiBoldFont,
+      color: theme.tintColor || '#73EC8B',
+      marginTop: SPACING.xs,
     },
     priceInputContainer: {
       flexDirection: 'row',
@@ -294,6 +419,23 @@ const getStyles = (theme: any) =>
       fontSize: TYPOGRAPHY.body,
       fontFamily: theme.semiBoldFont,
       color: '#000000',
+      fontWeight: '600',
+    },
+    removeButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: SPACING.sm,
+      paddingVertical: SPACING.md,
+      marginTop: SPACING.lg,
+      borderWidth: 1,
+      borderColor: theme.destructiveColor || 'rgba(239, 68, 68, 0.5)',
+      borderRadius: RADIUS.md,
+    },
+    removeButtonText: {
+      fontSize: TYPOGRAPHY.body,
+      fontFamily: theme.semiBoldFont,
+      color: theme.destructiveColor || '#ef4444',
       fontWeight: '600',
     },
   })

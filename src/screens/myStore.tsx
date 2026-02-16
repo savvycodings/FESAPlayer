@@ -423,6 +423,44 @@ export function MyStore() {
     }
   }
 
+  // Remove listing from store (your store only)
+  const removeListing = async (listingId: string) => {
+    try {
+      const token = await getSessionToken()
+      if (!token) {
+        Alert.alert('Error', 'Please log in')
+        return
+      }
+
+      const baseUrl = DOMAIN?.endsWith('/') ? DOMAIN.slice(0, -1) : DOMAIN
+      const response = await fetch(`${baseUrl}/api/store/listings/${listingId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+        credentials: 'include',
+      })
+
+      const data = await response.json()
+
+      if (response.ok) {
+        // Optimistically remove from list so the item disappears immediately
+        setListings((prev) => prev.filter((l) => String(l.id) !== String(listingId)))
+        await fetchListings()
+        // Close modal and clear editing state
+        setIsListItemModalVisible(false)
+        setSelectedProduct(null)
+        setEditingListing(null)
+        Alert.alert('Done', 'Listing removed from your store.')
+      } else {
+        Alert.alert('Error', data.message || 'Failed to remove listing')
+      }
+    } catch (error: any) {
+      console.error('Error removing listing:', error)
+      Alert.alert('Error', 'Failed to remove listing')
+    }
+  }
+
   // Create auction
   const createAuction = async (auctionData: { title: string; description: string; startTime: Date }) => {
     try {
@@ -1004,16 +1042,21 @@ export function MyStore() {
             setSelectedProduct(null)
             setEditingListing(null)
           }}
-          onList={async (price) => {
+          onList={async (price, listingImageUri) => {
             if (editingListing) {
               await updateListing(editingListing.id, { price })
             } else {
-              await createListing(selectedProduct.name, price, selectedProduct.image)
+              if (!listingImageUri) {
+                Alert.alert('Photo required', 'Please select a photo of your card to list it on your store.')
+                return
+              }
+              await createListing(selectedProduct.name, price, { uri: listingImageUri })
             }
             setIsListItemModalVisible(false)
             setSelectedProduct(null)
             setEditingListing(null)
           }}
+          onRemoveListing={editingListing ? async () => await removeListing(String(editingListing.id)) : undefined}
         />
       )}
 
