@@ -1,4 +1,4 @@
-import { View, StyleSheet, Image, ImageBackground, TouchableOpacity } from 'react-native'
+import { View, StyleSheet, Image, TouchableOpacity, Platform } from 'react-native'
 import { useContext } from 'react'
 import { useNavigation } from '@react-navigation/native'
 import { NativeStackNavigationProp } from '@react-navigation/native-stack'
@@ -7,15 +7,21 @@ import Ionicons from '@expo/vector-icons/Ionicons'
 import { ThemeContext } from '../../context'
 import { SPACING, TYPOGRAPHY, RADIUS } from '../../constants/layout'
 
-interface ListingItem {
-  image: any
-  nameIndex: number
-  category?: string
+export interface RecentListingItem {
+  id: number
+  listingId?: number
+  cardName: string
+  cardImage?: string | null
+  price: number
+  storeName?: string
+  sellerName?: string
+  storeId?: number
+  sellerId?: string
+  vaultingStatus?: string
 }
 
 interface RecentListingsProps {
-  listings: ListingItem[]
-  listingNames: string[]
+  listings: RecentListingItem[]
 }
 
 type ShopStackParamList = {
@@ -27,62 +33,78 @@ type ShopStackParamList = {
     category?: 'product' | 'set' | 'single' | 'featured' | 'listing'
     price?: number
     description?: string
+    listingId?: number
+    storeId?: number
+    sellerId?: string
   }
 }
 
 type RecentListingsNavigationProp = NativeStackNavigationProp<ShopStackParamList, 'ShopMain'>
 
-export function RecentListings({ listings, listingNames }: RecentListingsProps) {
+export function RecentListings({ listings }: RecentListingsProps) {
   const { theme } = useContext(ThemeContext)
   const navigation = useNavigation<RecentListingsNavigationProp>()
   const styles = getStyles(theme)
 
+  if (listings.length === 0) {
+    return (
+      <View style={[styles.recentListingsGrid, { paddingVertical: SPACING.lg }]}>
+        <Text style={{ fontSize: TYPOGRAPHY.body, color: theme.mutedForegroundColor, textAlign: 'center' }}>
+          No listings yet. Listings from stores will appear here.
+        </Text>
+      </View>
+    )
+  }
+
   return (
     <View style={styles.recentListingsGrid}>
       {listings.map((item, index) => {
-        const randomPrice = parseFloat((Math.random() * (500 - 25) + 25).toFixed(2))
         const isLeftBox = index % 2 === 0
         const isRightBox = index % 2 === 1
-        const listingName = listingNames[item.nameIndex]
-        
+        const imageSource = item.cardImage ? { uri: item.cardImage } : null
+        const sellerLabel = item.sellerName || item.storeName || 'Seller'
+
         return (
           <TouchableOpacity
-            key={index}
+            key={item.id}
             style={[
-              styles.listingCard, 
-              isLeftBox && styles.listingCardLeft, 
-              isRightBox && styles.listingCardRight
+              styles.listingCard,
+              isLeftBox && styles.listingCardLeft,
+              isRightBox && styles.listingCardRight,
             ]}
             onPress={() => {
               navigation.navigate('Product', {
-                name: listingName,
-                image: item.image,
-                category: item.category === 'singles' ? 'single' : item.category === 'slabbed' ? 'listing' : 'product',
-                price: randomPrice,
-                description: `Premium ${listingName}. Authentic and verified with secure shipping.`,
+                name: item.cardName,
+                image: imageSource,
+                category: 'listing',
+                price: item.price,
+                description: item.cardName ? `Premium ${item.cardName}. Authentic and verified with secure shipping.` : undefined,
+                listingId: item.listingId ?? item.id,
+                storeId: item.storeId,
+                sellerId: item.sellerId,
               })
             }}
             activeOpacity={0.8}
           >
-            {item.image ? (
-              <ImageBackground
-                source={item.image}
-                style={styles.imageBackground}
-                resizeMode="cover"
-                imageStyle={styles.imageStyle}
-              >
+            {imageSource ? (
+              <View style={styles.imageWrapper}>
+                <Image
+                  source={imageSource}
+                  style={styles.cardImage}
+                  resizeMode="cover"
+                />
                 <View style={styles.listingTextOverlay}>
                   <View style={styles.listingTextContent}>
                     <Text style={styles.listingText} numberOfLines={1} ellipsizeMode="tail">
-                      {listingName}
+                      {item.cardName}
                     </Text>
                     <Text style={styles.listingSubText} numberOfLines={1} ellipsizeMode="tail">
-                      peoples name
+                      {sellerLabel}
                     </Text>
                   </View>
-                  <Text style={styles.listingPrice}>R{randomPrice.toFixed(2)}</Text>
+                  <Text style={styles.listingPrice}>R{item.price.toFixed(2)}</Text>
                 </View>
-              </ImageBackground>
+              </View>
             ) : (
               <View style={styles.imagePlaceholder}>
                 <Ionicons
@@ -93,13 +115,13 @@ export function RecentListings({ listings, listingNames }: RecentListingsProps) 
                 <View style={styles.listingTextOverlay}>
                   <View style={styles.listingTextContent}>
                     <Text style={styles.listingText} numberOfLines={1} ellipsizeMode="tail">
-                      {listingName}
+                      {item.cardName}
                     </Text>
                     <Text style={styles.listingSubText} numberOfLines={1} ellipsizeMode="tail">
-                      peoples name
+                      {sellerLabel}
                     </Text>
                   </View>
-                  <Text style={styles.listingPrice}>R{randomPrice.toFixed(2)}</Text>
+                  <Text style={styles.listingPrice}>R{item.price.toFixed(2)}</Text>
                 </View>
               </View>
             )}
@@ -127,10 +149,14 @@ const getStyles = (theme: any) => StyleSheet.create({
     overflow: 'hidden',
     borderWidth: 1,
     borderColor: theme.borderColor || 'rgba(255, 255, 255, 0.08)',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
+    ...(Platform.OS === 'web'
+      ? { boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }
+      : {
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 2 },
+          shadowOpacity: 0.1,
+          shadowRadius: 4,
+        }),
     elevation: 3,
     position: 'relative',
   },
@@ -140,12 +166,14 @@ const getStyles = (theme: any) => StyleSheet.create({
   listingCardRight: {
     marginLeft: '2%',
   },
-  imageBackground: {
+  imageWrapper: {
     width: '100%',
     height: '100%',
-    justifyContent: 'flex-end',
+    position: 'relative',
   },
-  imageStyle: {
+  cardImage: {
+    width: '100%',
+    height: '100%',
     borderRadius: RADIUS.lg,
   },
   imagePlaceholder: {
@@ -178,25 +206,37 @@ const getStyles = (theme: any) => StyleSheet.create({
     fontWeight: '600',
     marginBottom: 2,
     letterSpacing: -0.1,
-    textShadowColor: 'rgba(0, 0, 0, 0.5)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 3,
+    ...(Platform.OS === 'web'
+      ? { textShadow: '0 1px 3px rgba(0,0,0,0.5)' }
+      : {
+          textShadowColor: 'rgba(0, 0, 0, 0.5)',
+          textShadowOffset: { width: 0, height: 1 },
+          textShadowRadius: 3,
+        }),
   },
   listingSubText: {
     fontSize: TYPOGRAPHY.label,
     fontFamily: theme.regularFont,
     color: theme.textColor || 'rgba(255, 255, 255, 0.85)',
-    textShadowColor: 'rgba(0, 0, 0, 0.5)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 3,
+    ...(Platform.OS === 'web'
+      ? { textShadow: '0 1px 3px rgba(0,0,0,0.5)' }
+      : {
+          textShadowColor: 'rgba(0, 0, 0, 0.5)',
+          textShadowOffset: { width: 0, height: 1 },
+          textShadowRadius: 3,
+        }),
   },
   listingPrice: {
     fontSize: TYPOGRAPHY.body,
     fontFamily: theme.boldFont,
     color: theme.textColor,
     fontWeight: '600',
-    textShadowColor: 'rgba(0, 0, 0, 0.5)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 3,
+    ...(Platform.OS === 'web'
+      ? { textShadow: '0 1px 3px rgba(0,0,0,0.5)' }
+      : {
+          textShadowColor: 'rgba(0, 0, 0, 0.5)',
+          textShadowOffset: { width: 0, height: 1 },
+          textShadowRadius: 3,
+        }),
   },
 })

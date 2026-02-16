@@ -173,8 +173,7 @@ function MenubarContent({
       <FullWindowOverlay>
         <NativeOnlyAnimatedView
           entering={FadeIn}
-          style={StyleSheet.absoluteFill}
-          pointerEvents="box-none">
+          style={[StyleSheet.absoluteFill, { pointerEvents: 'box-none' }]}>
           <TextClassContext.Provider value="text-popover-foreground">
             <MenubarPrimitive.Content
               className={cn(

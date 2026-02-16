@@ -18,6 +18,7 @@ import {
 } from '../components/shop'
 import { Text } from '../components/ui/text'
 import { authClient } from '../lib/auth-client'
+import { DOMAIN } from '../../constants'
 
 type ShopStackParamList = {
   ShopMain: undefined
@@ -28,6 +29,9 @@ type ShopStackParamList = {
     category?: 'product' | 'set' | 'single' | 'featured' | 'listing'
     price?: number
     description?: string
+    listingId?: number
+    storeId?: number
+    sellerId?: string
   }
   SetProducts: {
     setName: string
@@ -45,6 +49,19 @@ export function Shop() {
   const [searchQuery, setSearchQuery] = useState('')
   const [isSearchExpanded, setIsSearchExpanded] = useState(false)
   const [isVerifiedStoreModalVisible, setIsVerifiedStoreModalVisible] = useState(false)
+  const [recentListings, setRecentListings] = useState<Array<{
+    id: number
+    listingId?: number
+    cardName: string
+    cardImage?: string | null
+    price: number
+    storeName?: string
+    sellerName?: string
+    storeId?: number
+    sellerId?: string
+    vaultingStatus?: string
+  }>>([])
+  const [recentListingsLoading, setRecentListingsLoading] = useState(true)
   
   // Get user from Better Auth
   const [userName, setUserName] = useState<string>('User')
@@ -66,6 +83,25 @@ export function Shop() {
     }
     
     fetchUser()
+  }, [])
+
+  // Fetch recent store listings from API
+  useEffect(() => {
+    const fetchRecentListings = async () => {
+      try {
+        setRecentListingsLoading(true)
+        const res = await fetch(`${DOMAIN}/api/listings/recent?limit=24`)
+        if (!res.ok) throw new Error('Failed to fetch recent listings')
+        const data = await res.json()
+        setRecentListings(data.listings || [])
+      } catch (error) {
+        console.error('Error fetching recent listings:', error)
+        setRecentListings([])
+      } finally {
+        setRecentListingsLoading(false)
+      }
+    }
+    fetchRecentListings()
   }, [])
   
   // Promotional carousel data
@@ -131,30 +167,12 @@ export function Shop() {
     { first: 'David', last: 'Thompson', image: require('../../assets/Avatars/guy3.jpg'), verified: true },
   ]
   
-  // Listing names mapped to indices
-  const listingNames = [
-    'Flareon Ex',
-    '3 Slabed Pokemon Cards',
-    'Celebrations Greninja',
-    'zoroark Vstar',
-    'mew duo ex',
-    'umbreon and espeon ex'
-  ]
-  
-  // Recent listings data with actual images and categories
-  const recentListingsData = [
-    { image: require('../../assets/recentlistings/recent1.jpg'), category: 'singles', nameIndex: 0 },
-    { image: require('../../assets/recentlistings/recent2.jpg'), category: 'slabbed', nameIndex: 1 },
-    { image: require('../../assets/recentlistings/recent3.jpg'), category: 'singles', nameIndex: 2 },
-    { image: require('../../assets/recentlistings/recent4.jpg'), category: 'sealed', nameIndex: 3 },
-    { image: require('../../assets/recentlistings/recent5.jpg'), category: 'singles', nameIndex: 4 },
-    { image: require('../../assets/recentlistings/recent6.jpg'), category: 'slabbed', nameIndex: 5 },
-  ]
-  
-  // Filter listings based on selected category
-  const filteredListings = selectedCategory === 'all' 
-    ? recentListingsData 
-    : recentListingsData.filter(item => item.category === selectedCategory)
+  // Filter recent listings by category (vaulted = slabbed, else singles for now; schema has no category)
+  const filteredRecentListings = selectedCategory === 'all'
+    ? recentListings
+    : selectedCategory === 'slabbed'
+      ? recentListings.filter(l => l.vaultingStatus === 'vaulted')
+      : recentListings.filter(l => l.vaultingStatus !== 'vaulted')
 
   // Search data - same as search page
   const featuredData = [
@@ -387,10 +405,15 @@ export function Shop() {
         </Section>
 
         <Section title="Recent Listings">
-          <RecentListings
-            listings={filteredListings}
-            listingNames={listingNames}
-          />
+          {recentListingsLoading ? (
+            <View style={[styles.recentListingsPlaceholder, { paddingVertical: SPACING['2xl'] }]}>
+              <Text style={[styles.recentListingsPlaceholderText, { color: theme.mutedForegroundColor }]}>
+                Loading listings...
+              </Text>
+            </View>
+          ) : (
+            <RecentListings listings={filteredRecentListings} />
+          )}
         </Section>
 
         <VaultingSection />
@@ -433,13 +456,14 @@ const getStyles = (theme: any) => StyleSheet.create({
     maxHeight: 400,
     borderWidth: 1,
     borderColor: theme.borderColor || 'rgba(255, 255, 255, 0.12)',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 8,
-    },
-    shadowOpacity: 0.4,
-    shadowRadius: 12,
+    ...(Platform.OS === 'web'
+      ? { boxShadow: '0 8px 12px rgba(0,0,0,0.4)' }
+      : {
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 8 },
+          shadowOpacity: 0.4,
+          shadowRadius: 12,
+        }),
     elevation: 9999,
     zIndex: 9999,
     overflow: 'hidden',
@@ -466,5 +490,13 @@ const getStyles = (theme: any) => StyleSheet.create({
     fontFamily: theme.regularFont,
     color: theme.textColor,
     letterSpacing: 0.1,
+  },
+  recentListingsPlaceholder: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  recentListingsPlaceholderText: {
+    fontSize: TYPOGRAPHY.body,
+    fontFamily: theme.regularFont,
   },
 })

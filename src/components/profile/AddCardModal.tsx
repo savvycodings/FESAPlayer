@@ -7,6 +7,10 @@ import { SPACING, TYPOGRAPHY, RADIUS } from '../../constants/layout'
 import * as ImagePicker from 'expo-image-picker'
 import * as FileSystem from 'expo-file-system'
 
+const CONDITION_OPTIONS = ['Mint', 'Near Mint', 'Lightly Played', 'Moderately Played', 'Heavily Played', 'Damaged'] as const
+// USD to ZAR for displaying API prices in South African Rand (override via env if needed)
+const USD_TO_ZAR = Number(process.env.EXPO_PUBLIC_USD_TO_ZAR) || 16
+
 interface AddCardModalProps {
   visible: boolean
   onClose: () => void
@@ -19,18 +23,18 @@ interface AddCardModalProps {
     set?: string
     condition?: string
     grade?: number
-    estimatedValue?: number
-    purchasePrice?: number
     purchaseDate?: string
     notes?: string
     requestVaulting?: boolean
-  }) => Promise<void> // Changed to async
+  }) => Promise<void>
+  apiBaseUrl?: string
 }
 
 export function AddCardModal({
   visible,
   onClose,
   onAdd,
+  apiBaseUrl,
 }: AddCardModalProps) {
   const { theme } = useContext(ThemeContext)
   const styles = getStyles(theme)
@@ -39,32 +43,36 @@ export function AddCardModal({
   const [description, setDescription] = useState('')
   const [image, setImage] = useState<string | undefined>(undefined)
   const [set, setSet] = useState('')
+  const [cardNumber, setCardNumber] = useState('')
   const [condition, setCondition] = useState('')
   const [grade, setGrade] = useState('')
-  const [estimatedValue, setEstimatedValue] = useState('')
-  const [purchasePrice, setPurchasePrice] = useState('')
   const [notes, setNotes] = useState('')
   const [requestVaulting, setRequestVaulting] = useState(false)
   const [isUploading, setIsUploading] = useState(false)
   const [uploadError, setUploadError] = useState<string | null>(null)
   const [uploadSuccess, setUploadSuccess] = useState(false)
+  const [cardId, setCardId] = useState<string | null>(null)
+  const [lookupResults, setLookupResults] = useState<{ id: string; name: string; set?: string; number?: string }[]>([])
+  const [lookupLoading, setLookupLoading] = useState(false)
+  const [cardInfo, setCardInfo] = useState<{ marketPrice?: number; ebayLastSold?: number; currency?: string } | null>(null)
 
   useEffect(() => {
     if (visible) {
-      // Reset form when modal opens
       setType('card')
       setName('')
       setDescription('')
       setImage(undefined)
       setSet('')
+      setCardNumber('')
       setCondition('')
       setUploadError(null)
       setUploadSuccess(false)
       setGrade('')
-      setEstimatedValue('')
-      setPurchasePrice('')
       setNotes('')
       setRequestVaulting(false)
+      setCardId(null)
+      setLookupResults([])
+      setCardInfo(null)
     }
   }, [visible])
 
@@ -163,11 +171,10 @@ export function AddCardModal({
         name: name.trim(),
         description: description.trim() || undefined,
         image: image || undefined,
+        cardId: cardId || undefined,
         set: set.trim() || undefined,
         condition: condition.trim() || undefined,
         grade: grade ? parseInt(grade) : undefined,
-        estimatedValue: estimatedValue ? parseFloat(estimatedValue) : undefined,
-        purchasePrice: purchasePrice ? parseFloat(purchasePrice) : undefined,
         notes: notes.trim() || undefined,
         requestVaulting: requestVaulting,
       })
@@ -196,11 +203,85 @@ export function AddCardModal({
     setSet('')
     setCondition('')
     setGrade('')
-    setEstimatedValue('')
-    setPurchasePrice('')
     setNotes('')
     setRequestVaulting(false)
+    setCardId(null)
+    setCardNumber('')
+    setLookupResults([])
+    setCardInfo(null)
     onClose()
+  }
+
+  const usdToZar = (usd: number) => Math.round(usd * USD_TO_ZAR)
+  const formatZar = (zar: number) => `R${zar.toLocaleString('en-ZA')}`
+
+  const handleLookupCard = async () => {
+    const query = [name.trim(), cardNumber.trim(), set.trim()].filter(Boolean).join(' ')
+    if (!query) {
+      Alert.alert('Enter name or set', 'Type the card name (and optionally card number and set) first, then tap Look up card.')
+      return
+    }
+    if (!apiBaseUrl) {
+      Alert.alert('Not available', 'API URL not configured for card lookup.')
+      return
+    }
+    setLookupLoading(true)
+    setLookupResults([])
+    setCardId(null)
+    setCardInfo(null)
+    try {
+      const base = apiBaseUrl.replace(/\/$/, '')
+      const url = `${base}/pokedata/search?query=${encodeURIComponent(query)}&asset_type=CARD`
+      const res = await fetch(url)
+      const data = await res.json()
+      const results = data.results || []
+      if (results.length === 0) {
+        Alert.alert('No results', `No cards found for "${query}". Try a different name or set.`)
+      } else {
+        const list = results.map((r: any) => ({
+          id: String(r.id),
+          name: r.name || '',
+          set: r.set,
+          number: r.number ?? r.num ?? undefined,
+        }))
+        const num = cardNumber.trim()
+        if (num) {
+          list.sort((a, b) => {
+            const aMatch = a.number?.toLowerCase() === num.toLowerCase() ? 1 : 0
+            const bMatch = b.number?.toLowerCase() === num.toLowerCase() ? 1 : 0
+            return bMatch - aMatch
+          })
+        }
+        setLookupResults(list)
+      }
+    } catch (e: any) {
+      Alert.alert('Lookup failed', e?.message || 'Could not search cards.')
+    } finally {
+      setLookupLoading(false)
+    }
+  }
+
+  const handleSelectLookupCard = async (item: { id: string; name: string; set?: string; number?: string }) => {
+    setCardId(item.id)
+    setName(item.name)
+    if (item.set) setSet(item.set)
+    if (item.number) setCardNumber(item.number)
+    setLookupResults([])
+    if (!apiBaseUrl) return
+    try {
+      const base = apiBaseUrl.replace(/\/$/, '')
+      const res = await fetch(`${base}/pokedata/card/${encodeURIComponent(item.id)}?asset_type=CARD`)
+      const data = await res.json()
+      const market = data.marketPrice ?? undefined
+      setCardInfo({
+        marketPrice: market,
+        ebayLastSold: data.ebayLastSold ?? undefined,
+        currency: 'USD',
+      })
+      console.log('[Add Card] API response for card', item.id, ':', data)
+    } catch (e) {
+      setCardInfo(null)
+    }
   }
 
   return (
@@ -255,18 +336,31 @@ export function AddCardModal({
               </View>
             </View>
 
-            {/* Name Input */}
+            {/* Card info: Name, Set, Card number */}
             <View style={styles.inputSection}>
               <Text style={styles.inputLabel}>Name *</Text>
               <TextInput
                 style={styles.textInput}
                 value={name}
                 onChangeText={setName}
-                placeholder="e.g., Charizard ex"
+                placeholder="e.g., Mega Gengar ex"
                 placeholderTextColor="rgba(255, 255, 255, 0.3)"
                 autoFocus
               />
             </View>
+            {type === 'card' && (
+              <View style={styles.inputSection}>
+                <Text style={styles.inputLabel}>Card number</Text>
+                <TextInput
+                  style={styles.textInput}
+                  value={cardNumber}
+                  onChangeText={setCardNumber}
+                  placeholder="e.g., 284 (set number on the card)"
+                  placeholderTextColor="rgba(255, 255, 255, 0.3)"
+                  keyboardType="default"
+                />
+              </View>
+            )}
 
             {/* Image Picker */}
             <View style={styles.inputSection}>
@@ -301,16 +395,75 @@ export function AddCardModal({
               />
             </View>
 
-            {/* Condition Input */}
+            {/* Look up card (get Pokedata ID + API response) */}
+            {type === 'card' && (
+              <View style={styles.inputSection}>
+                <Text style={styles.inputLabel}>Link to Pokedata (optional)</Text>
+                <TouchableOpacity
+                  style={[styles.button, styles.buttonSecondary, { marginBottom: SPACING.xs }]}
+                  onPress={handleLookupCard}
+                  disabled={lookupLoading}
+                >
+                  {lookupLoading ? (
+                    <ActivityIndicator size="small" color={theme.textColor} />
+                  ) : (
+                    <Text style={styles.buttonTextSecondary}>Look up card</Text>
+                  )}
+                </TouchableOpacity>
+                {lookupResults.length > 0 && (
+                  <View style={styles.lookupResults}>
+                    <Text style={styles.inputLabel}>Tap to select (match # to your card)</Text>
+                    {lookupResults.slice(0, 8).map((item) => (
+                      <TouchableOpacity
+                        key={item.id}
+                        style={styles.lookupRow}
+                        onPress={() => handleSelectLookupCard(item)}
+                      >
+                        {item.number ? (
+                          <View style={styles.lookupNumberBadge}>
+                            <Text style={styles.lookupNumberBadgeText}>#{item.number}</Text>
+                          </View>
+                        ) : null}
+                        <View style={styles.lookupRowMain}>
+                          <Text style={styles.lookupRowText} numberOfLines={1}>{item.name}</Text>
+                          {item.set ? <Text style={styles.lookupRowSet} numberOfLines={1}>{item.set}</Text> : null}
+                        </View>
+                        <Text style={styles.lookupRowId}>ID: {item.id}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                )}
+                {cardId && (
+                  <View style={[styles.cardInfoBox, { borderColor: theme.tintColor || '#73EC8B' }]}>
+                    <Text style={styles.cardInfoTitle}>Linked: Pokedata ID {cardId}{cardNumber ? ` · #${cardNumber}` : ''}</Text>
+                    {cardInfo && (
+                      <Text style={styles.cardInfoText}>
+                        API (USD only): Market {cardInfo.marketPrice != null ? `$${cardInfo.marketPrice.toFixed(2)}` : '—'} · eBay: {cardInfo.ebayLastSold != null ? `$${cardInfo.ebayLastSold.toFixed(2)}` : '—'}
+                        {'\n'}
+                        ZAR (×{USD_TO_ZAR}): Market {cardInfo.marketPrice != null ? formatZar(usdToZar(cardInfo.marketPrice)) : '—'} · eBay: {cardInfo.ebayLastSold != null ? formatZar(usdToZar(cardInfo.ebayLastSold)) : '—'}
+                      </Text>
+                    )}
+                  </View>
+                )}
+              </View>
+            )}
+
+            {/* Condition – tap to select */}
             <View style={styles.inputSection}>
               <Text style={styles.inputLabel}>Condition</Text>
-              <TextInput
-                style={styles.textInput}
-                value={condition}
-                onChangeText={setCondition}
-                placeholder="e.g., Mint, Near Mint"
-                placeholderTextColor="rgba(255, 255, 255, 0.3)"
-              />
+              <View style={styles.conditionRow}>
+                {CONDITION_OPTIONS.map((opt) => (
+                  <TouchableOpacity
+                    key={opt}
+                    style={[styles.conditionChip, condition === opt && styles.conditionChipActive]}
+                    onPress={() => setCondition(condition === opt ? '' : opt)}
+                  >
+                    <Text style={[styles.conditionChipText, condition === opt && styles.conditionChipTextActive]} numberOfLines={1}>
+                      {opt}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
             </View>
 
             {/* Grade Input (for slabs) */}
@@ -327,32 +480,6 @@ export function AddCardModal({
                 />
               </View>
             )}
-
-            {/* Estimated Value */}
-            <View style={styles.inputSection}>
-              <Text style={styles.inputLabel}>Estimated Value (R)</Text>
-              <TextInput
-                style={styles.textInput}
-                value={estimatedValue}
-                onChangeText={setEstimatedValue}
-                placeholder="0.00"
-                placeholderTextColor="rgba(255, 255, 255, 0.3)"
-                keyboardType="decimal-pad"
-              />
-            </View>
-
-            {/* Purchase Price */}
-            <View style={styles.inputSection}>
-              <Text style={styles.inputLabel}>Purchase Price (R)</Text>
-              <TextInput
-                style={styles.textInput}
-                value={purchasePrice}
-                onChangeText={setPurchasePrice}
-                placeholder="0.00"
-                placeholderTextColor="rgba(255, 255, 255, 0.3)"
-                keyboardType="decimal-pad"
-              />
-            </View>
 
             {/* Description */}
             <View style={styles.inputSection}>
@@ -543,6 +670,98 @@ const getStyles = (theme: any) => StyleSheet.create({
   },
   typeOptionTextActive: {
     color: '#000',
+  },
+  conditionRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: SPACING.xs,
+  },
+  conditionChip: {
+    paddingVertical: SPACING.sm,
+    paddingHorizontal: SPACING.md,
+    borderRadius: RADIUS.md,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  conditionChipActive: {
+    backgroundColor: theme.tintColor || '#73EC8B',
+    borderColor: theme.tintColor || '#73EC8B',
+  },
+  conditionChipText: {
+    fontSize: TYPOGRAPHY.bodySmall,
+    fontFamily: theme.regularFont,
+    color: 'rgba(255, 255, 255, 0.8)',
+    maxWidth: 120,
+  },
+  conditionChipTextActive: {
+    color: '#000',
+    fontFamily: theme.semiBoldFont,
+  },
+  lookupResults: {
+    marginTop: SPACING.sm,
+    gap: SPACING.xs,
+  },
+  lookupRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: SPACING.sm,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderRadius: RADIUS.sm,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+    gap: SPACING.sm,
+  },
+  lookupNumberBadge: {
+    backgroundColor: theme.tintColor || '#73EC8B',
+    paddingHorizontal: SPACING.sm,
+    paddingVertical: 2,
+    borderRadius: RADIUS.sm,
+    minWidth: 36,
+    alignItems: 'center',
+  },
+  lookupNumberBadgeText: {
+    fontSize: TYPOGRAPHY.bodySmall,
+    fontFamily: theme.semiBoldFont,
+    color: '#000',
+  },
+  lookupRowMain: {
+    flex: 1,
+    minWidth: 0,
+  },
+  lookupRowText: {
+    fontSize: TYPOGRAPHY.bodySmall,
+    fontFamily: theme.semiBoldFont,
+    color: theme.textColor,
+  },
+  lookupRowSet: {
+    fontSize: TYPOGRAPHY.bodySmall,
+    fontFamily: theme.regularFont,
+    color: 'rgba(255, 255, 255, 0.6)',
+    marginTop: 2,
+  },
+  lookupRowId: {
+    fontSize: TYPOGRAPHY.bodySmall,
+    fontFamily: theme.regularFont,
+    color: 'rgba(255, 255, 255, 0.5)',
+  },
+  cardInfoBox: {
+    marginTop: SPACING.sm,
+    padding: SPACING.md,
+    borderRadius: RADIUS.md,
+    borderWidth: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+  },
+  cardInfoTitle: {
+    fontSize: TYPOGRAPHY.bodySmall,
+    fontFamily: theme.semiBoldFont,
+    color: theme.textColor,
+    marginBottom: SPACING.xs,
+  },
+  cardInfoText: {
+    fontSize: TYPOGRAPHY.bodySmall,
+    fontFamily: theme.regularFont,
+    color: 'rgba(255, 255, 255, 0.8)',
   },
   imagePickerButton: {
     marginTop: SPACING.xs,

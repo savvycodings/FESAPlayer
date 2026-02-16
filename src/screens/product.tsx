@@ -24,6 +24,7 @@ type ProductRouteParams = {
     image: any
     category?: 'product' | 'set' | 'single' | 'featured' | 'listing'
     price?: number
+    ebayPrice?: number
     description?: string
   }
   ViewProfile: {
@@ -52,7 +53,7 @@ export function Product() {
   const { theme } = useContext(ThemeContext)
   const navigation = useNavigation<ProductScreenNavigationProp>()
   const route = useRoute<ProductScreenRouteProp>()
-  const { name, image, category, price, description } = route.params || {}
+  const { name, image, category, price, ebayPrice, description } = route.params || {}
   const tintColor = theme.tintColor || '#73EC8B'
   const styles = getStyles(theme, tintColor)
   const [isFavorited, setIsFavorited] = useState(false)
@@ -197,19 +198,32 @@ export function Product() {
               </View>
             </View>
 
-            {/* Price Section */}
+            {/* Price Section: market value + eBay last sold from API/cache */}
             <View style={styles.priceSection}>
               <View style={styles.priceContainer}>
                 <View style={styles.priceIconContainer}>
                   <Ionicons name="cash-outline" size={20} color={tintColor} />
                 </View>
                 <View style={styles.priceTextContainer}>
-                  <Text style={styles.priceLabel}>Price</Text>
+                  <Text style={styles.priceLabel}>Market value</Text>
                   <Text style={styles.priceText}>
-                    R{displayPrice.toFixed(2)}
+                    R{displayPrice.toLocaleString('en-ZA', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
                   </Text>
                 </View>
               </View>
+              {ebayPrice != null && ebayPrice > 0 && (
+                <View style={[styles.priceContainer, { marginTop: SPACING.sm }]}>
+                  <View style={styles.priceIconContainer}>
+                    <Ionicons name="pricetag-outline" size={20} color={tintColor} />
+                  </View>
+                  <View style={styles.priceTextContainer}>
+                    <Text style={styles.priceLabel}>eBay last sold</Text>
+                    <Text style={styles.priceText}>
+                      R{ebayPrice.toLocaleString('en-ZA', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                    </Text>
+                  </View>
+                </View>
+              )}
             </View>
           </CardContent>
         </Card>

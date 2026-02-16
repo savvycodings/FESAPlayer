@@ -21,6 +21,7 @@ type ProfileStackParamList = {
     image: any
     category?: 'product' | 'set' | 'single' | 'featured' | 'listing'
     price?: number
+    ebayPrice?: number
     description?: string
   }
 }
@@ -32,7 +33,7 @@ export function Profile() {
   const navigation = useNavigation<ProfileScreenNavigationProp>()
   const styles = getStyles(theme)
   const [isListItemModalVisible, setIsListItemModalVisible] = useState(false)
-  const [selectedProduct, setSelectedProduct] = useState<{ name: string; image?: any; id?: number } | null>(null)
+  const [selectedProduct, setSelectedProduct] = useState<{ name: string; image?: any; id?: number; cardId?: string } | null>(null)
 
   // State for user data
   const [user, setUser] = useState<any>(null)
@@ -105,6 +106,9 @@ export function Profile() {
 
       if (response.ok) {
         const collectionsData = data.collections || []
+        collectionsData.forEach((c: any, i: number) => {
+          console.log('[Profile] API collection', i, c.name, '| cardId:', c.cardId, '| marketPrice:', c.marketPrice, '| ebayLastSold:', c.ebayLastSold)
+        })
         setCollections(collectionsData)
         setStats(data.stats || { cards: 0, sealed: 0, slabs: 0, total: 0 })
         setPortfolioValue(data.portfolioValue || 0)
@@ -154,8 +158,6 @@ export function Profile() {
     set?: string
     condition?: string
     grade?: number
-    estimatedValue?: number
-    purchasePrice?: number
     purchaseDate?: string
     notes?: string
     requestVaulting?: boolean
@@ -193,6 +195,20 @@ export function Profile() {
       }
 
       const baseUrl = DOMAIN?.endsWith('/') ? DOMAIN.slice(0, -1) : DOMAIN
+      const payload = { ...data, image: imageUrl }
+      console.log('[Add Card] Sending to API:', {
+        url: `${baseUrl}/api/profile/collections`,
+        body: {
+          type: payload.type,
+          name: payload.name,
+          cardId: payload.cardId ?? null,
+          set: payload.set ?? null,
+          condition: payload.condition ?? null,
+          grade: payload.grade ?? null,
+          hasImage: !!payload.image,
+          requestVaulting: payload.requestVaulting ?? false,
+        },
+      })
       const response = await fetch(`${baseUrl}/api/profile/collections`, {
         method: 'POST',
         headers: {
@@ -200,13 +216,17 @@ export function Profile() {
           'Authorization': `Bearer ${sessionToken}`, // Send session token for mobile
         },
         credentials: 'include', // Include cookies for web
-        body: JSON.stringify({
-          ...data,
-          image: imageUrl,
-        }),
+        body: JSON.stringify(payload),
       })
 
       const responseData = await response.json()
+      console.log('[Add Card] API response:', {
+        ok: response.ok,
+        status: response.status,
+        data: responseData.success
+          ? { success: true, collectionId: responseData.collection?.id, message: 'Card added' }
+          : { success: false, message: responseData.message },
+      })
 
       if (response.ok) {
         // Refresh collections and user data
@@ -225,8 +245,8 @@ export function Profile() {
     }
   }
 
-  // Create listing from collection item
-  const createListing = async (cardName: string, price: number, cardImage?: any) => {
+  // Create listing from collection item (cardId optional - primes price cache when present)
+  const createListing = async (cardName: string, price: number, cardImage?: any, cardId?: string) => {
     try {
       // Check session
       const session = await authClient.getSession()
@@ -269,6 +289,7 @@ export function Profile() {
           cardName,
           price,
           cardImage: imageUrl,
+          ...(cardId && { cardId }),
         }),
       })
 
@@ -391,17 +412,29 @@ export function Profile() {
     }, [])
   )
 
-  // Transform collections to products format
-  const products = collections.map((collection) => {
-    const price = collection.estimatedValue || collection.purchasePrice || '0'
-    const priceStr = `$${parseFloat(price).toFixed(2)}`
-    
+  // Price from API/cache (marketPrice USD → ZAR) when cardId set; else legacy or R0. Only hit API every 48h; data lives in DB.
+  const USD_TO_ZAR = Number(process.env.EXPO_PUBLIC_USD_TO_ZAR) || 16
+  const products = collections.map((collection: any) => {
+    const marketPriceUsd = collection.marketPrice ?? collection.market_price
+    const ebayLastSoldUsd = collection.ebayLastSold ?? collection.ebay_last_sold
+    const marketNum = marketPriceUsd != null && marketPriceUsd !== '' ? Number(marketPriceUsd) : null
+    const ebayNum = ebayLastSoldUsd != null && ebayLastSoldUsd !== '' ? Number(ebayLastSoldUsd) : null
+    // When API returns marketPrice 0 but eBay has value, use eBay so we don't show R0
+    const primaryUsd = (marketNum != null && marketNum > 0) ? marketNum : (ebayNum != null && ebayNum > 0 ? ebayNum : null)
+    const valueZar = primaryUsd != null
+      ? Math.round(primaryUsd * USD_TO_ZAR)
+      : parseFloat(collection.estimatedValue || collection.purchasePrice || '0') || 0
+    const ebayZar = ebayNum != null ? Math.round(ebayNum * USD_TO_ZAR) : null
+    const priceStr = valueZar > 0 ? `R${valueZar.toLocaleString('en-ZA')}` : 'R0'
+    console.log('[Profile] product price —', collection.name, '| marketPrice (USD):', marketNum, '| ebayLastSold (USD):', ebayNum, '| valueZar:', valueZar, '| priceStr:', priceStr)
     return {
       id: collection.id,
       name: collection.name,
       price: priceStr,
+      ebayLastSoldZar: ebayZar ?? undefined,
       image: collection.image ? { uri: collection.image } : require('../../assets/singles/Shining_Charizard_Secret.jpg'),
-      isListed: collection.isListed || false, // Pass through the isListed flag
+      isListed: collection.isListed || false,
+      cardId: collection.cardId ?? undefined,
     }
   })
 
@@ -538,22 +571,24 @@ export function Profile() {
                 onProductPress={(product) => {
                   if (product.image) {
                     const price = parseFloat(product.price.replace(/[^0-9.]/g, '')) || 0
+                    const ebayPrice = (product as any).ebayLastSoldZar
                     navigation.navigate('Product', {
                       name: product.name,
                       image: product.image,
                       category: 'product',
                       price: price,
+                      ebayPrice: ebayPrice != null ? ebayPrice : undefined,
                       description: `Premium ${product.name}. Authentic and verified with secure shipping.`,
                     })
                   }
                 }}
                 onQuickListPress={(product) => {
-                  // Only allow listing if not already listed
                   if (!product.isListed) {
                     setSelectedProduct({ 
                       id: product.id as number,
                       name: product.name, 
-                      image: product.image 
+                      image: product.image,
+                      cardId: (product as any).cardId,
                     })
                     setIsListItemModalVisible(true)
                   }
@@ -607,7 +642,7 @@ export function Profile() {
             setSelectedProduct(null)
           }}
           onList={async (price) => {
-            await createListing(selectedProduct.name, price, selectedProduct.image)
+            await createListing(selectedProduct.name, price, selectedProduct.image, selectedProduct.cardId)
             setIsListItemModalVisible(false)
             setSelectedProduct(null)
           }}
@@ -622,6 +657,7 @@ export function Profile() {
           await addCardToCollection(data)
           // Modal will close itself on success
         }}
+        apiBaseUrl={DOMAIN}
       />
 
       {/* Bulk Vaulting Modal */}

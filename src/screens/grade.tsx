@@ -192,22 +192,16 @@ export function Grade() {
       const matchedCard = searchResults[0]
 
       // Step 3: Get pricing
-      const pricingParams = new URLSearchParams({
-        id: matchedCard.id,
-        asset_type: 'CARD',
-      })
-
-      const pricingResponse = await fetch(`${DOMAIN}/pokedata/pricing?${pricingParams}`)
+      // Use cached card endpoint: DB first, API only if cache older than 48h (saves credits)
+      const pricingResponse = await fetch(`${DOMAIN}/pokedata/card/${encodeURIComponent(matchedCard.id)}?asset_type=CARD`)
       
       if (!pricingResponse.ok) {
         throw new Error('Failed to fetch pricing')
       }
 
       const pricingData = await pricingResponse.json()
-      const pricingObj = pricingData.pricing || {}
-      const marketplaces = pricingObj.pricing || {}
-      const ebayPrice = marketplaces['eBay Raw']?.value
-      const tcgPrice = marketplaces['TCGPlayer']?.value
+      const ebayPrice = pricingData.ebayLastSold ?? null
+      const tcgPrice = pricingData.marketPrice ?? null
 
       const formatPrice = (value: number | undefined) => {
         if (!value) return 'N/A'
