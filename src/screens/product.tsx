@@ -1,4 +1,4 @@
-import { useContext, useState } from 'react'
+import { useContext, useState, useEffect } from 'react'
 import {
   View,
   StyleSheet,
@@ -14,9 +14,8 @@ import Ionicons from '@expo/vector-icons/Ionicons'
 import { Text } from '../components/ui/text'
 import { Card, CardContent } from '../components/ui/card'
 import { SPACING, TYPOGRAPHY, RADIUS } from '../constants/layout'
-import { PortfolioGraph } from '../components/profile/PortfolioGraph'
+import { PriceChart } from '../components/profile/PriceChart'
 import { PayFastPayment } from '../components/payment'
-
 type ProductRouteParams = {
   Product: {
     id?: string
@@ -26,6 +25,9 @@ type ProductRouteParams = {
     price?: number
     ebayPrice?: number
     description?: string
+    set?: string
+    fromProfile?: boolean
+    storeName?: string
   }
   ViewProfile: {
     userId?: string
@@ -53,13 +55,12 @@ export function Product() {
   const { theme } = useContext(ThemeContext)
   const navigation = useNavigation<ProductScreenNavigationProp>()
   const route = useRoute<ProductScreenRouteProp>()
-  const { name, image, category, price, ebayPrice, description } = route.params || {}
+  const { name, image, category, price, ebayPrice, description, fromProfile, storeName } = route.params || {}
   const tintColor = theme.tintColor || '#73EC8B'
   const styles = getStyles(theme, tintColor)
   const [isFavorited, setIsFavorited] = useState(false)
   const [isPaymentModalVisible, setIsPaymentModalVisible] = useState(false)
   const [paymentType, setPaymentType] = useState<'buy' | 'bid'>('buy')
-
   // Format product name
   const formattedName = name
     ?.replace(/Pokémon[-_]TCG[-_]/g, '')
@@ -90,16 +91,8 @@ export function Product() {
   // Buy now price is R20 more than highest bid
   const buyNowPrice = highestBid + 20
 
-  // Price history data for the last 7 days
-  const priceHistoryData = [
-    { x: 0, y: displayPrice - 5 },
-    { x: 1, y: displayPrice - 3 },
-    { x: 2, y: displayPrice - 2 },
-    { x: 3, y: displayPrice - 1 },
-    { x: 4, y: displayPrice + 1 },
-    { x: 5, y: displayPrice + 2 },
-    { x: 6, y: displayPrice },
-  ]
+  // Current market value (flat line for display)
+  const currentValueData = displayPrice > 0 ? [{ x: 0, y: displayPrice }, { x: 1, y: displayPrice }] : []
 
   return (
     <View style={styles.container}>
@@ -137,34 +130,36 @@ export function Product() {
               <Image
                 source={image}
                 style={styles.productImage}
-                resizeMode="cover"
+                resizeMode="contain"
               />
             </View>
           </CardContent>
         </Card>
 
-        {/* Thumbnail Images */}
-        <View style={styles.thumbnailContainer}>
-          {[1, 2, 3, 4, 5].map((index) => (
-            <TouchableOpacity
-              key={index}
-              style={styles.thumbnailWrapper}
-              activeOpacity={0.7}
-            >
-              <Card style={styles.thumbnailCard}>
-                <CardContent style={styles.thumbnailCardContent}>
-                  <View style={styles.thumbnailImageContainer}>
-                    <Image
-                      source={image}
-                      style={styles.thumbnailImage}
-                      resizeMode="cover"
-                    />
-                  </View>
-                </CardContent>
-              </Card>
-            </TouchableOpacity>
-          ))}
-        </View>
+        {/* Thumbnail Images - only on non-profile product page */}
+        {!fromProfile && (
+          <View style={styles.thumbnailContainer}>
+            {[1, 2, 3, 4, 5].map((index) => (
+              <TouchableOpacity
+                key={index}
+                style={styles.thumbnailWrapper}
+                activeOpacity={0.7}
+              >
+                <Card style={styles.thumbnailCard}>
+                  <CardContent style={styles.thumbnailCardContent}>
+                    <View style={styles.thumbnailImageContainer}>
+                      <Image
+                        source={image}
+                        style={styles.thumbnailImage}
+                        resizeMode="cover"
+                      />
+                    </View>
+                  </CardContent>
+                </Card>
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
 
         {/* Product Details Card */}
         <Card style={styles.detailsCard}>
@@ -174,29 +169,31 @@ export function Product() {
               {formattedName}
             </Text>
 
-            {/* Seller Info with Rating */}
-            <View style={styles.sellerSection}>
-              <View style={styles.sellerInfo}>
-                <View style={styles.sellerIconContainer}>
-                  <Ionicons name="storefront-outline" size={16} color={theme.textColor} />
+            {/* Seller Info with Rating - only on non-profile product page */}
+            {!fromProfile && (
+              <View style={styles.sellerSection}>
+                <View style={styles.sellerInfo}>
+                  <View style={styles.sellerIconContainer}>
+                    <Ionicons name="storefront-outline" size={16} color={theme.textColor} />
+                  </View>
+                  <Text style={styles.sellerName}>{storeName || "Kyle's Card Shop"}</Text>
                 </View>
-                <Text style={styles.sellerName}>Kyle's Card Shop</Text>
-              </View>
-              <View style={styles.ratingContainer}>
-                <View style={styles.starsContainer}>
-                  {[1, 2, 3, 4, 5].map((star) => (
-                    <Ionicons
-                      key={star}
-                      name="star"
-                      size={14}
-                      color={tintColor}
-                      style={styles.star}
-                    />
-                  ))}
+                <View style={styles.ratingContainer}>
+                  <View style={styles.starsContainer}>
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <Ionicons
+                        key={star}
+                        name="star"
+                        size={14}
+                        color={tintColor}
+                        style={styles.star}
+                      />
+                    ))}
+                  </View>
+                  <Text style={styles.ratingText}>4.9</Text>
                 </View>
-                <Text style={styles.ratingText}>4.9</Text>
               </View>
-            </View>
+            )}
 
             {/* Price Section: market value + eBay last sold from API/cache */}
             <View style={styles.priceSection}>
@@ -212,7 +209,7 @@ export function Product() {
                 </View>
               </View>
               {ebayPrice != null && ebayPrice > 0 && (
-                <View style={[styles.priceContainer, { marginTop: SPACING.sm }]}>
+                <View style={styles.priceContainer}>
                   <View style={styles.priceIconContainer}>
                     <Ionicons name="pricetag-outline" size={20} color={tintColor} />
                   </View>
@@ -228,45 +225,50 @@ export function Product() {
           </CardContent>
         </Card>
 
-        {/* Price History Graph */}
-        <PortfolioGraph
-          data={priceHistoryData}
-          height={140}
-          color={tintColor}
-          title="Price History"
-          subtitle="Last 7 days"
-        />
+        {/* Market value chart only */}
+        {currentValueData.length > 0 && (
+          <PriceChart
+            data={currentValueData}
+            title="Market value"
+            subtitle="Current"
+            valuePrefix="R"
+            color={tintColor}
+            height={160}
+          />
+        )}
 
-        {/* Bids Section */}
-        <Card style={styles.bidsCard}>
-          <CardContent style={styles.bidsContent}>
-            <Text style={styles.bidsTitle}>Bids</Text>
-            <View style={styles.bidsList}>
-              {bidsData.map((bidder, index) => (
-                <View key={index} style={styles.bidItem}>
-                  <TouchableOpacity
-                    onPress={() => {
-                      navigation.navigate('ViewProfile', {
-                        userId: `user-${bidder.name.toLowerCase().replace(/\s+/g, '-')}`,
-                        userName: bidder.name,
-                        userImage: bidder.avatar,
-                        userInitials: bidder.name.split(' ').map(n => n[0]).join('').toUpperCase(),
-                        verified: false,
-                      })
-                    }}
-                    activeOpacity={0.7}
-                  >
-                    <Image source={bidder.avatar} style={styles.bidAvatar} />
-                  </TouchableOpacity>
-                  <View style={styles.bidInfo}>
-                    <Text style={styles.bidderName}>{bidder.name}</Text>
-                    <Text style={styles.bidAmount}>R{bidder.bid}</Text>
+        {/* Bids Section - only on non-profile product page */}
+        {!fromProfile && (
+          <Card style={styles.bidsCard}>
+            <CardContent style={styles.bidsContent}>
+              <Text style={styles.bidsTitle}>Bids</Text>
+              <View style={styles.bidsList}>
+                {bidsData.map((bidder, index) => (
+                  <View key={index} style={styles.bidItem}>
+                    <TouchableOpacity
+                      onPress={() => {
+                        navigation.navigate('ViewProfile', {
+                          userId: `user-${bidder.name.toLowerCase().replace(/\s+/g, '-')}`,
+                          userName: bidder.name,
+                          userImage: bidder.avatar,
+                          userInitials: bidder.name.split(' ').map(n => n[0]).join('').toUpperCase(),
+                          verified: false,
+                        })
+                      }}
+                      activeOpacity={0.7}
+                    >
+                      <Image source={bidder.avatar} style={styles.bidAvatar} />
+                    </TouchableOpacity>
+                    <View style={styles.bidInfo}>
+                      <Text style={styles.bidderName}>{bidder.name}</Text>
+                      <Text style={styles.bidAmount}>R{bidder.bid}</Text>
+                    </View>
                   </View>
-                </View>
-              ))}
-            </View>
-          </CardContent>
-        </Card>
+                ))}
+              </View>
+            </CardContent>
+          </Card>
+        )}
 
         {/* About Section Card */}
         <Card style={styles.aboutCard}>
@@ -287,33 +289,35 @@ export function Product() {
         <View style={styles.bottomSpacing} />
       </ScrollView>
 
-      {/* Bottom Action Bar */}
-      <View style={styles.bottomActionBar}>
-        <TouchableOpacity
-          style={styles.bidNowButton}
-          onPress={() => {
-            setPaymentType('bid')
-            setIsPaymentModalVisible(true)
-          }}
-          activeOpacity={0.8}
-        >
-          <Ionicons name="hand-left-outline" size={20} color={theme.textColor} style={styles.bidIcon} />
-          <Text style={styles.bidNowButtonText}>Bid Now</Text>
-          <Text style={styles.bidNowButtonPrice}>R{highestBid + 1}</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={styles.buyNowButton}
-          onPress={() => {
-            setPaymentType('buy')
-            setIsPaymentModalVisible(true)
-          }}
-          activeOpacity={0.8}
-        >
-          <Ionicons name="flash-outline" size={20} color={theme.tintTextColor || '#000000'} style={styles.buyIcon} />
-          <Text style={styles.buyNowButtonText}>Buy Now</Text>
-          <Text style={styles.buyNowButtonPrice}>R{buyNowPrice}</Text>
-        </TouchableOpacity>
-      </View>
+      {/* Bottom Action Bar - only on non-profile product page */}
+      {!fromProfile && (
+        <View style={styles.bottomActionBar}>
+          <TouchableOpacity
+            style={styles.bidNowButton}
+            onPress={() => {
+              setPaymentType('bid')
+              setIsPaymentModalVisible(true)
+            }}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="hand-left-outline" size={20} color={theme.textColor} style={styles.bidIcon} />
+            <Text style={styles.bidNowButtonText}>Bid Now</Text>
+            <Text style={styles.bidNowButtonPrice}>R{highestBid + 1}</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.buyNowButton}
+            onPress={() => {
+              setPaymentType('buy')
+              setIsPaymentModalVisible(true)
+            }}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="flash-outline" size={20} color={theme.tintTextColor || '#000000'} style={styles.buyIcon} />
+            <Text style={styles.buyNowButtonText}>Buy Now</Text>
+            <Text style={styles.buyNowButtonPrice}>R{buyNowPrice}</Text>
+          </TouchableOpacity>
+        </View>
+      )}
 
       {/* PayFast Payment Modal */}
       <PayFastPayment
@@ -385,8 +389,8 @@ const getStyles = (theme: any, tintColor: string) => StyleSheet.create({
   },
   imageContainer: {
     width: '100%',
-    aspectRatio: 1.3,
-    backgroundColor: '#FFFFFF',
+    aspectRatio: 2.5 / 3.5, // standard trading card (portrait) so full image isn't cut off
+    backgroundColor: theme.cardBackground || 'rgba(255,255,255,0.06)',
     justifyContent: 'center',
     alignItems: 'center',
     padding: 0,
@@ -492,8 +496,11 @@ const getStyles = (theme: any, tintColor: string) => StyleSheet.create({
   },
   priceSection: {
     marginTop: SPACING.sm,
+    flexDirection: 'row',
+    gap: SPACING.sm,
   },
   priceContainer: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: hexToRgba(tintColor, 0.1),

@@ -1,12 +1,20 @@
-import { View, StyleSheet, Modal, TouchableOpacity, ScrollView, TextInput, Alert, ActivityIndicator, Image } from 'react-native'
-import { useContext, useState, useEffect } from 'react'
+import { View, StyleSheet, Modal, TouchableOpacity, ScrollView, TextInput, Alert, ActivityIndicator, Image, FlatList } from 'react-native'
+import { useContext, useState, useEffect, useMemo } from 'react'
 import { Text } from '../ui/text'
 import Ionicons from '@expo/vector-icons/Ionicons'
 import { ThemeContext } from '../../context'
 import { SPACING, TYPOGRAPHY, RADIUS } from '../../constants/layout'
 import * as ImagePicker from 'expo-image-picker'
 import * as FileSystem from 'expo-file-system'
-import { getPokemonTcgImageUrlFromSetNumber } from '../../utils/pokemonTcgImages'
+import { getPokemonTcgImageUrlFromSetNumber, getPokemonTcgImageUrlFromSetNumberIfOnCdn } from '../../utils/pokemonTcgImages'
+
+let TCG_SETS: { id: string; name: string }[] = []
+try {
+  const data = require('../../utils/pokemonTcgSets.json') as { sets?: { id: string; name: string }[] }
+  TCG_SETS = Array.isArray(data.sets) ? data.sets : []
+} catch {
+  TCG_SETS = []
+}
 
 const CONDITION_OPTIONS = ['Mint', 'Near Mint', 'Lightly Played', 'Moderately Played', 'Heavily Played', 'Damaged'] as const
 // USD to ZAR for displaying API prices in South African Rand (override via env if needed)
@@ -56,8 +64,14 @@ export function AddCardModal({
   const [lookupResults, setLookupResults] = useState<{ id: string; name: string; set?: string; number?: string }[]>([])
   const [lookupLoading, setLookupLoading] = useState(false)
   const [cardInfo, setCardInfo] = useState<{ marketPrice?: number; ebayLastSold?: number; currency?: string } | null>(null)
-  const [cardImageUrl, setCardImageUrl] = useState<string | null>(null)
-  const [cardImageLoadError, setCardImageLoadError] = useState(false)
+  const [setPickerVisible, setSetPickerVisible] = useState(false)
+  const [setSearch, setSetSearch] = useState('')
+
+  const filteredSets = useMemo(() => {
+    if (!setSearch.trim()) return TCG_SETS
+    const q = setSearch.toLowerCase().trim()
+    return TCG_SETS.filter((s) => s.name.toLowerCase().includes(q))
+  }, [setSearch])
 
   useEffect(() => {
     if (visible) {
@@ -76,8 +90,6 @@ export function AddCardModal({
       setCardId(null)
       setLookupResults([])
       setCardInfo(null)
-      setCardImageUrl(null)
-      setCardImageLoadError(false)
     }
   }, [visible])
 
@@ -170,12 +182,16 @@ export function AddCardModal({
         }
       }
       
+      // For cards, save TCG image URL (set + number) to DB so profile shows correct artwork (e.g. images.pokemontcg.io/pfl/125_hires.png)
+      const cardTcgImage = type === 'card' ? getPokemonTcgImageUrlFromSetNumber(set.trim(), cardNumber.trim()) : null
+      const imageToSend = (type === 'card' && cardTcgImage) ? cardTcgImage : (image || undefined)
+
       // Call onAdd (which will handle upload) - modal stays open during upload
       await onAdd({
         type,
         name: name.trim(),
         description: description.trim() || undefined,
-        image: image || undefined,
+        image: imageToSend,
         cardId: cardId || undefined,
         set: set.trim() || undefined,
         cardNumber: cardNumber.trim() || undefined,
@@ -213,7 +229,6 @@ export function AddCardModal({
     setRequestVaulting(false)
     setCardId(null)
     setCardNumber('')
-    setCardImageUrl(null)
     setLookupResults([])
     setCardInfo(null)
     onClose()
@@ -270,8 +285,6 @@ export function AddCardModal({
 
   const handleSelectLookupCard = async (item: { id: string; name: string; set?: string; number?: string }) => {
     setCardId(item.id)
-    setCardImageLoadError(false)
-    setCardImageUrl(null)
     setName(item.name)
     // Only set Set field from search result if it looks like a full name (not a short code like "PRE")
     if (item.set && item.set.length > 6 && !/^[A-Z0-9]{2,5}$/i.test(item.set.trim())) setSet(item.set)
@@ -291,8 +304,7 @@ export function AddCardModal({
       // Keep set as display name (e.g. "Prismatic Evolutions"), never overwrite with code (e.g. "PRE")
       if (data.setName != null || data.setId != null) setSet(String(data.setName ?? data.setId ?? ''))
       if (data.cardNumber != null) setCardNumber(String(data.cardNumber))
-      if (data.imageUrl) setCardImageUrl(data.imageUrl)
-      console.log('[Add Card] API response for card', item.id, ':', { ...data, imageUrl: data.imageUrl })
+      // Price lookup does not touch the card image; image is driven only by set + number (built URL) or a separate image API.
     } catch (e) {
       setCardInfo(null)
     }
@@ -376,33 +388,72 @@ export function AddCardModal({
               </View>
             )}
 
-            {/* Set Input */}
+            {/* Set: dropdown from TCG sets */}
             <View style={styles.inputSection}>
               <Text style={styles.inputLabel}>Set</Text>
-              <TextInput
-                style={styles.textInput}
-                value={set}
-                onChangeText={setSet}
-                placeholder="e.g., Obsidian Flames"
-                placeholderTextColor="rgba(255, 255, 255, 0.3)"
-              />
+              <TouchableOpacity
+                style={[styles.textInput, styles.setSelectorButton]}
+                onPress={() => setSetPickerVisible(true)}
+                activeOpacity={0.7}
+              >
+                <Text style={set ? styles.setSelectorText : styles.setSelectorPlaceholder} numberOfLines={1}>
+                  {set || 'Select set...'}
+                </Text>
+                <Ionicons name="chevron-down" size={20} color="rgba(255, 255, 255, 0.5)" />
+              </TouchableOpacity>
             </View>
 
-            {/* Image: prefer URL built from set+number (set-code map) so we never show stale/wrong API imageUrl. */}
+            {/* Set picker modal */}
+            <Modal visible={setPickerVisible} transparent animationType="slide">
+              <View style={styles.setPickerBackdrop}>
+                <TouchableOpacity
+                  style={StyleSheet.absoluteFill}
+                  activeOpacity={1}
+                  onPress={() => { setSetPickerVisible(false); setSetSearch('') }}
+                />
+                <View style={styles.setPickerSheet}>
+                  <View style={styles.setPickerHeader}>
+                    <Text style={styles.setPickerTitle}>Select set</Text>
+                    <TouchableOpacity onPress={() => { setSetPickerVisible(false); setSetSearch('') }} hitSlop={12}>
+                      <Ionicons name="close" size={24} color={theme.textColor} />
+                    </TouchableOpacity>
+                  </View>
+                  <TextInput
+                    style={[styles.textInput, styles.setSearchInput]}
+                    value={setSearch}
+                    onChangeText={setSetSearch}
+                    placeholder="Search sets..."
+                    placeholderTextColor="rgba(255, 255, 255, 0.3)"
+                  />
+                  <FlatList
+                    data={filteredSets}
+                    keyExtractor={(item) => item.id}
+                    style={styles.setPickerList}
+                    keyboardShouldPersistTaps="handled"
+                    renderItem={({ item }) => (
+                      <TouchableOpacity
+                        style={[styles.setPickerItem, set === item.name && styles.setPickerItemActive]}
+                        onPress={() => {
+                          setSet(item.name)
+                          setSetPickerVisible(false)
+                          setSetSearch('')
+                        }}
+                      >
+                        <Text style={styles.setPickerItemText} numberOfLines={1}>{item.name}</Text>
+                      </TouchableOpacity>
+                    )}
+                  />
+                </View>
+              </View>
+            </Modal>
+
+            {/* Image: built only from set + card number (independent of price lookup). Image in DB is set by the image API only. */}
             <View style={styles.inputSection}>
               <Text style={styles.inputLabel}>Image</Text>
               {type === 'card' ? (
                 (() => {
-                  const builtUri = getPokemonTcgImageUrlFromSetNumber(set, cardNumber)
-                  const tcgUri = builtUri || cardImageUrl
-                  if (!tcgUri) {
-                    return (
-                      <View style={styles.cardImageBox}>
-                        <Text style={styles.noImageText}>No img found</Text>
-                      </View>
-                    )
-                  }
-                  if (cardImageLoadError) {
+                  const displayUri = getPokemonTcgImageUrlFromSetNumberIfOnCdn(set, cardNumber)
+                  if (!displayUri) {
                     return (
                       <View style={styles.cardImageBox}>
                         <Text style={styles.noImageText}>No img found</Text>
@@ -412,10 +463,9 @@ export function AddCardModal({
                   return (
                     <View style={styles.cardImageBox}>
                       <Image
-                        source={{ uri: tcgUri }}
+                        source={{ uri: displayUri }}
                         style={styles.cardImage}
                         resizeMode="contain"
-                        onError={() => setCardImageLoadError(true)}
                       />
                     </View>
                   )
@@ -682,6 +732,75 @@ const getStyles = (theme: any) => StyleSheet.create({
     color: theme.textColor,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  setSelectorButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  setSelectorText: {
+    fontSize: TYPOGRAPHY.body,
+    fontFamily: theme.regularFont,
+    color: theme.textColor,
+    flex: 1,
+    marginRight: SPACING.sm,
+  },
+  setSelectorPlaceholder: {
+    fontSize: TYPOGRAPHY.body,
+    fontFamily: theme.regularFont,
+    color: 'rgba(255, 255, 255, 0.3)',
+    flex: 1,
+    marginRight: SPACING.sm,
+  },
+  setPickerBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
+  },
+  setPickerSheet: {
+    maxHeight: '70%',
+    borderTopLeftRadius: RADIUS.lg,
+    borderTopRightRadius: RADIUS.lg,
+    backgroundColor: theme.backgroundColor,
+    paddingBottom: SPACING.lg,
+  },
+  setPickerHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: SPACING.md,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  setPickerTitle: {
+    fontSize: TYPOGRAPHY.body,
+    fontFamily: theme.semiBoldFont,
+    color: theme.textColor,
+  },
+  setSearchInput: {
+    marginHorizontal: SPACING.md,
+    marginTop: SPACING.sm,
+  },
+  setPickerList: {
+    maxHeight: 320,
+    marginTop: SPACING.sm,
+    paddingHorizontal: SPACING.md,
+  },
+  setPickerItem: {
+    paddingVertical: SPACING.md,
+    paddingHorizontal: SPACING.sm,
+    borderRadius: RADIUS.sm,
+    borderWidth: 1,
+    borderColor: 'transparent',
+  },
+  setPickerItemActive: {
+    backgroundColor: 'rgba(115, 236, 139, 0.15)',
+    borderColor: theme.tintColor || '#73EC8B',
+  },
+  setPickerItemText: {
+    fontSize: TYPOGRAPHY.body,
+    fontFamily: theme.regularFont,
+    color: theme.textColor,
   },
   textArea: {
     minHeight: 80,

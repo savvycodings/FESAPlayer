@@ -11,7 +11,7 @@ import { Section } from '../components/layout/Section'
 import { DOMAIN } from '../../constants'
 import * as ImagePicker from 'expo-image-picker'
 import { uploadImage, isExternalUrl } from '../utils/imageUpload'
-import { getPokemonTcgImageUrl, getPokemonTcgImageUrlFromSetNumber } from '../utils/pokemonTcgImages'
+import { getPokemonTcgImageUrl, getPokemonTcgImageUrlFromSetNumberIfOnCdn } from '../utils/pokemonTcgImages'
 import { authClient } from '../lib/auth-client'
 
 type ProfileStackParamList = {
@@ -24,6 +24,8 @@ type ProfileStackParamList = {
     price?: number
     ebayPrice?: number
     description?: string
+    set?: string
+    fromProfile?: boolean
   }
 }
 
@@ -428,14 +430,14 @@ export function Profile() {
     const ebayZar = ebayNum != null ? Math.round(ebayNum * USD_TO_ZAR) : null
     const priceStr = valueZar > 0 ? `R${valueZar.toLocaleString('en-ZA')}` : 'R0'
     console.log('[Profile] product price —', collection.name, '| marketPrice (USD):', marketNum, '| ebayLastSold (USD):', ebayNum, '| valueZar:', valueZar, '| priceStr:', priceStr)
-    // Prefer URL built from set name + number (same as Add Card) so we get correct set code; fall back to API cardImageUrl.
+    // Same logic for every card: prefer server cardImageUrl (API or cached), then built URL only when set is on CDN, then cardId-based URL.
     const cardImageUrl = collection.cardImageUrl ?? null
     const setForBuild = collection.set ?? collection.setId ?? collection.set_id
     const numForBuild = collection.cardNumber ?? collection.number
-    const builtFromSetNumber = getPokemonTcgImageUrlFromSetNumber(setForBuild, numForBuild)
+    const builtWhenOnCdn = getPokemonTcgImageUrlFromSetNumberIfOnCdn(setForBuild, numForBuild)
     const tcgImageUrl =
-      builtFromSetNumber ||
       cardImageUrl ||
+      builtWhenOnCdn ||
       getPokemonTcgImageUrl(collection.cardId)
     const imageSource = tcgImageUrl
       ? { uri: tcgImageUrl }
@@ -450,6 +452,7 @@ export function Profile() {
       image: imageSource,
       isListed: collection.isListed || false,
       cardId: collection.cardId ?? undefined,
+      set: collection.set ?? undefined,
     }
   })
 
@@ -587,6 +590,7 @@ export function Profile() {
                   if (product.image) {
                     const price = parseFloat(product.price.replace(/[^0-9.]/g, '')) || 0
                     const ebayPrice = (product as any).ebayLastSoldZar
+                    const set = (product as any).set
                     navigation.navigate('Product', {
                       name: product.name,
                       image: product.image,
@@ -594,6 +598,8 @@ export function Profile() {
                       price: price,
                       ebayPrice: ebayPrice != null ? ebayPrice : undefined,
                       description: `Premium ${product.name}. Authentic and verified with secure shipping.`,
+                      set: set,
+                      fromProfile: true,
                     })
                   }
                 }}

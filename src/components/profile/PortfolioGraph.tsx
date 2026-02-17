@@ -19,6 +19,7 @@ interface PortfolioGraphProps {
   color?: string
   title?: string
   subtitle?: string
+  valuePrefix?: string
 }
 
 export function PortfolioGraph({
@@ -27,6 +28,7 @@ export function PortfolioGraph({
   color = '#FFFFFF',
   title = 'Portfolio Growth',
   subtitle = 'Last 7 days',
+  valuePrefix = '$',
 }: PortfolioGraphProps) {
   const { theme } = useContext(ThemeContext)
   const [width, setWidth] = useState(300)
@@ -72,9 +74,11 @@ export function PortfolioGraph({
   }, '')
 
   const latestValue = data[data.length - 1]?.y || 0
-  const previousValue = data[data.length - 2]?.y || 0
-  const change = latestValue - previousValue
-  const changePercent = previousValue !== 0 ? ((change / previousValue) * 100).toFixed(1) : '0.0'
+  const previousValue = data.length >= 2 ? (data[data.length - 2]?.y ?? 0) : undefined
+  const change = previousValue !== undefined ? latestValue - previousValue : 0
+  const changePercent = previousValue != null && previousValue !== 0
+    ? ((change / previousValue) * 100).toFixed(1)
+    : '—'
 
   return (
     <Card style={styles.card}>
@@ -90,15 +94,17 @@ export function PortfolioGraph({
             </View>
           </View>
           <View style={styles.headerRight}>
-            <Text style={styles.value}>${latestValue}</Text>
-            <View style={[styles.changeContainer, change >= 0 ? styles.changePositive : styles.changeNegative]}>
-              <Ionicons
-                name={change >= 0 ? 'arrow-up' : 'arrow-down'}
-                size={12}
-                color={change >= 0 ? '#10B981' : '#EF4444'}
-              />
-              <Text style={[styles.changeText, change >= 0 ? styles.changeTextPositive : styles.changeTextNegative]}>
-                {Math.abs(parseFloat(changePercent))}%
+            <Text style={styles.value}>{valuePrefix}{latestValue.toLocaleString('en-ZA', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</Text>
+            <View style={[styles.changeContainer, changePercent === '—' ? {} : change >= 0 ? styles.changePositive : styles.changeNegative]}>
+              {changePercent !== '—' && (
+                <Ionicons
+                  name={change >= 0 ? 'arrow-up' : 'arrow-down'}
+                  size={12}
+                  color={change >= 0 ? '#10B981' : '#EF4444'}
+                />
+              )}
+              <Text style={[styles.changeText, changePercent === '—' ? {} : change >= 0 ? styles.changeTextPositive : styles.changeTextNegative]}>
+                {changePercent === '—' ? '—' : `${Math.abs(parseFloat(changePercent))}%`}
               </Text>
             </View>
           </View>

@@ -29,11 +29,9 @@ export function StoreStats({
           <View style={styles.statItem}>
             <View style={styles.statRow}>
               <Ionicons name="cube-outline" size={20} color={theme.textColor} style={styles.statIcon} />
-              <View style={styles.statTextContainer}>
-                <Text style={styles.statValue}>{totalSales}</Text>
-                <Text style={styles.statLabel}>Total Sales</Text>
-              </View>
+              <Text style={styles.statValue}>{totalSales}</Text>
             </View>
+            <Text style={styles.statLabel} numberOfLines={1}>Total Sales</Text>
           </View>
         </CardContent>
       </Card>
@@ -42,11 +40,9 @@ export function StoreStats({
           <View style={styles.statItem}>
             <View style={styles.statRow}>
               <Ionicons name="cash-outline" size={20} color={theme.tintColor || '#73EC8B'} style={styles.statIcon} />
-              <View style={styles.statTextContainer}>
-                <Text style={styles.revenueValue}>${totalRevenue}</Text>
-                <Text style={styles.statLabel}>Revenue</Text>
-              </View>
+              <Text style={styles.revenueValue}>${totalRevenue}</Text>
             </View>
+            <Text style={styles.statLabel} numberOfLines={1}>Revenue</Text>
           </View>
         </CardContent>
       </Card>
@@ -55,11 +51,9 @@ export function StoreStats({
           <View style={styles.statItem}>
             <View style={styles.statRow}>
               <Ionicons name="time-outline" size={20} color={theme.textColor} style={styles.statIcon} />
-              <View style={styles.statTextContainer}>
-                <Text style={styles.statValue}>{responseTime}</Text>
-                <Text style={styles.statLabel}>Response</Text>
-              </View>
+              <Text style={styles.statValue}>{responseTime}</Text>
             </View>
+            <Text style={styles.statLabel} numberOfLines={1}>Response</Text>
           </View>
         </CardContent>
       </Card>
@@ -68,11 +62,9 @@ export function StoreStats({
           <View style={styles.statItem}>
             <View style={styles.statRow}>
               <Ionicons name="star-outline" size={20} color={theme.textColor} style={styles.statIcon} />
-              <View style={styles.statTextContainer}>
-                <Text style={styles.statValue}>{reviewPercentage}%</Text>
-                <Text style={styles.statLabel}>Rating</Text>
-              </View>
+              <Text style={styles.statValue}>{reviewPercentage}%</Text>
             </View>
+            <Text style={styles.statLabel} numberOfLines={1}>Rating</Text>
           </View>
         </CardContent>
       </Card>
@@ -83,18 +75,18 @@ export function StoreStats({
 const getStyles = (theme: any) => StyleSheet.create({
   statsGrid: {
     flexDirection: 'row',
-    flexWrap: 'nowrap',
+    flexWrap: 'wrap',
     justifyContent: 'space-between',
-    gap: SPACING.md,
     marginTop: -SPACING.md,
     marginBottom: SPACING.md,
+    gap: SPACING.md,
   },
   statCard: {
     backgroundColor: theme.cardBackground || '#000000',
     borderRadius: RADIUS.lg,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.08)',
-    flex: 1,
+    width: '48%',
     minWidth: 0,
   },
   statContent: {
@@ -103,17 +95,16 @@ const getStyles = (theme: any) => StyleSheet.create({
   },
   statItem: {
     width: '100%',
+    alignItems: 'center',
   },
   statRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: SPACING.sm,
+    justifyContent: 'center',
+    gap: SPACING.xs,
   },
   statIcon: {
     marginRight: 0,
-  },
-  statTextContainer: {
-    flex: 1,
   },
   statValue: {
     fontSize: TYPOGRAPHY.h3,
@@ -126,6 +117,7 @@ const getStyles = (theme: any) => StyleSheet.create({
     fontSize: TYPOGRAPHY.caption,
     fontFamily: theme.regularFont,
     color: 'rgba(255, 255, 255, 0.6)',
+    textAlign: 'center',
   },
   revenueValue: {
     fontSize: TYPOGRAPHY.h3,

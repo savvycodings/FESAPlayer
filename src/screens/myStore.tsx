@@ -32,6 +32,7 @@ type MyStoreStackParamList = {
     category?: 'product' | 'set' | 'single' | 'featured' | 'listing'
     price?: number
     description?: string
+    storeName?: string
   }
 }
 
@@ -954,6 +955,7 @@ export function MyStore() {
                           category: 'listing',
                           price: listing.price,
                           description: `Premium ${listing.cardName}. Authentic and verified with secure shipping.`,
+                          storeName,
                         })
                       }
                     }}
