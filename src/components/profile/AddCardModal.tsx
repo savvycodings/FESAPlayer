@@ -201,15 +201,11 @@ export function AddCardModal({
         requestVaulting: requestVaulting,
       })
       
-      // Success! Show success message and close after a brief delay
+      // Success — close immediately so profile page shows (no second popup)
       setIsUploading(false)
       setUploadError(null)
       setUploadSuccess(true)
-      
-      // Close modal after showing success message
-      setTimeout(() => {
-        handleClose()
-      }, 1500) // Close after 1.5 seconds
+      handleClose()
     } catch (error: any) {
       console.error('Error adding card:', error)
       setUploadError(error.message || 'Failed to add card. Please try again.')
@@ -231,6 +227,8 @@ export function AddCardModal({
     setCardNumber('')
     setLookupResults([])
     setCardInfo(null)
+    setSetPickerVisible(false)
+    setSetSearch('')
     onClose()
   }
 

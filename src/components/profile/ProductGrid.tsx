@@ -67,12 +67,12 @@ export function ProductGrid({ products, columns = 3, onProductPress, onQuickList
       {products.map((product) => {
         return (
           <View key={product.id} style={styles.productCard}>
-            <TouchableOpacity
-              onPress={() => handleProductPress(product)}
-              activeOpacity={0.8}
-            >
-              <Card style={styles.card}>
-                <CardContent style={styles.productContent}>
+            <Card style={styles.card}>
+              <CardContent style={styles.productContent}>
+                <TouchableOpacity
+                  onPress={() => handleProductPress(product)}
+                  activeOpacity={0.8}
+                >
                   <View style={styles.imageContainer}>
                     {product.image ? (
                       <Image
@@ -96,24 +96,24 @@ export function ProductGrid({ products, columns = 3, onProductPress, onQuickList
                       {product.name}
                     </Text>
                   </View>
-                </CardContent>
-              </Card>
-            </TouchableOpacity>
-            {onQuickListPress && !product.isListed && (
-              <TouchableOpacity
-                style={styles.quickListButton}
-                onPress={() => onQuickListPress(product)}
-                activeOpacity={0.8}
-              >
-                <Text style={styles.quickListButtonText}>Quick List</Text>
-              </TouchableOpacity>
-            )}
-            {product.isListed && (
-              <View style={styles.listedBadge}>
-                <Ionicons name="checkmark-circle" size={14} color={theme.tintColor || '#73EC8B'} />
-                <Text style={styles.listedText}>Listed</Text>
-              </View>
-            )}
+                </TouchableOpacity>
+                {onQuickListPress && !product.isListed && (
+                  <TouchableOpacity
+                    style={styles.quickListButton}
+                    onPress={() => onQuickListPress(product)}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={styles.quickListButtonText}>Quick List</Text>
+                  </TouchableOpacity>
+                )}
+                {product.isListed && (
+                  <View style={styles.listedBadge}>
+                    <Ionicons name="checkmark-circle" size={14} color={theme.tintColor || '#73EC8B'} />
+                    <Text style={styles.listedText}>Listed</Text>
+                  </View>
+                )}
+              </CardContent>
+            </Card>
           </View>
         )
       })}
@@ -125,12 +125,14 @@ const getStyles = (theme: any, columns: number) => StyleSheet.create({
   container: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    justifyContent: 'space-between',
+    justifyContent: 'flex-start',
     width: '100%',
+    columnGap: SPACING.sm,
+    rowGap: SPACING.lg,
   },
   productCard: {
-    width: '31%',
-    marginBottom: SPACING.lg,
+    width: `${(100 - (columns - 1) * 4) / columns}%`,
+    marginBottom: 0,
   },
   card: {
     backgroundColor: theme.cardBackground || '#000000',
@@ -141,6 +143,8 @@ const getStyles = (theme: any, columns: number) => StyleSheet.create({
   },
   productContent: {
     padding: 0,
+    paddingTop: SPACING.md,
+    paddingBottom: SPACING.sm,
   },
   imageContainer: {
     width: '100%',

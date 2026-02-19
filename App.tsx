@@ -27,7 +27,7 @@ LogBox.ignoreLogs([
 
 export default function App() {
   const [theme, setTheme] = useState<string>('wizards')
-  const [chatType, setChatType] = useState<Model>(MODELS.gptTurbo)
+  const [chatType, setChatType] = useState<Model>(MODELS.gemini)
   const [imageModel, setImageModel] = useState<string>(IMAGE_MODELS.fastImage.label)
   const [modalVisible, setModalVisible] = useState<boolean>(false)
   const [illusionImage, setIllusionImage] = useState<string>(ILLUSION_DIFFUSION_IMAGES.mediumSquares.label)
@@ -58,7 +58,18 @@ export default function App() {
         await AsyncStorage.setItem('rnai-theme', 'wizards')
       }
       const _chatType = await AsyncStorage.getItem('rnai-chatType')
-      if (_chatType) setChatType(JSON.parse(_chatType))
+      if (_chatType) {
+        try {
+          const parsed = JSON.parse(_chatType)
+          if (parsed?.label === 'gemini') setChatType(parsed)
+          else setChatType(MODELS.gemini)
+        } catch {
+          setChatType(MODELS.gemini)
+        }
+      } else {
+        setChatType(MODELS.gemini)
+        await AsyncStorage.setItem('rnai-chatType', JSON.stringify(MODELS.gemini))
+      }
       const _imageModel = await AsyncStorage.getItem('rnai-imageModel')
       if (_imageModel) setImageModel(_imageModel)
     } catch (err) {

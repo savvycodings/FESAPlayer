@@ -249,8 +249,8 @@ export function Profile() {
     }
   }
 
-  // Create listing from collection item (cardId optional - primes price cache when present)
-  const createListing = async (cardName: string, price: number, cardImage?: any, cardId?: string) => {
+  // Create listing from collection item (collectionId links listing to this item so "Listed" is accurate; cardId optional - primes price cache when present)
+  const createListing = async (cardName: string, price: number, cardImage?: any, cardId?: string, collectionId?: number) => {
     try {
       // Check session
       const session = await authClient.getSession()
@@ -294,6 +294,7 @@ export function Profile() {
           price,
           cardImage: imageUrl,
           ...(cardId && { cardId }),
+          ...(collectionId != null && { collectionId }),
         }),
       })
 
@@ -669,7 +670,7 @@ export function Profile() {
               Alert.alert('Photo required', 'Please select a photo of your card to list it on your store.')
               return
             }
-            await createListing(selectedProduct.name, price, { uri: listingImageUri }, selectedProduct.cardId)
+            await createListing(selectedProduct.name, price, { uri: listingImageUri }, selectedProduct.cardId, selectedProduct.id)
             setIsListItemModalVisible(false)
             setSelectedProduct(null)
           }}

@@ -5,293 +5,201 @@ import {
   TouchableHighlight,
   ScrollView,
   Dimensions,
-  Image
+  Image,
+  ActivityIndicator,
 } from 'react-native'
-import { useContext } from 'react'
-import { AppContext, ThemeContext } from '../context'
-import {
-  AnthropicIcon,
-  OpenAIIcon,
-  CohereIcon,
-  MistralIcon,
-  GeminiIcon
- } from '../components/index'
-import FontAwesome from '@expo/vector-icons/FontAwesome5'
-import { IIconProps } from '../../types'
-import { MODELS, IMAGE_MODELS, ILLUSION_DIFFUSION_IMAGES } from '../../constants'
-import * as themes from '../theme'
+import { useContext, useState, useEffect } from 'react'
+import { ThemeContext } from '../context'
+import Ionicons from '@expo/vector-icons/Ionicons'
+import { SPACING, TYPOGRAPHY, RADIUS } from '../constants/layout'
+import { authClient } from '../lib/auth-client'
+import { DOMAIN } from '../../constants'
 
 const { width } = Dimensions.get('window')
-const models = Object.values(MODELS)
-const imageModels = Object.values(IMAGE_MODELS)
-const _themes = Object.values(themes).map(v => ({
-  name: v.name,
-  label: v.label
-}))
-const diffusionImages = Object.values(ILLUSION_DIFFUSION_IMAGES)
+
+const TEST_ITEMS = ['Test', 'Test', 'Test', 'Test']
 
 export function Settings() {
-  const { theme, setTheme, themeName } = useContext(ThemeContext)
-  const {
-    chatType,
-    setChatType,
-    setImageModel,
-    imageModel,
-    illusionImage,
-    setIllusionImage
-  } = useContext(AppContext)
-
+  const { theme } = useContext(ThemeContext)
+  const [user, setUser] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
   const styles = getStyles(theme)
 
-  function renderIcon({
-    type, props
-  }: IIconProps) {
-    if (type.includes('gpt')) {
-      return <OpenAIIcon {...props} />
+  useEffect(() => {
+    let cancelled = false
+    async function fetchUser() {
+      try {
+        const session = await authClient.getSession()
+        if (!session?.data?.session) {
+          setLoading(false)
+          return
+        }
+        const baseUrl = DOMAIN?.endsWith('/') ? DOMAIN.slice(0, -1) : DOMAIN
+        const res = await fetch(`${baseUrl}/api/profile/user`, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${session.data.session.token}`,
+          },
+          credentials: 'include',
+        })
+        const data = await res.json()
+        if (!cancelled && res.ok && data.user) setUser(data.user)
+      } catch (_) {
+        if (!cancelled) setUser(null)
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
     }
-    if (type.includes('claude')) {
-      return <AnthropicIcon {...props} />
-    }
-    if (type.includes('cohere')) {
-      return <CohereIcon {...props} />
-    }
-    if (type.includes('mistral')) {
-      return <MistralIcon{...props} />
-    }
-    if (type.includes('gemini')) {
-      return <GeminiIcon{...props} />
-    }
-    if (type.includes('fastImage')) {
-      return <FontAwesome name="images" {...props} />
-    }
-    if (type.includes('removeBg')) {
-      return <FontAwesome name="eraser" {...props} />
-    }
-    if (type.includes('upscale')) {
-      return <FontAwesome name="chevron-up" {...props} />
-    }
-    if (type.includes('illusion')) {
-      return <FontAwesome name="cubes" {...props} />
-    }
-    return <FontAwesome name="images" {...props} />
-  }
+    fetchUser()
+    return () => { cancelled = true }
+  }, [])
+
+  const userName = user?.firstName || user?.name || 'User'
+  const userLevel = user?.level ?? 0
+  const profileImage = user?.avatar ? { uri: user.avatar } : require('../../assets/Avatars/guy1.jpg')
 
   return (
     <ScrollView
       style={styles.container}
       contentContainerStyle={styles.contentContainer}
     >
-      <View
-        style={styles.titleContainer}
-      >
-        <Text
-            style={styles.mainText}
-        >Theme</Text>
+      {/* Same profile block as Profile tab: picture, Trusted, name, level */}
+      <View style={styles.headerSection}>
+        {loading ? (
+          <View style={styles.headerLoader}>
+            <ActivityIndicator size="small" color={theme.tintColor || '#73EC8B'} />
+          </View>
+        ) : (
+          <View style={styles.profileRow}>
+            <View style={styles.avatarWrapper}>
+              <Image source={profileImage} style={styles.avatar} resizeMode="cover" />
+              <View style={styles.trustedBadge}>
+                <Ionicons name="shield-checkmark" size={12} color={theme.tintColor || '#73EC8B'} />
+                <Text style={styles.trustedText}>Trusted</Text>
+              </View>
+            </View>
+            <View style={styles.nameAndLevel}>
+              <Text style={styles.userName}>{userName}</Text>
+              <View style={styles.levelBadge}>
+                <Text style={styles.levelText}>Lv {userLevel}</Text>
+              </View>
+            </View>
+          </View>
+        )}
       </View>
-      {
-        _themes.map((value, index) => (
-          <TouchableHighlight
-            key={index}
-            underlayColor='transparent'
-            onPress={() => {
-              setTheme(value.label)
-            }}
-          >
-            <View
-              style={{
-                ...styles.chatChoiceButton,
-                ...getDynamicViewStyle(themeName, value.label, theme)
-              }}
-            >
-            <Text
-              style={{
-                ...styles.chatTypeText,
-                ...getDynamicTextStyle(themeName, value.label, theme)
-              }}
-            >
-              {value.name}
-            </Text>
+
+      {TEST_ITEMS.map((label, index) => (
+        <TouchableHighlight
+          key={index}
+          underlayColor="transparent"
+          onPress={() => {}}
+        >
+          <View style={styles.row}>
+            <Text style={styles.rowText}>{label}</Text>
           </View>
         </TouchableHighlight>
-        ))
-      }
-      <View
-        style={styles.titleContainer}
-      >
-      <Text
-          style={styles.mainText}
-        >Chat Model</Text>
-      </View>
-      <View style={styles.buttonContainer}>
-        {
-          models.map((model, index) => {
-            return (
-              <TouchableHighlight
-                key={index}
-                underlayColor='transparent'
-                onPress={() => {
-                  setChatType(model)
-                }}
-              >
-                <View
-                  style={{...styles.chatChoiceButton, ...getDynamicViewStyle(chatType.label, model.label, theme)}}
-                >
-                {
-                  renderIcon({
-                    type: model.label,
-                    props: {
-                      theme,
-                      size: 18,
-                      style: {marginRight: 8},
-                      selected: chatType.label === model.label
-                    }
-                  })
-                }
-                <Text
-                  style={{...styles.chatTypeText, ...getDynamicTextStyle(chatType.label, model.label, theme)}}
-                >
-                  { model.name }
-                </Text>
-              </View>
-            </TouchableHighlight>
-            )
-          })
-        }
-      </View>
-      <View
-        style={styles.titleContainer}
-      >
-      <Text
-          style={styles.mainText}
-        >Image Model</Text>
-      </View>
-      <View style={styles.buttonContainer}>
-        {
-          imageModels.map((model, index) => {
-            return (
-              <TouchableHighlight
-                key={index}
-                underlayColor='transparent'
-                onPress={() => {
-                  setImageModel(model.label)
-                }}
-              >
-                <View
-                  style={{...styles.chatChoiceButton, ...getDynamicViewStyle(imageModel, model.label, theme)}}
-                >
-                {
-                  renderIcon({
-                    type: model.label,
-                    props: {
-                      theme,
-                      size: 18,
-                      style: {marginRight: 8},
-                      color: imageModel === model.label ? theme.tintTextColor : theme.textColor
-                    }
-                  })
-                }
-                <Text
-                  style={{...styles.chatTypeText, ...getDynamicTextStyle(imageModel, model.label, theme)}}
-                >
-                  { model.name }
-                </Text>
-              </View>
-            </TouchableHighlight>
-            )
-          })
-        }
-        <View
-          style={styles.titleContainer}
-        >
-          <Text
-            style={styles.mainText}
-          >Illusion Diffusion Base</Text>
-        </View>
-        <View
-          style={styles.illusionImageContainer}
-        >
-          {
-            diffusionImages.map((model, index) => (
-              <TouchableHighlight
-                key={index}
-                underlayColor='transparent'
-                onPress={() => {
-                  setIllusionImage(model.label)
-                }}
-              >
-                <Image
-                  source={{ uri: model.image}}
-                  style={{
-                    ...styles.illusionImage,
-                    borderColor: illusionImage === model.label ? theme.tintColor : theme.textColor
-                  }}
-                />
-              </TouchableHighlight>
-            ))
-          }
-        </View>
-      </View>
+      ))}
     </ScrollView>
   )
 }
 
-function getDynamicTextStyle(baseType:string, type:string, theme:any) {
-  if (type === baseType) {
-    return {
-      color: theme.tintTextColor,
-    }
-  } else return {}
-}
-
-
-function getDynamicViewStyle(baseType:string, type:string, theme:any) {
-  if (type === baseType) {
-    return {
-      backgroundColor: theme.tintColor
-    }
-  } else return {}
-}
-
-const getStyles = (theme:any) => StyleSheet.create({
-  illusionImage: {
-    width: (width - 30) / 3,
-    height: (width - 30) / 3,
-    borderWidth: 4,
-  },
-  illusionImageContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    marginTop: 10
-  },
-  buttonContainer: {
-    marginBottom: 20
-  },
-  container: {
-    padding: 14,
-    flex: 1,
-    backgroundColor: theme.backgroundColor,
-    paddingTop: 10,
-  },
-  contentContainer: {
-    paddingBottom: 40
-  },
-  titleContainer: {
-    paddingVertical: 10,
-    paddingHorizontal: 15,
-    marginTop: 10
-  },
-  chatChoiceButton: {
-    padding: 15,
-    borderRadius: 8,
-    flexDirection: 'row'
-  },
-  chatTypeText: {
-    fontFamily: theme.semiBoldFont,
-    color: theme.textColor
-  },
-  mainText: {
-    fontFamily: theme.boldFont,
-    fontSize: 18,
-    color: theme.textColor
-  },
-})
+const getStyles = (theme: any) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: theme.backgroundColor,
+    },
+    contentContainer: {
+      paddingHorizontal: SPACING.containerPadding,
+      paddingTop: SPACING.md,
+      paddingBottom: 40,
+    },
+    headerSection: {
+      marginBottom: SPACING.xl,
+      paddingVertical: SPACING.lg,
+      paddingHorizontal: SPACING.sm,
+    },
+    headerLoader: {
+      paddingVertical: SPACING.xl,
+      alignItems: 'center',
+    },
+    profileRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: SPACING.md,
+    },
+    avatarWrapper: {
+      position: 'relative',
+      width: 72,
+      height: 72,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    avatar: {
+      width: 64,
+      height: 64,
+      borderRadius: RADIUS.full,
+      borderWidth: 2,
+      borderColor: 'rgba(255, 255, 255, 0.2)',
+      backgroundColor: theme.textColor,
+    },
+    trustedBadge: {
+      position: 'absolute',
+      bottom: -2,
+      left: '50%',
+      transform: [{ translateX: -28 }],
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: 'rgba(0, 0, 0, 0.6)',
+      paddingHorizontal: SPACING.xs,
+      paddingVertical: 2,
+      borderRadius: RADIUS.full,
+      gap: 4,
+      borderWidth: 1,
+      borderColor: theme.tintColor || '#73EC8B',
+      zIndex: 1,
+    },
+    trustedText: {
+      fontSize: TYPOGRAPHY.label,
+      fontFamily: theme.semiBoldFont,
+      color: theme.tintColor || '#73EC8B',
+      fontWeight: '600',
+    },
+    nameAndLevel: {
+      flex: 1,
+    },
+    userName: {
+      fontSize: TYPOGRAPHY.h2,
+      fontFamily: theme.boldFont,
+      color: theme.textColor,
+      fontWeight: '700',
+      letterSpacing: -0.3,
+    },
+    levelBadge: {
+      backgroundColor: theme.tintColor || '#73EC8B',
+      paddingHorizontal: SPACING.sm,
+      paddingVertical: SPACING.xs,
+      borderRadius: RADIUS.sm,
+      marginTop: SPACING.xs,
+      alignSelf: 'flex-start',
+    },
+    levelText: {
+      fontSize: TYPOGRAPHY.caption,
+      fontFamily: theme.boldFont,
+      color: '#000000',
+      fontWeight: '600',
+    },
+    row: {
+      padding: 15,
+      borderRadius: 8,
+      marginBottom: 8,
+      borderWidth: 1,
+      borderColor: theme.borderColor || 'rgba(255, 255, 255, 0.08)',
+    },
+    rowText: {
+      fontFamily: theme.semiBoldFont,
+      fontSize: 16,
+      color: theme.textColor,
+    },
+  })
