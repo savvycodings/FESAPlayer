@@ -151,7 +151,7 @@ export function Profile() {
     }
   }
 
-  // Add card to collection
+  // Add card to collection (payload from AddCardModal: type, name, set, cardNumber, image, cardId, etc.)
   const addCardToCollection = async (data: {
     type: 'card' | 'sealed' | 'slab'
     name: string
@@ -159,6 +159,7 @@ export function Profile() {
     image?: string
     cardId?: string
     set?: string
+    cardNumber?: string
     condition?: string
     grade?: number
     purchaseDate?: string

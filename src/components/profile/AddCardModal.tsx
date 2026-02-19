@@ -182,7 +182,7 @@ export function AddCardModal({
         }
       }
       
-      // For cards, save TCG image URL (set + number) to DB so profile shows correct artwork (e.g. images.pokemontcg.io/pfl/125_hires.png)
+      // For cards, save TCG image URL (set + number) from our API set list so profile shows correct artwork (e.g. images.pokemontcg.io/zsv10pt5/172_hires.png)
       const cardTcgImage = type === 'card' ? getPokemonTcgImageUrlFromSetNumber(set.trim(), cardNumber.trim()) : null
       const imageToSend = (type === 'card' && cardTcgImage) ? cardTcgImage : (image || undefined)
 
