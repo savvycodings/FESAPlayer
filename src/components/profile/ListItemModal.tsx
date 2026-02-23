@@ -1,4 +1,4 @@
-import { View, StyleSheet, Modal, TouchableOpacity, ScrollView, TextInput, Image, Alert } from 'react-native'
+import { View, StyleSheet, Modal, TouchableOpacity, ScrollView, TextInput, Image, Alert, ActivityIndicator } from 'react-native'
 import { useContext, useState, useEffect } from 'react'
 import * as ImagePicker from 'expo-image-picker'
 import { Text } from '../ui/text'
@@ -11,8 +11,8 @@ interface ListItemModalProps {
   productName: string
   productImage?: any
   onClose: () => void
-  /** Called with price and the selected listing photo URI (required for new listings; omitted when editing). */
-  onList: (price: number, listingImageUri?: string) => void
+  /** Called with price and the selected listing photo URI (required for new listings; omitted when editing). Can return a Promise so the modal waits and shows loading. */
+  onList: (price: number, listingImageUri?: string) => void | Promise<void>
   initialPrice?: number
   initialDescription?: string
   /** When set, shows a "Remove listing" button at the bottom (for your store edit only). */
@@ -34,6 +34,7 @@ export function ListItemModal({
   const [price, setPrice] = useState('')
   const [description, setDescription] = useState('')
   const [listingImageUri, setListingImageUri] = useState<string | null>(null)
+  const [submitting, setSubmitting] = useState(false)
 
   const isEditing = initialPrice !== undefined
 
@@ -80,14 +81,21 @@ export function ListItemModal({
     }
   }
 
-  const handleList = () => {
-    if (!isValid()) return
+  const handleList = async () => {
+    if (!isValid() || submitting) return
     const numericPrice = parseFloat(price.replace(/[^0-9.]/g, ''))
-    onList(numericPrice, listingImageUri ?? undefined)
-    setPrice('')
-    setDescription('')
-    setListingImageUri(null)
-    onClose()
+    setSubmitting(true)
+    try {
+      await Promise.resolve(onList(numericPrice, listingImageUri ?? undefined))
+      setPrice('')
+      setDescription('')
+      setListingImageUri(null)
+      onClose()
+    } catch (e) {
+      // Error already shown by parent (e.g. Alert)
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   const handleClose = () => {
@@ -220,12 +228,19 @@ export function ListItemModal({
 
             {/* Footer Button */}
             <TouchableOpacity
-              style={[styles.listButton, !isValid() && styles.listButtonDisabled]}
+              style={[styles.listButton, (!isValid() || submitting) && styles.listButtonDisabled]}
               onPress={handleList}
               activeOpacity={0.8}
-              disabled={!isValid()}
+              disabled={!isValid() || submitting}
             >
-              <Text style={styles.listButtonText}>{isEditing ? 'Save Changes' : 'List Item'}</Text>
+              {submitting ? (
+                <View style={styles.listButtonContent}>
+                  <ActivityIndicator size="small" color={theme.tintColor || '#73EC8B'} />
+                  <Text style={styles.listButtonText}>{isEditing ? 'Saving…' : 'Listing…'}</Text>
+                </View>
+              ) : (
+                <Text style={styles.listButtonText}>{isEditing ? 'Save Changes' : 'List Item'}</Text>
+              )}
             </TouchableOpacity>
 
             {/* Remove listing (only when editing your own store) */}
@@ -414,6 +429,12 @@ const getStyles = (theme: any) =>
     listButtonDisabled: {
       backgroundColor: 'rgba(115, 236, 139, 0.3)',
       opacity: 0.5,
+    },
+    listButtonContent: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: SPACING.sm,
     },
     listButtonText: {
       fontSize: TYPOGRAPHY.body,

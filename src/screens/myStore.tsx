@@ -22,6 +22,7 @@ import { DOMAIN } from '../../constants'
 import * as ImagePicker from 'expo-image-picker'
 import { uploadImage, isExternalUrl } from '../utils/imageUpload'
 import { authClient } from '../lib/auth-client'
+import { getPokemonTcgImageUrlFromSetNumberIfOnCdn } from '../utils/pokemonTcgImages'
 
 type MyStoreStackParamList = {
   MyStoreMain: undefined
@@ -85,6 +86,8 @@ export function MyStore() {
   // Store creation modal
   const [isCreateStoreModalVisible, setIsCreateStoreModalVisible] = useState(false)
   const [newStoreName, setNewStoreName] = useState('')
+  const [newTwitchUrl, setNewTwitchUrl] = useState('')
+  const [newYoutubeUrl, setNewYoutubeUrl] = useState('')
   const [creatingStore, setCreatingStore] = useState(false)
 
   // Get Better Auth session token for API calls
@@ -107,6 +110,7 @@ export function MyStore() {
       setStoreLoading(true)
       const token = await getSessionToken()
       if (!token) {
+        setStoreLoading(false)
         Alert.alert('Error', 'Please log in to access your store')
         return
       }
@@ -160,6 +164,8 @@ export function MyStore() {
         credentials: 'include', // Include cookies for web
         body: JSON.stringify({
           storeName: newStoreName || undefined,
+          twitchUrl: newTwitchUrl.trim() || undefined,
+          youtubeUrl: newYoutubeUrl.trim() || undefined,
         }),
       })
 
@@ -169,6 +175,8 @@ export function MyStore() {
         setStore(data.store)
         setIsCreateStoreModalVisible(false)
         setNewStoreName('')
+        setNewTwitchUrl('')
+        setNewYoutubeUrl('')
         Alert.alert('Success', 'Store created successfully!')
       } else {
         Alert.alert('Error', data.message || 'Failed to create store')
@@ -611,10 +619,12 @@ export function MyStore() {
     }
   }
 
-  // Load store on mount
-  useEffect(() => {
-    fetchStore()
-  }, [])
+  // Load store when screen is focused (mount + when returning from other screens)
+  useFocusEffect(
+    useCallback(() => {
+      fetchStore()
+    }, [])
+  )
 
   // Load data when store is available and tab changes
   useEffect(() => {
@@ -630,16 +640,6 @@ export function MyStore() {
       }
     }
   }, [store, activeTab])
-
-  // Refresh listings when screen comes into focus (Option 5: Combined approach)
-  useFocusEffect(
-    useCallback(() => {
-      // Only refresh if store exists and we're on the MY STORE tab
-      if (store && activeTab === 'MY STORE') {
-        fetchListings()
-      }
-    }, [store, activeTab])
-  )
 
   const filteredListings = useMemo(() => {
     return listings.filter(listing => {
@@ -661,6 +661,9 @@ export function MyStore() {
   }
 
   const tabs = ['AUCTIONS', 'MY STORE', 'ISO', 'ORDERS']
+
+  const USD_TO_ZAR = Number(process.env.EXPO_PUBLIC_USD_TO_ZAR) || 16
+  const formatIsoPrice = (usd: number) => `R${Math.round(usd * USD_TO_ZAR).toLocaleString('en-ZA')}`
 
   // Get user info from Better Auth for default values
   const [userInfo, setUserInfo] = useState<any>(null)
@@ -688,11 +691,12 @@ export function MyStore() {
     )
   }
 
+  // No store yet (e.g. new account opening the page for the first time) – always show Create Store modal
   if (!store) {
     return (
       <View style={styles.container}>
         <Modal
-          visible={isCreateStoreModalVisible}
+          visible={true}
           animationType="slide"
           transparent={true}
         >
@@ -705,10 +709,28 @@ export function MyStore() {
                 </Text>
                 <TextInput
                   style={styles.modalInput}
-                  placeholder="Store name (optional)"
+                  placeholder="Store name (required)"
                   placeholderTextColor={theme.mutedForegroundColor || 'rgba(255, 255, 255, 0.6)'}
                   value={newStoreName}
                   onChangeText={setNewStoreName}
+                />
+                <TextInput
+                  style={styles.modalInput}
+                  placeholder="Twitch URL (optional)"
+                  placeholderTextColor={theme.mutedForegroundColor || 'rgba(255, 255, 255, 0.6)'}
+                  value={newTwitchUrl}
+                  onChangeText={setNewTwitchUrl}
+                  autoCapitalize="none"
+                  keyboardType="url"
+                />
+                <TextInput
+                  style={styles.modalInput}
+                  placeholder="YouTube URL (optional)"
+                  placeholderTextColor={theme.mutedForegroundColor || 'rgba(255, 255, 255, 0.6)'}
+                  value={newYoutubeUrl}
+                  onChangeText={setNewYoutubeUrl}
+                  autoCapitalize="none"
+                  keyboardType="url"
                 />
                 <View style={styles.modalActions}>
                   <TouchableOpacity
@@ -719,9 +741,9 @@ export function MyStore() {
                     <Text style={styles.modalButtonTextSecondary}>Cancel</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
-                    style={[styles.modalButton, styles.modalButtonPrimary]}
+                    style={[styles.modalButton, styles.modalButtonPrimary, !newStoreName.trim() && styles.modalButtonDisabled]}
                     onPress={createStore}
-                    disabled={creatingStore}
+                    disabled={creatingStore || !newStoreName.trim()}
                   >
                     {creatingStore ? (
                       <ActivityIndicator size="small" color="#fff" />
@@ -816,40 +838,62 @@ export function MyStore() {
                   ) : isoItems.length > 0 ? (
                     <>
                       <View style={styles.isoSeparator} />
-                      {isoItems.map((isoItem, index) => (
-                        <View key={isoItem.id}>
-                          <View style={styles.isoItem}>
-                            <View style={styles.isoItemLeft}>
-                              <View style={styles.isoDetailRow}>
-                                <Text style={styles.isoDetailLabel}>Card Name:</Text>
-                                <Text style={styles.isoDetailValue}>{isoItem.cardName}</Text>
+                      {isoItems.map((isoItem, index) => {
+                        const imageUri = isoItem.image
+                          || getPokemonTcgImageUrlFromSetNumberIfOnCdn(isoItem.set, isoItem.cardNumber)
+                          || null
+                        return (
+                          <View key={isoItem.id}>
+                            <View style={styles.isoItem}>
+                              <View style={styles.isoItemImageWrap}>
+                                {imageUri ? (
+                                  <Image
+                                    source={{ uri: imageUri }}
+                                    style={styles.isoCardImage}
+                                    resizeMode="contain"
+                                  />
+                                ) : (
+                                  <View style={styles.isoCardImagePlaceholder}>
+                                    <Ionicons name="image-outline" size={32} color="rgba(255, 255, 255, 0.4)" />
+                                    <Text style={styles.isoCardImageFallbackText} numberOfLines={2}>{isoItem.cardName}</Text>
+                                  </View>
+                                )}
                               </View>
-                              {isoItem.cardNumber && (
+                              <View style={styles.isoItemTextBlock}>
+                                <Text style={styles.isoItemTitle} numberOfLines={1}>
+                                  {isoItem.cardName || 'Unnamed card'}
+                                </Text>
+
                                 <View style={styles.isoDetailRow}>
-                                  <Text style={styles.isoDetailLabel}>Card Number:</Text>
-                                  <Text style={styles.isoDetailValue}>{isoItem.cardNumber}</Text>
+                                  <Text style={styles.isoDetailLabel}>Set</Text>
+                                  <Text style={styles.isoDetailValue} numberOfLines={1}>
+                                    {isoItem.set || '—'}
+                                  </Text>
                                 </View>
-                              )}
-                              {isoItem.set && (
+
                                 <View style={styles.isoDetailRow}>
-                                  <Text style={styles.isoDetailLabel}>Set:</Text>
-                                  <Text style={styles.isoDetailValue}>{isoItem.set}</Text>
+                                  <Text style={styles.isoDetailLabel}>Card #</Text>
+                                  <Text style={styles.isoDetailValue} numberOfLines={1}>
+                                    {isoItem.cardNumber || '—'}
+                                  </Text>
                                 </View>
-                              )}
+
+                                <View style={styles.isoPriceRow}>
+                                  <Text style={styles.isoPriceLabel}>Market</Text>
+                                  <View style={styles.isoPricePill}>
+                                    <Text style={styles.isoPriceText} numberOfLines={1}>
+                                      {isoItem.marketPrice != null
+                                        ? formatIsoPrice(Number(isoItem.marketPrice))
+                                        : '—'}
+                                    </Text>
+                                  </View>
+                                </View>
+                              </View>
                             </View>
-                            {isoItem.image && (
-                              <View style={styles.isoItemRight}>
-                                <Image
-                                  source={{ uri: isoItem.image }}
-                                  style={styles.isoCardImage}
-                                  resizeMode="contain"
-                                />
-                              </View>
-                            )}
+                            {index < isoItems.length - 1 && <View style={styles.isoSeparator} />}
                           </View>
-                          {index < isoItems.length - 1 && <View style={styles.isoSeparator} />}
-                        </View>
-                      ))}
+                        )
+                      })}
                     </>
                   ) : (
                     <View style={styles.emptyContainer}>
@@ -873,6 +917,8 @@ export function MyStore() {
                 xpToNextLevel={xpToNextLevel}
                 salesCount={salesCount}
                 shareableLink={shareableLink}
+                twitchUrl={store.twitchUrl ?? undefined}
+                youtubeUrl={store.youtubeUrl ?? undefined}
                 showBannerEdit={true}
                 onBannerEditPress={async () => {
                   const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync()
@@ -1050,7 +1096,7 @@ export function MyStore() {
             } else {
               if (!listingImageUri) {
                 Alert.alert('Photo required', 'Please select a photo of your card to list it on your store.')
-                return
+                throw new Error('Photo required')
               }
               await createListing(selectedProduct.name, price, { uri: listingImageUri })
             }
@@ -1080,6 +1126,7 @@ export function MyStore() {
           await createISOItem(cardName, cardNumber, set)
           setIsAddISOModalVisible(false)
         }}
+        apiBaseUrl={DOMAIN}
       />
     </View>
   )
@@ -1176,10 +1223,47 @@ const getStyles = (theme: any) => StyleSheet.create({
   },
   isoItem: {
     flexDirection: 'row',
+    alignItems: 'center',
     paddingVertical: SPACING.sm,
     gap: SPACING.md,
-    minHeight: 80,
+  },
+  isoItemImageWrap: {
+    width: 72,
+    height: 100,
+    borderRadius: RADIUS.md,
+    overflow: 'hidden',
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  isoCardImage: {
+    width: '100%',
+    height: '100%',
+  },
+  isoCardImagePlaceholder: {
+    width: '100%',
+    height: '100%',
     alignItems: 'center',
+    justifyContent: 'center',
+    padding: SPACING.sm,
+  },
+  isoCardImageFallbackText: {
+    fontSize: TYPOGRAPHY.bodySmall,
+    fontFamily: theme.regularFont,
+    color: 'rgba(255, 255, 255, 0.6)',
+    marginTop: SPACING.xs,
+    textAlign: 'center',
+  },
+  isoItemTextBlock: {
+    flex: 1,
+    justifyContent: 'center',
+    gap: SPACING.xs,
+  },
+  isoItemTitle: {
+    fontSize: TYPOGRAPHY.h2,
+    fontFamily: theme.boldFont,
+    color: theme.textColor,
+    marginBottom: SPACING.xs,
   },
   isoItemLeft: {
     flex: 1,
@@ -1191,10 +1275,6 @@ const getStyles = (theme: any) => StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  isoCardImage: {
-    width: '100%',
-    height: '100%',
-  },
   isoDetailRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1205,13 +1285,39 @@ const getStyles = (theme: any) => StyleSheet.create({
     fontFamily: theme.semiBoldFont,
     color: 'rgba(255, 255, 255, 0.6)',
     fontWeight: '600',
-    minWidth: 100,
+    minWidth: 48,
   },
   isoDetailValue: {
     fontSize: TYPOGRAPHY.bodySmall,
     fontFamily: theme.regularFont,
     color: theme.textColor,
     flex: 1,
+  },
+  isoPriceRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: SPACING.xs,
+    gap: SPACING.sm,
+  },
+  isoPriceLabel: {
+    fontSize: TYPOGRAPHY.caption,
+    fontFamily: theme.semiBoldFont,
+    color: 'rgba(255, 255, 255, 0.6)',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  isoPricePill: {
+    paddingHorizontal: SPACING.sm,
+    paddingVertical: SPACING.xs,
+    borderRadius: 999,
+    backgroundColor: 'rgba(115, 236, 139, 0.1)',
+    borderWidth: 1,
+    borderColor: theme.tintColor || '#73EC8B',
+  },
+  isoPriceText: {
+    fontSize: TYPOGRAPHY.bodySmall,
+    fontFamily: theme.semiBoldFont,
+    color: theme.tintColor || '#73EC8B',
   },
   isoSeparator: {
     height: 1,
@@ -1275,6 +1381,9 @@ const getStyles = (theme: any) => StyleSheet.create({
   },
   modalButtonPrimary: {
     backgroundColor: theme.tintColor || '#73EC8B',
+  },
+  modalButtonDisabled: {
+    opacity: 0.5,
   },
   modalButtonSecondary: {
     backgroundColor: 'transparent',

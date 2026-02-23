@@ -2,7 +2,7 @@ import { useContext, useRef, useCallback } from 'react';
 import { StyleSheet, Text, View, Button } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { Shop, Settings, Search, Grade, Profile, Product, Category, SetProducts, ViewProfile, MyStore } from './screens'
+import { Shop, Settings, EditProfile, EditPhone, EditPudoAddress, Search, Grade, Profile, Product, Category, SetProducts, ViewProfile, MyStore } from './screens'
 import { Header } from './components'
 import FeatherIcon from '@expo/vector-icons/Feather'
 import {
@@ -72,6 +72,22 @@ function MyStoreStack() {
     >
       <Stack.Screen name="MyStoreMain" component={MyStore} />
       <Stack.Screen name="Product" component={Product} />
+    </Stack.Navigator>
+  )
+}
+
+// Settings Stack Navigator (Settings + EditProfile + EditPhone + EditPudoAddress)
+function SettingsStack() {
+  return (
+    <Stack.Navigator
+      screenOptions={{
+        headerShown: false,
+      }}
+    >
+      <Stack.Screen name="SettingsMain" component={Settings} />
+      <Stack.Screen name="EditProfile" component={EditProfile} />
+      <Stack.Screen name="EditPhone" component={EditPhone} />
+      <Stack.Screen name="EditPudoAddress" component={EditPudoAddress} />
     </Stack.Navigator>
   )
 }
@@ -172,7 +188,7 @@ function MainComponent() {
         />
         <Tab.Screen
           name="Settings"
-          component={Settings}
+          component={SettingsStack}
           options={{
             headerShown: false,
             tabBarIcon: ({ color, size }) => (

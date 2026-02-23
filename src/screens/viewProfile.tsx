@@ -10,6 +10,7 @@ import { Card, CardContent } from '../components/ui/card'
 import Ionicons from '@expo/vector-icons/Ionicons'
 import { DOMAIN } from '../../constants'
 import { authClient } from '../lib/auth-client'
+import { getPokemonTcgImageUrlFromSetNumberIfOnCdn } from '../utils/pokemonTcgImages'
 import {
   StoreHeader,
   StoreStats,
@@ -57,6 +58,8 @@ export function ViewProfile() {
   const [vaultedOnly, setVaultedOnly] = useState(false)
   const [reviewsExpanded, setReviewsExpanded] = useState(false)
   const [isoExpanded, setIsoExpanded] = useState(false)
+  const [isoItems, setIsoItems] = useState<any[]>([])
+  const [isoLoading, setIsoLoading] = useState(false)
   const [storeData, setStoreData] = useState<any>(null)
   const [listings, setListings] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
@@ -217,6 +220,28 @@ export function ViewProfile() {
     fetchStoreData()
   }, [storeId])
 
+  // Fetch ISO items for this store (when viewing someone's profile)
+  const fetchStoreIso = async () => {
+    if (!storeId) return
+    try {
+      setIsoLoading(true)
+      const baseUrl = DOMAIN?.endsWith('/') ? DOMAIN.slice(0, -1) : DOMAIN
+      const response = await fetch(`${baseUrl}/api/stores/${storeId}/iso`)
+      if (response.ok) {
+        const data = await response.json()
+        setIsoItems(data.isoItems || [])
+      }
+    } catch (e) {
+      console.error('Error fetching store ISO:', e)
+    } finally {
+      setIsoLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    fetchStoreIso()
+  }, [storeId])
+
   // Sample store data fallback (if no storeId or API fails)
   const fallbackStoreData = {
     name: `${userName}'s Card Shop`,
@@ -366,6 +391,8 @@ export function ViewProfile() {
           xpToNextLevel={displayStoreData.xpToNextLevel}
           salesCount={displayStoreData.salesCount}
           shareableLink={displayStoreData.shareableLink}
+          twitchUrl={storeData?.twitchUrl}
+          youtubeUrl={storeData?.youtubeUrl}
         />
 
         <Section title="Store Stats">
@@ -404,7 +431,9 @@ export function ViewProfile() {
                   </View>
                   <View>
                     <Text style={styles.isoTitle}>Cards in Search Of</Text>
-                    <Text style={styles.isoSubtitle}>{3} cards looking for</Text>
+                    <Text style={styles.isoSubtitle}>
+                      {isoLoading ? '…' : isoItems.length} {isoItems.length === 1 ? 'card' : 'cards'} looking for
+                    </Text>
                   </View>
                 </View>
                 <Ionicons
@@ -416,53 +445,65 @@ export function ViewProfile() {
 
               {isoExpanded && (
                 <View style={styles.isoContent}>
-                  {[
-                    {
-                      cardName: 'Charizard ex',
-                      cardNumber: '223/165',
-                      set: 'Obsidian Flames',
-                      image: require('../../assets/singles/Shining_Charizard_Secret.jpg'),
-                    },
-                    {
-                      cardName: 'Pikachu VMAX',
-                      cardNumber: '188/185',
-                      set: 'Celebrations',
-                      image: require('../../assets/singles/Mew.jpg'),
-                    },
-                    {
-                      cardName: 'Mewtwo & Mew GX',
-                      cardNumber: '71/236',
-                      set: 'Unified Minds',
-                      image: require('../../assets/singles/Mew.jpg'),
-                    },
-                  ].map((isoCard, index) => (
-                    <View key={index}>
-                      <View style={styles.isoItem}>
-                        <View style={styles.isoItemLeft}>
-                          <View style={styles.isoDetailRow}>
-                            <Text style={styles.isoDetailLabel}>Card Name:</Text>
-                            <Text style={styles.isoDetailValue}>{isoCard.cardName}</Text>
-                          </View>
-                          <View style={styles.isoDetailRow}>
-                            <Text style={styles.isoDetailLabel}>Card Number:</Text>
-                            <Text style={styles.isoDetailValue}>{isoCard.cardNumber}</Text>
-                          </View>
-                          <View style={styles.isoDetailRow}>
-                            <Text style={styles.isoDetailLabel}>Set:</Text>
-                            <Text style={styles.isoDetailValue}>{isoCard.set}</Text>
-                          </View>
-                        </View>
-                        <View style={styles.isoItemRight}>
-                          <Image
-                            source={isoCard.image}
-                            style={styles.isoCardImage}
-                            resizeMode="contain"
-                          />
-                        </View>
-                      </View>
-                      {index < 2 && <View style={styles.isoSeparator} />}
+                  {isoLoading ? (
+                    <View style={styles.isoLoadingWrap}>
+                      <ActivityIndicator size="small" color={theme.tintColor || '#73EC8B'} />
                     </View>
-                  ))}
+                  ) : isoItems.length === 0 ? (
+                    <Text style={styles.isoEmptyText}>No cards in search of</Text>
+                  ) : (
+                    isoItems.map((isoItem, index) => {
+                      const imageUri = isoItem.image
+                        || getPokemonTcgImageUrlFromSetNumberIfOnCdn(isoItem.set, isoItem.cardNumber)
+                        || null
+                      const formatIsoPrice = (usd: number) => {
+                        const rate = Number(process.env.EXPO_PUBLIC_USD_TO_ZAR) || 16
+                        return `R${Math.round(usd * rate).toLocaleString('en-ZA')}`
+                      }
+                      return (
+                        <View key={isoItem.id}>
+                          <View style={styles.isoItem}>
+                            <View style={styles.isoItemImageWrap}>
+                              {imageUri ? (
+                                <Image
+                                  source={{ uri: imageUri }}
+                                  style={styles.isoCardImage}
+                                  resizeMode="contain"
+                                />
+                              ) : (
+                                <View style={styles.isoCardImagePlaceholder}>
+                                  <Ionicons name="image-outline" size={32} color="rgba(255, 255, 255, 0.4)" />
+                                  <Text style={styles.isoCardImageFallbackText} numberOfLines={2}>{isoItem.cardName}</Text>
+                                </View>
+                              )}
+                            </View>
+                            <View style={styles.isoItemTextBlock}>
+                              <Text style={styles.isoItemTitle} numberOfLines={1}>
+                                {isoItem.cardName || 'Unnamed card'}
+                              </Text>
+                              <View style={styles.isoDetailRow}>
+                                <Text style={styles.isoDetailLabel}>Set</Text>
+                                <Text style={styles.isoDetailValue} numberOfLines={1}>{isoItem.set || '—'}</Text>
+                              </View>
+                              <View style={styles.isoDetailRow}>
+                                <Text style={styles.isoDetailLabel}>Card #</Text>
+                                <Text style={styles.isoDetailValue} numberOfLines={1}>{isoItem.cardNumber || '—'}</Text>
+                              </View>
+                              <View style={styles.isoPriceRow}>
+                                <Text style={styles.isoPriceLabel}>Market</Text>
+                                <View style={styles.isoPricePill}>
+                                  <Text style={styles.isoPriceText} numberOfLines={1}>
+                                    {isoItem.marketPrice != null ? formatIsoPrice(Number(isoItem.marketPrice)) : '—'}
+                                  </Text>
+                                </View>
+                              </View>
+                            </View>
+                          </View>
+                          {index < isoItems.length - 1 && <View style={styles.isoSeparator} />}
+                        </View>
+                      )
+                    })
+                  )}
                 </View>
               )}
             </CardContent>
@@ -864,10 +905,47 @@ const getStyles = (theme: any) => StyleSheet.create({
   },
   isoItem: {
     flexDirection: 'row',
+    alignItems: 'center',
     paddingVertical: SPACING.sm,
     gap: SPACING.md,
-    minHeight: 80,
+  },
+  isoItemImageWrap: {
+    width: 72,
+    height: 100,
+    borderRadius: RADIUS.md,
+    overflow: 'hidden',
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  isoCardImage: {
+    width: '100%',
+    height: '100%',
+  },
+  isoCardImagePlaceholder: {
+    width: '100%',
+    height: '100%',
     alignItems: 'center',
+    justifyContent: 'center',
+    padding: SPACING.sm,
+  },
+  isoCardImageFallbackText: {
+    fontSize: TYPOGRAPHY.bodySmall,
+    fontFamily: theme.regularFont,
+    color: 'rgba(255, 255, 255, 0.6)',
+    marginTop: SPACING.xs,
+    textAlign: 'center',
+  },
+  isoItemTextBlock: {
+    flex: 1,
+    justifyContent: 'center',
+    gap: SPACING.xs,
+  },
+  isoItemTitle: {
+    fontSize: TYPOGRAPHY.h2,
+    fontFamily: theme.boldFont,
+    color: theme.textColor,
+    marginBottom: SPACING.xs,
   },
   isoItemLeft: {
     flex: 1,
@@ -879,10 +957,6 @@ const getStyles = (theme: any) => StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  isoCardImage: {
-    width: '100%',
-    height: '100%',
-  },
   isoDetailRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -893,13 +967,49 @@ const getStyles = (theme: any) => StyleSheet.create({
     fontFamily: theme.semiBoldFont,
     color: 'rgba(255, 255, 255, 0.6)',
     fontWeight: '600',
-    minWidth: 100,
+    minWidth: 48,
   },
   isoDetailValue: {
     fontSize: TYPOGRAPHY.bodySmall,
     fontFamily: theme.regularFont,
     color: theme.textColor,
     flex: 1,
+  },
+  isoPriceRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: SPACING.xs,
+    gap: SPACING.sm,
+  },
+  isoPriceLabel: {
+    fontSize: TYPOGRAPHY.caption,
+    fontFamily: theme.semiBoldFont,
+    color: 'rgba(255, 255, 255, 0.6)',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  isoPricePill: {
+    paddingHorizontal: SPACING.sm,
+    paddingVertical: SPACING.xs,
+    borderRadius: 999,
+    backgroundColor: 'rgba(115, 236, 139, 0.1)',
+    borderWidth: 1,
+    borderColor: theme.tintColor || '#73EC8B',
+  },
+  isoPriceText: {
+    fontSize: TYPOGRAPHY.bodySmall,
+    fontFamily: theme.semiBoldFont,
+    color: theme.tintColor || '#73EC8B',
+  },
+  isoLoadingWrap: {
+    paddingVertical: SPACING.lg,
+    alignItems: 'center',
+  },
+  isoEmptyText: {
+    fontSize: TYPOGRAPHY.body,
+    fontFamily: theme.regularFont,
+    color: 'rgba(255, 255, 255, 0.6)',
+    paddingVertical: SPACING.md,
   },
   isoSeparator: {
     height: 1,

@@ -1,4 +1,4 @@
-import { View, StyleSheet, Image, TouchableOpacity } from 'react-native'
+import { View, StyleSheet, Image, TouchableOpacity, Linking } from 'react-native'
 import { useContext, useState } from 'react'
 import { Text } from '../ui/text'
 import { ThemeContext } from '../../context'
@@ -21,6 +21,8 @@ interface StoreHeaderProps {
   onEditPress?: () => void
   showBannerEdit?: boolean
   onBannerEditPress?: () => void
+  twitchUrl?: string
+  youtubeUrl?: string
 }
 
 export function StoreHeader({
@@ -36,7 +38,15 @@ export function StoreHeader({
   onEditPress,
   showBannerEdit = false,
   onBannerEditPress,
+  twitchUrl,
+  youtubeUrl,
 }: StoreHeaderProps) {
+  const openUrl = (url: string) => {
+    const u = url.trim()
+    if (!u) return
+    const href = u.startsWith('http') ? u : `https://${u}`
+    Linking.openURL(href).catch(() => {})
+  }
   const { theme } = useContext(ThemeContext)
   const styles = getStyles(theme)
   const [modalVisible, setModalVisible] = useState(false)
@@ -109,13 +119,39 @@ export function StoreHeader({
             <View style={styles.bannerInfoSection}>
               <View style={styles.storeNameRow}>
                 <Text style={styles.storeName}>{storeName}</Text>
-                <TouchableOpacity
-                  style={styles.levelBadge}
-                  onPress={() => handleLevelPress(level)}
-                  activeOpacity={0.7}
-                >
-                  <Text style={styles.levelText}>Lv {level}</Text>
-                </TouchableOpacity>
+                <View style={styles.storeNameBadges}>
+                  {(twitchUrl || youtubeUrl) && (
+                    <View style={styles.socialIconsRow}>
+                      {twitchUrl ? (
+                        <TouchableOpacity
+                          style={styles.socialIconButton}
+                          onPress={() => openUrl(twitchUrl)}
+                          activeOpacity={0.7}
+                          accessibilityLabel="Open Twitch"
+                        >
+                          <Ionicons name="logo-twitch" size={22} color={theme.textColor} />
+                        </TouchableOpacity>
+                      ) : null}
+                      {youtubeUrl ? (
+                        <TouchableOpacity
+                          style={styles.socialIconButton}
+                          onPress={() => openUrl(youtubeUrl)}
+                          activeOpacity={0.7}
+                          accessibilityLabel="Open YouTube"
+                        >
+                          <Ionicons name="logo-youtube" size={22} color={theme.textColor} />
+                        </TouchableOpacity>
+                      ) : null}
+                    </View>
+                  )}
+                  <TouchableOpacity
+                    style={styles.levelBadge}
+                    onPress={() => handleLevelPress(level)}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={styles.levelText}>Lv {level}</Text>
+                  </TouchableOpacity>
+                </View>
               </View>
 
               <ProgressBars
@@ -317,6 +353,7 @@ const getStyles = (theme: any) => StyleSheet.create({
     marginBottom: SPACING.sm,
   },
   storeName: {
+    flex: 1,
     fontSize: TYPOGRAPHY.h2,
     fontFamily: theme.boldFont,
     color: theme.textColor,
@@ -326,6 +363,19 @@ const getStyles = (theme: any) => StyleSheet.create({
     textShadowColor: 'rgba(0, 0, 0, 0.8)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 3,
+  },
+  storeNameBadges: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.sm,
+  },
+  socialIconsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.xs,
+  },
+  socialIconButton: {
+    padding: SPACING.xs,
   },
   levelBadge: {
     backgroundColor: theme.tintColor || '#73EC8B',

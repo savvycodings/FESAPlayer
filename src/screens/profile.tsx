@@ -594,6 +594,8 @@ export function Profile() {
                     const ebayPrice = (product as any).ebayLastSoldZar
                     const set = (product as any).set
                     navigation.navigate('Product', {
+                      id: String(product.id),
+                      cardId: (product as any).cardId,
                       name: product.name,
                       image: product.image,
                       category: 'product',

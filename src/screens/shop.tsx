@@ -1,6 +1,6 @@
 import { View, StyleSheet, ScrollView, TextInput, TouchableOpacity, FlatList, Platform } from 'react-native'
-import { useContext, useState, useMemo, useEffect } from 'react'
-import { useNavigation } from '@react-navigation/native'
+import { useContext, useState, useMemo, useEffect, useCallback } from 'react'
+import { useNavigation, useFocusEffect } from '@react-navigation/native'
 import { NativeStackNavigationProp } from '@react-navigation/native-stack'
 import { ThemeContext } from '../context'
 import { Section } from '../components/layout/Section'
@@ -63,27 +63,32 @@ export function Shop() {
   }>>([])
   const [recentListingsLoading, setRecentListingsLoading] = useState(true)
   
-  // Get user from Better Auth
+  // Display name from profile API (updates when user edits name in Edit Profile)
   const [userName, setUserName] = useState<string>('User')
-  
-  useEffect(() => {
-    const fetchUser = async () => {
-      try {
-        const session = await authClient.getSession()
-        if (session?.data?.user) {
-          const user = session.data.user
-          // Use name or email username
-          const name = user.name || (user.email ? user.email.split('@')[0] : 'User')
-          setUserName(name)
-        }
-      } catch (error) {
-        console.error('Error fetching user:', error)
-        // Keep default 'User' if error
-      }
+
+  const fetchProfileName = useCallback(async () => {
+    try {
+      const session = await authClient.getSession()
+      if (!session?.data?.session) return
+      const baseUrl = DOMAIN?.endsWith('/') ? DOMAIN.slice(0, -1) : DOMAIN
+      const res = await fetch(`${baseUrl}/api/profile/user`, {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.data.session.token}` },
+        credentials: 'include',
+      })
+      const data = await res.json()
+      if (!res.ok || !data.user) return
+      const u = data.user
+      const first = u.firstName?.trim()
+      const last = u.lastName?.trim()
+      const fallback = u.name?.trim()
+      setUserName([first, last].filter(Boolean).join(' ') || fallback || 'User')
+    } catch (_) {
+      setUserName('User')
     }
-    
-    fetchUser()
   }, [])
+
+  useFocusEffect(useCallback(() => { fetchProfileName() }, [fetchProfileName]))
 
   // Fetch recent store listings from API
   useEffect(() => {

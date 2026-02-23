@@ -12,10 +12,12 @@ type ProfileStackParamList = {
   ProfileMain: undefined
   Product: {
     id?: string
+    cardId?: string
     name: string
     image: any
     category?: 'product' | 'set' | 'single' | 'featured' | 'listing'
     price?: number
+    ebayPrice?: number
     description?: string
   }
 }
@@ -28,6 +30,8 @@ interface Product {
   price: string
   image?: any
   isListed?: boolean
+  cardId?: string
+  ebayPrice?: number
 }
 
 interface ProductGridProps {
@@ -58,6 +62,8 @@ export function ProductGrid({ products, columns = 3, onProductPress, onQuickList
         category: 'product',
         price: price,
         description: `Premium ${product.name}. Authentic and verified with secure shipping.`,
+        ...(product.cardId && { cardId: product.cardId }),
+        ...(product.ebayPrice != null && { ebayPrice: product.ebayPrice }),
       })
     }
   }

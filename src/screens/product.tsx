@@ -6,6 +6,8 @@ import {
   Image,
   TouchableOpacity,
   Dimensions,
+  ActivityIndicator,
+  Alert,
 } from 'react-native'
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native'
 import { NativeStackNavigationProp } from '@react-navigation/native-stack'
@@ -16,9 +18,13 @@ import { Card, CardContent } from '../components/ui/card'
 import { SPACING, TYPOGRAPHY, RADIUS } from '../constants/layout'
 import { PriceChart } from '../components/profile/PriceChart'
 import { PayFastPayment } from '../components/payment'
+import { authClient } from '../lib/auth-client'
+import { DOMAIN } from '../../constants'
 type ProductRouteParams = {
   Product: {
     id?: string
+    /** Pokedata card ID for fetching price history (chart) */
+    cardId?: string
     name: string
     image: any
     category?: 'product' | 'set' | 'single' | 'featured' | 'listing'
@@ -55,12 +61,16 @@ export function Product() {
   const { theme } = useContext(ThemeContext)
   const navigation = useNavigation<ProductScreenNavigationProp>()
   const route = useRoute<ProductScreenRouteProp>()
-  const { name, image, category, price, ebayPrice, description, fromProfile, storeName } = route.params || {}
+  const { id, name, image, category, price, ebayPrice, description, fromProfile, storeName, cardId } = route.params || {}
   const tintColor = theme.tintColor || '#73EC8B'
   const styles = getStyles(theme, tintColor)
   const [isFavorited, setIsFavorited] = useState(false)
   const [isPaymentModalVisible, setIsPaymentModalVisible] = useState(false)
   const [paymentType, setPaymentType] = useState<'buy' | 'bid'>('buy')
+  const [removing, setRemoving] = useState(false)
+  const [chartData, setChartData] = useState<{ x: number; y: number }[]>([])
+  const [chartDates, setChartDates] = useState<string[]>([])
+  const [chartLoading, setChartLoading] = useState(false)
   // Format product name
   const formattedName = name
     ?.replace(/Pokémon[-_]TCG[-_]/g, '')
@@ -91,8 +101,96 @@ export function Product() {
   // Buy now price is R20 more than highest bid
   const buyNowPrice = highestBid + 20
 
-  // Current market value (flat line for display)
-  const currentValueData = displayPrice > 0 ? [{ x: 0, y: displayPrice }, { x: 1, y: displayPrice }] : []
+  const USD_TO_ZAR = Number(process.env.EXPO_PUBLIC_USD_TO_ZAR) || 16
+
+  // Remove from collection (only when opened from Profile with a collection id)
+  const handleRemoveFromCollection = () => {
+    if (!fromProfile || id == null || id === '') return
+    Alert.alert(
+      'Are you sure?',
+      undefined,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: "I'm sure",
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              setRemoving(true)
+              const session = await authClient.getSession()
+              const token = session?.data?.session?.token
+              if (!token) {
+                setRemoving(false)
+                Alert.alert('Error', 'Please log in')
+                return
+              }
+              const baseUrl = DOMAIN?.endsWith('/') ? DOMAIN.slice(0, -1) : DOMAIN
+              const response = await fetch(`${baseUrl}/api/profile/collections/${String(id).trim()}`, {
+                method: 'DELETE',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${token}`,
+                },
+                credentials: 'include',
+              })
+              if (!response.ok) {
+                const data = await response.json().catch(() => ({}))
+                setRemoving(false)
+                Alert.alert('Error', data.message || 'Failed to remove card from collection')
+                return
+              }
+              navigation.goBack()
+            } catch (error: any) {
+              console.error('Error removing collection item:', error)
+              setRemoving(false)
+              Alert.alert('Error', 'Failed to remove card from collection')
+            } finally {
+              setRemoving(false)
+            }
+          },
+        },
+      ],
+    )
+  }
+
+  // Fetch price history for chart when cardId is present (e.g. from collection)
+  useEffect(() => {
+    if (!cardId?.trim()) {
+      setChartData(displayPrice > 0 ? [{ x: 0, y: displayPrice }, { x: 1, y: displayPrice }] : [])
+      setChartDates([])
+      return
+    }
+    let cancelled = false
+    setChartLoading(true)
+    const baseUrl = DOMAIN?.endsWith('/') ? DOMAIN.slice(0, -1) : DOMAIN
+    fetch(`${baseUrl}/pokedata/card/${encodeURIComponent(cardId.trim())}/price-history?days=30`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (cancelled) return
+        const history = data.history || []
+        if (history.length === 0) {
+          setChartData(displayPrice > 0 ? [{ x: 0, y: displayPrice }, { x: 1, y: displayPrice }] : [])
+          setChartDates([])
+        } else {
+          const points = history.map((h: { date?: string; marketPrice?: number | null }, i: number) => {
+            const y = (h.marketPrice != null ? h.marketPrice * USD_TO_ZAR : displayPrice)
+            return { x: i, y }
+          })
+          setChartData(points)
+          setChartDates(history.map((h: { date?: string }) => h.date || ''))
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setChartData(displayPrice > 0 ? [{ x: 0, y: displayPrice }, { x: 1, y: displayPrice }] : [])
+          setChartDates([])
+        }
+      })
+      .finally(() => { if (!cancelled) setChartLoading(false) })
+    return () => { cancelled = true }
+  }, [cardId, displayPrice, USD_TO_ZAR])
+
+  const currentValueData = chartData.length > 0 ? chartData : (displayPrice > 0 ? [{ x: 0, y: displayPrice }, { x: 1, y: displayPrice }] : [])
 
   return (
     <View style={styles.container}>
@@ -225,17 +323,27 @@ export function Product() {
           </CardContent>
         </Card>
 
-        {/* Market value chart only */}
-        {currentValueData.length > 0 && (
+        {/* Market value chart - real history when cardId present, else flat line */}
+        {chartLoading && cardId ? (
+          <Card style={styles.imageCard}>
+            <CardContent style={styles.imageCardContent}>
+              <View style={{ paddingVertical: SPACING.xl, alignItems: 'center' }}>
+                <ActivityIndicator size="small" color={tintColor} />
+                <Text style={[styles.priceLabel, { marginTop: SPACING.sm }]}>Loading price history…</Text>
+              </View>
+            </CardContent>
+          </Card>
+        ) : currentValueData.length > 0 ? (
           <PriceChart
             data={currentValueData}
+            dates={chartDates.length > 0 ? chartDates : undefined}
             title="Market value"
-            subtitle="Current"
+            subtitle={chartDates.length >= 2 ? `${chartDates.length} points` : 'Current'}
             valuePrefix="R"
             color={tintColor}
             height={160}
           />
-        )}
+        ) : null}
 
         {/* Bids Section - only on non-profile product page */}
         {!fromProfile && (
@@ -270,20 +378,39 @@ export function Product() {
           </Card>
         )}
 
-        {/* About Section Card */}
-        <Card style={styles.aboutCard}>
-          <CardContent style={styles.aboutContent}>
-            <View style={styles.aboutHeader}>
-              <View style={styles.aboutIconContainer}>
-                <Ionicons name="information-circle-outline" size={20} color={theme.textColor} />
+        {/* About / Remove Section */}
+        {fromProfile && id ? (
+          <Card style={styles.aboutCard}>
+            <CardContent style={styles.aboutContent}>
+              <TouchableOpacity
+                style={[styles.removeFromCollectionButton, removing && { opacity: 0.7 }]}
+                onPress={handleRemoveFromCollection}
+                activeOpacity={0.8}
+                disabled={removing}
+              >
+                {removing ? (
+                  <ActivityIndicator size="small" color="#000000" />
+                ) : (
+                  <Text style={styles.removeFromCollectionButtonText}>Remove from collection</Text>
+                )}
+              </TouchableOpacity>
+            </CardContent>
+          </Card>
+        ) : (
+          <Card style={styles.aboutCard}>
+            <CardContent style={styles.aboutContent}>
+              <View style={styles.aboutHeader}>
+                <View style={styles.aboutIconContainer}>
+                  <Ionicons name="information-circle-outline" size={20} color={theme.textColor} />
+                </View>
+                <Text style={styles.aboutHeading}>About the Product</Text>
               </View>
-              <Text style={styles.aboutHeading}>About the Product</Text>
-            </View>
-            <Text style={styles.descriptionText}>
-              {displayDescription}
-            </Text>
-          </CardContent>
-        </Card>
+              <Text style={styles.descriptionText}>
+                {displayDescription}
+              </Text>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Additional spacing at bottom for bottom bar */}
         <View style={styles.bottomSpacing} />
@@ -569,6 +696,20 @@ const getStyles = (theme: any, tintColor: string) => StyleSheet.create({
     fontFamily: theme.regularFont,
     color: 'rgba(255, 255, 255, 0.8)',
     lineHeight: 22,
+  },
+  removeFromCollectionButton: {
+    marginTop: SPACING.lg,
+    backgroundColor: theme.destructiveColor || '#ef4444',
+    borderRadius: RADIUS.md,
+    paddingVertical: SPACING.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  removeFromCollectionButtonText: {
+    fontSize: TYPOGRAPHY.body,
+    fontFamily: theme.semiBoldFont,
+    color: '#000000',
+    fontWeight: '600',
   },
   bidsCard: {
     backgroundColor: theme.cardBackground || '#000000',

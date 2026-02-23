@@ -1,5 +1,8 @@
 export { Shop } from './shop'
 export { Settings } from './settings'
+export { EditProfile } from './EditProfile'
+export { EditPhone } from './EditPhone'
+export { EditPudoAddress } from './EditPudoAddress'
 export { Search } from './search'
 export { Grade } from './grade'
 export { Profile } from './profile'

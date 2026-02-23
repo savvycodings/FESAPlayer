@@ -8,6 +8,7 @@ import Ionicons from '@expo/vector-icons/Ionicons'
 import { useNavigation } from '@react-navigation/native'
 import { authClient } from '../../lib/auth-client'
 import AsyncStorage from '@react-native-async-storage/async-storage'
+import { DOMAIN } from '../../../constants'
 
 // Helper function to get gradient colors based on theme
 const getButtonGradientColors = (theme: any): string[] => {
@@ -32,6 +33,8 @@ export function Login() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [name, setName] = useState('')
+  const [phone, setPhone] = useState('')
+  const [pudoAddress, setPudoAddress] = useState('')
   const [loading, setLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
   const [authError, setAuthError] = useState<string | null>(null)
@@ -42,9 +45,19 @@ export function Login() {
       return
     }
 
-    if (isSignUp && !name) {
-      Alert.alert('Error', 'Please enter your name')
-      return
+    if (isSignUp) {
+      if (!name.trim()) {
+        Alert.alert('Error', 'Please enter your name')
+        return
+      }
+      if (!phone.trim()) {
+        Alert.alert('Error', 'Please enter your phone number')
+        return
+      }
+      if (!pudoAddress.trim()) {
+        Alert.alert('Error', 'Please enter your Pudo address')
+        return
+      }
     }
 
     setLoading(true)
@@ -75,6 +88,27 @@ export function Login() {
       }
       
       console.log(isSignUp ? '✅ Sign up successful:' : '✅ Sign in successful:', result?.data?.user?.email)
+      
+      // If sign up, save phone and Pudo address to profile
+      if (isSignUp && (phone.trim() || pudoAddress.trim())) {
+        try {
+          const session = await authClient.getSession()
+          const token = session?.data?.session?.token
+          if (token) {
+            const baseUrl = DOMAIN?.endsWith('/') ? DOMAIN.slice(0, -1) : DOMAIN
+            await fetch(`${baseUrl}/api/profile/user`, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+              body: JSON.stringify({
+                phone: phone.trim() || undefined,
+                pudoAddress: pudoAddress.trim() || undefined,
+              }),
+            })
+          }
+        } catch (e) {
+          console.warn('Failed to save phone / Pudo address:', e)
+        }
+      }
       
       // Mark user as authenticated for RootNavigator (used on all platforms)
       try {
@@ -134,6 +168,36 @@ export function Login() {
                     onChangeText={setName}
                     autoCapitalize="words"
                     autoComplete="name"
+                  />
+                </View>
+              )}
+
+              {isSignUp && (
+                <View style={styles.inputContainer}>
+                  <Ionicons name="call-outline" size={20} color={theme.mutedForegroundColor} style={styles.inputIcon} />
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Phone number"
+                    placeholderTextColor={theme.mutedForegroundColor}
+                    value={phone}
+                    onChangeText={setPhone}
+                    keyboardType="phone-pad"
+                    autoComplete="tel"
+                  />
+                </View>
+              )}
+
+              {isSignUp && (
+                <View style={styles.inputContainer}>
+                  <Ionicons name="location-outline" size={20} color={theme.mutedForegroundColor} style={styles.inputIcon} />
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Pudo address"
+                    placeholderTextColor={theme.mutedForegroundColor}
+                    value={pudoAddress}
+                    onChangeText={setPudoAddress}
+                    autoCapitalize="none"
+                    autoComplete="street-address"
                   />
                 </View>
               )}
