@@ -4,6 +4,7 @@ import { Text } from '../ui/text'
 import Ionicons from '@expo/vector-icons/Ionicons'
 import { ThemeContext } from '../../context'
 import { SPACING, TYPOGRAPHY, RADIUS, STORE_COLORS } from '../../constants/layout'
+import { FocalBrackets } from '../ui/FocalBrackets'
 import { LevelRewardModal } from './LevelRewardModal'
 
 interface ProgressBarsProps {
@@ -43,7 +44,9 @@ export function ProgressBars({
   const [modalVisible, setModalVisible] = useState(false)
   const [selectedLevel, setSelectedLevel] = useState<number | null>(null)
 
-  const progress = (currentXP / xpToNextLevel) * 100
+  const progress = xpToNextLevel > 0
+    ? Math.min(100, (Number(currentXP) / Number(xpToNextLevel)) * 100)
+    : 0
   const nextReward = getNextLevelReward(level)
 
   const handleLevelPress = (lvl: number) => {
@@ -66,21 +69,23 @@ export function ProgressBars({
         <View style={styles.horizontalContainer}>
           {showNextLevelBadge && nextReward && (
             <View style={styles.rewardContainerAbove}>
-              <TouchableOpacity
-                style={styles.rewardContainer}
-                onPress={() => handleLevelPress(level + 1)}
-                activeOpacity={0.7}
-              >
-                <Ionicons
-                  name={nextReward.icon}
-                  size={14}
-                  color={nextReward.color}
-                  style={styles.rewardIcon}
-                />
-                <Text style={[styles.rewardText, { color: nextReward.color }]}>
-                  Lv {level + 1}
-                </Text>
-              </TouchableOpacity>
+              <FocalBrackets bracketLength={14} bracketThickness={2} offset={1}>
+                <TouchableOpacity
+                  style={styles.rewardContainer}
+                  onPress={() => handleLevelPress(level + 1)}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons
+                    name={nextReward.icon}
+                    size={14}
+                    color={nextReward.color}
+                    style={styles.rewardIcon}
+                  />
+                  <Text style={[styles.rewardText, { color: nextReward.color }]}>
+                    Lv {level + 1}
+                  </Text>
+                </TouchableOpacity>
+              </FocalBrackets>
             </View>
           )}
           <View style={styles.horizontalBar}>

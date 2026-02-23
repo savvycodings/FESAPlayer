@@ -79,3 +79,8 @@ export const VERIFICATION_THRESHOLDS = {
   platinum: 31,
   diamond: 50,
 } as const
+
+/**
+ * Accent color for focal-point bracket frames (L-shaped corners around icons)
+ */
+export const ACCENT_BRACKET = '#FF8C42' as const

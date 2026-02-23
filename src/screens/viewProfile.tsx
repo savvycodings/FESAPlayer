@@ -204,7 +204,8 @@ export function ViewProfile() {
           userEmail: data.user ? '***' : undefined, // Don't log actual email
           listingsCount: data.listings?.length || 0,
         })
-        setStoreData(data.store)
+        // Merge user (level, currentXP, xpToNextLevel) into store so XP bar uses real data
+        setStoreData({ ...data.store, user: data.user })
         setListings(data.listings || [])
       } else {
         console.error('❌ [VIEW PROFILE] Failed to fetch store:', response.status)
@@ -316,13 +317,13 @@ export function ViewProfile() {
     ],
   }
 
-  // Use real store data if available, otherwise use fallback
+  // Use real store data if available, otherwise use fallback. XP/level from API so bar is dynamic.
   const displayStoreData = storeData ? {
     name: storeData.storeName || `${userName}'s Card Shop`,
-    level: storeData.user?.level || userLevel,
-    currentXP: storeData.user?.currentXP || 450,
-    xpToNextLevel: storeData.user?.xpToNextLevel || 600,
-    salesCount: storeData.salesCount || 0,
+    level: storeData.user?.level != null ? Number(storeData.user.level) : userLevel,
+    currentXP: storeData.user?.currentXP != null ? Number(storeData.user.currentXP) : 0,
+    xpToNextLevel: storeData.user?.xpToNextLevel != null ? Number(storeData.user.xpToNextLevel) : 100,
+    salesCount: storeData.salesCount ?? storeData.totalSales ?? 0,
     totalSales: storeData.totalSales || 0,
     totalRevenue: storeData.totalRevenue || 0,
     shareableLink: `saplayer.app/store/${storeId || userId}`,
@@ -395,7 +396,7 @@ export function ViewProfile() {
           youtubeUrl={storeData?.youtubeUrl}
         />
 
-        <Section title="Store Stats">
+        <Section title="Store Stats" style={{ marginTop: SPACING.lg }}>
           <StoreStats
             totalSales={displayStoreData.totalSales}
             totalRevenue={displayStoreData.totalRevenue}
@@ -417,11 +418,16 @@ export function ViewProfile() {
           </Section>
         )}
 
-        <Section title="Listings">
-          <SafetyFilter
-            enabled={vaultedOnly}
-            onToggle={setVaultedOnly}
-          />
+        <Section
+          title="Listings"
+          rightContent={
+            <SafetyFilter
+              enabled={vaultedOnly}
+              onToggle={setVaultedOnly}
+              compact
+            />
+          }
+        >
           <StoreListings
             listings={filteredListings}
             onListingPress={(listing: StoreListing) => {

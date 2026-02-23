@@ -213,14 +213,14 @@ export function StoreHeader({
 const getStyles = (theme: any) => StyleSheet.create({
   container: {
     width: '100%',
-    marginBottom: SPACING.sectionGap,
+    marginBottom: SPACING.xl,
   },
   bannerContainer: {
     width: '100%',
     height: 220,
     borderRadius: RADIUS.lg,
     overflow: 'hidden',
-    marginBottom: SPACING.md,
+    marginBottom: 0,
     position: 'relative',
   },
   banner: {
@@ -268,7 +268,7 @@ const getStyles = (theme: any) => StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    padding: SPACING.containerPadding,
+    padding: SPACING.lg,
     justifyContent: 'center',
   },
   textOverlayBackground: {
@@ -277,7 +277,7 @@ const getStyles = (theme: any) => StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+    backgroundColor: 'rgba(0, 0, 0, 0.35)',
   },
   bannerProfileSection: {
     flexDirection: 'row',
@@ -285,6 +285,7 @@ const getStyles = (theme: any) => StyleSheet.create({
   },
   bannerInfoSection: {
     flex: 1,
+    paddingLeft: SPACING.xs,
   },
   profileContainer: {
     marginRight: SPACING.md,
@@ -362,19 +363,19 @@ const getStyles = (theme: any) => StyleSheet.create({
   storeNameRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: SPACING.sm,
+    marginBottom: SPACING.md,
   },
   storeName: {
     flex: 1,
     fontSize: TYPOGRAPHY.h2,
     fontFamily: theme.boldFont,
     color: theme.textColor,
-    fontWeight: '600',
+    fontWeight: '700',
     marginRight: SPACING.sm,
-    letterSpacing: -0.3,
+    letterSpacing: 0.2,
     textShadowColor: 'rgba(0, 0, 0, 0.8)',
     textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 3,
+    textShadowRadius: 4,
   },
   storeNameEditIcon: {
     padding: SPACING.xs,

@@ -67,9 +67,9 @@ const getStyles = (theme: any) => StyleSheet.create({
   title: {
     fontSize: TYPOGRAPHY.h2,
     fontFamily: theme.boldFont,
-    fontWeight: '600',
+    fontWeight: '700',
     color: theme.textColor,
-    letterSpacing: -0.3,
+    letterSpacing: 0.15,
     lineHeight: TYPOGRAPHY.h2,
   },
   seeAll: {

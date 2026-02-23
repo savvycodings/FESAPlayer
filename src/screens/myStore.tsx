@@ -1175,17 +1175,18 @@ const getStyles = (theme: any) => StyleSheet.create({
   tabsRow: {
     flexDirection: 'row',
     alignItems: 'stretch',
-    marginBottom: SPACING.xl,
-    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+    marginTop: SPACING.lg,
+    marginBottom: SPACING['2xl'],
+    backgroundColor: 'rgba(255, 255, 255, 0.04)',
     borderRadius: RADIUS.md,
-    padding: 3,
+    padding: 4,
     borderWidth: 1,
-    borderColor: theme.borderColor || 'rgba(255, 255, 255, 0.1)',
+    borderColor: theme.borderColor || 'rgba(255, 255, 255, 0.08)',
   },
   tabPill: {
     flex: 1,
-    paddingVertical: SPACING.sm,
-    paddingHorizontal: SPACING.xs,
+    paddingVertical: SPACING.md,
+    paddingHorizontal: SPACING.sm,
     borderRadius: RADIUS.sm,
     alignItems: 'center',
     justifyContent: 'center',
@@ -1204,7 +1205,7 @@ const getStyles = (theme: any) => StyleSheet.create({
   },
   contentWrapper: {
     width: '100%',
-    paddingTop: SPACING.sm,
+    paddingTop: SPACING.lg,
   },
   ordersContainer: {
     gap: SPACING.md,
