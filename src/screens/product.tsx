@@ -8,6 +8,7 @@ import {
   Dimensions,
   ActivityIndicator,
   Alert,
+  Platform,
 } from 'react-native'
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native'
 import { NativeStackNavigationProp } from '@react-navigation/native-stack'
@@ -33,6 +34,9 @@ type ProductRouteParams = {
     description?: string
     set?: string
     fromProfile?: boolean
+    /** When true, show Remove listing and use listingId for DELETE store listing */
+    fromMyStore?: boolean
+    listingId?: string
     storeName?: string
   }
   ViewProfile: {
@@ -61,7 +65,7 @@ export function Product() {
   const { theme } = useContext(ThemeContext)
   const navigation = useNavigation<ProductScreenNavigationProp>()
   const route = useRoute<ProductScreenRouteProp>()
-  const { id, name, image, category, price, ebayPrice, description, fromProfile, storeName, cardId } = route.params || {}
+  const { id, name, image, category, price, ebayPrice, description, fromProfile, fromMyStore, listingId, storeName, cardId } = route.params || {}
   const tintColor = theme.tintColor || '#73EC8B'
   const styles = getStyles(theme, tintColor)
   const [isFavorited, setIsFavorited] = useState(false)
@@ -104,8 +108,52 @@ export function Product() {
   const USD_TO_ZAR = Number(process.env.EXPO_PUBLIC_USD_TO_ZAR) || 16
 
   // Remove from collection (only when opened from Profile with a collection id)
+  const performRemove = async () => {
+    const collectionId = id != null ? String(id).trim() : ''
+    if (!collectionId) {
+      if (Platform.OS !== 'web') Alert.alert('Error', 'Cannot remove: missing card id.')
+      return
+    }
+    try {
+      setRemoving(true)
+      const session = await authClient.getSession()
+      const token = session?.data?.session?.token
+      if (!token) {
+        setRemoving(false)
+        if (Platform.OS !== 'web') Alert.alert('Error', 'Please log in')
+        return
+      }
+      const baseUrl = DOMAIN?.endsWith('/') ? DOMAIN.slice(0, -1) : DOMAIN
+      const response = await fetch(`${baseUrl}/api/profile/collections/${collectionId}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        credentials: 'include',
+      })
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}))
+        setRemoving(false)
+        if (Platform.OS !== 'web') Alert.alert('Error', data.message || 'Failed to remove card from collection')
+        return
+      }
+      navigation.goBack()
+    } catch (error: any) {
+      console.error('Error removing collection item:', error)
+      setRemoving(false)
+      if (Platform.OS !== 'web') Alert.alert('Error', 'Failed to remove card from collection')
+    } finally {
+      setRemoving(false)
+    }
+  }
+
   const handleRemoveFromCollection = () => {
-    if (!fromProfile || id == null || id === '') return
+    if (!fromProfile) return
+    if (Platform.OS === 'web') {
+      if (window.confirm('Are you sure?')) performRemove()
+      return
+    }
     Alert.alert(
       'Are you sure?',
       undefined,
@@ -114,40 +162,67 @@ export function Product() {
         {
           text: "I'm sure",
           style: 'destructive',
-          onPress: async () => {
-            try {
-              setRemoving(true)
-              const session = await authClient.getSession()
-              const token = session?.data?.session?.token
-              if (!token) {
-                setRemoving(false)
-                Alert.alert('Error', 'Please log in')
-                return
-              }
-              const baseUrl = DOMAIN?.endsWith('/') ? DOMAIN.slice(0, -1) : DOMAIN
-              const response = await fetch(`${baseUrl}/api/profile/collections/${String(id).trim()}`, {
-                method: 'DELETE',
-                headers: {
-                  'Content-Type': 'application/json',
-                  'Authorization': `Bearer ${token}`,
-                },
-                credentials: 'include',
-              })
-              if (!response.ok) {
-                const data = await response.json().catch(() => ({}))
-                setRemoving(false)
-                Alert.alert('Error', data.message || 'Failed to remove card from collection')
-                return
-              }
-              navigation.goBack()
-            } catch (error: any) {
-              console.error('Error removing collection item:', error)
-              setRemoving(false)
-              Alert.alert('Error', 'Failed to remove card from collection')
-            } finally {
-              setRemoving(false)
-            }
-          },
+          onPress: performRemove,
+        },
+      ],
+    )
+  }
+
+  // Remove store listing (when opened from My Store → My Listings)
+  const performRemoveListing = async () => {
+    const lid = listingId != null ? String(listingId).trim() : ''
+    if (!lid) {
+      if (Platform.OS !== 'web') Alert.alert('Error', 'Cannot remove: missing listing id.')
+      return
+    }
+    try {
+      setRemoving(true)
+      const session = await authClient.getSession()
+      const token = session?.data?.session?.token
+      if (!token) {
+        setRemoving(false)
+        if (Platform.OS !== 'web') Alert.alert('Error', 'Please log in')
+        return
+      }
+      const baseUrl = DOMAIN?.endsWith('/') ? DOMAIN.slice(0, -1) : DOMAIN
+      const response = await fetch(`${baseUrl}/api/store/listings/${lid}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+        credentials: 'include',
+      })
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}))
+        setRemoving(false)
+        if (Platform.OS !== 'web') Alert.alert('Error', data.message || 'Failed to remove listing')
+        return
+      }
+      navigation.goBack()
+    } catch (error: any) {
+      console.error('Error removing listing:', error)
+      setRemoving(false)
+      if (Platform.OS !== 'web') Alert.alert('Error', 'Failed to remove listing')
+    } finally {
+      setRemoving(false)
+    }
+  }
+
+  const handleRemoveListing = () => {
+    if (!fromMyStore) return
+    if (Platform.OS === 'web') {
+      if (window.confirm('Are you sure?')) performRemoveListing()
+      return
+    }
+    Alert.alert(
+      'Are you sure?',
+      undefined,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: "I'm sure",
+          style: 'destructive',
+          onPress: performRemoveListing,
         },
       ],
     )
@@ -392,6 +467,23 @@ export function Product() {
                   <ActivityIndicator size="small" color="#000000" />
                 ) : (
                   <Text style={styles.removeFromCollectionButtonText}>Remove from collection</Text>
+                )}
+              </TouchableOpacity>
+            </CardContent>
+          </Card>
+        ) : fromMyStore && listingId ? (
+          <Card style={styles.aboutCard}>
+            <CardContent style={styles.aboutContent}>
+              <TouchableOpacity
+                style={[styles.removeFromCollectionButton, removing && { opacity: 0.7 }]}
+                onPress={handleRemoveListing}
+                activeOpacity={0.8}
+                disabled={removing}
+              >
+                {removing ? (
+                  <ActivityIndicator size="small" color="#000000" />
+                ) : (
+                  <Text style={styles.removeFromCollectionButtonText}>Remove listing</Text>
                 )}
               </TouchableOpacity>
             </CardContent>

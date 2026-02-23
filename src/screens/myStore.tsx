@@ -623,6 +623,7 @@ export function MyStore() {
   useFocusEffect(
     useCallback(() => {
       fetchStore()
+      fetchListings()
     }, [])
   )
 
@@ -1002,6 +1003,8 @@ export function MyStore() {
                           price: listing.price,
                           description: `Premium ${listing.cardName}. Authentic and verified with secure shipping.`,
                           storeName,
+                          fromMyStore: true,
+                          listingId: String(listing.id),
                         })
                       }
                     }}
