@@ -55,7 +55,8 @@ const getStyles = () => StyleSheet.create({
   container: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    justifyContent: 'flex-start',
+    justifyContent: 'space-between',
     width: '100%',
+    gap: 8,
   },
 })

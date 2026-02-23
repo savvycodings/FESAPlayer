@@ -57,7 +57,7 @@ export function ListingCard({
               <Image
                 source={cardImage}
                 style={styles.cardImage}
-                resizeMode="contain"
+                resizeMode="cover"
               />
             ) : (
               <View style={styles.imagePlaceholder}>
@@ -68,14 +68,16 @@ export function ListingCard({
                 />
               </View>
             )}
-            <View style={styles.badgeContainer}>
-              <VaultingBadge status={vaultingStatus} size="sm" />
-            </View>
+            {!isOwnListing && (
+              <View style={styles.badgeContainer}>
+                <VaultingBadge status={vaultingStatus} size="sm" />
+              </View>
+            )}
           </View>
 
           {/* Info Section */}
           <View style={styles.infoSection}>
-            <Text style={styles.cardName} numberOfLines={2}>
+            <Text style={styles.cardName} numberOfLines={1} ellipsizeMode="tail" textAlign="left">
               {cardName}
             </Text>
 
@@ -96,20 +98,25 @@ export function ListingCard({
             {/* Action Buttons */}
             <View style={styles.actionsContainer}>
               {isOwnListing ? (
-                // Show Edit button for own listings
-                <TouchableOpacity
-                  style={styles.editButton}
-                  onPress={onEditPress}
-                  activeOpacity={0.7}
-                >
-                  <Ionicons
-                    name="pencil-outline"
-                    size={14}
-                    color={theme.tintTextColor || '#000000'}
-                    style={styles.editIcon}
-                  />
-                  <Text style={styles.editButtonText}>Edit</Text>
-                </TouchableOpacity>
+                // Edit button then vaulting badge below, centered
+                <View style={styles.ownListingActions}>
+                  <TouchableOpacity
+                    style={styles.editButton}
+                    onPress={onEditPress}
+                    activeOpacity={0.7}
+                  >
+                    <Ionicons
+                      name="pencil-outline"
+                      size={14}
+                      color={theme.tintTextColor || '#000000'}
+                      style={styles.editIcon}
+                    />
+                    <Text style={styles.editButtonText}>Edit</Text>
+                  </TouchableOpacity>
+                  <View style={styles.badgeBelowEdit}>
+                    <VaultingBadge status={vaultingStatus} size="sm" muted textOnly />
+                  </View>
+                </View>
               ) : (
                 // Show Buy/Bid buttons for other users' listings
                 <>
@@ -141,15 +148,16 @@ export function ListingCard({
 
 const getStyles = (theme: any) => StyleSheet.create({
   cardContainer: {
-    width: '31%',
-    marginBottom: SPACING.lg,
-    marginRight: SPACING.sm, // Fixed spacing between items (8px)
+    width: '48%',
+    flexGrow: 0,
+    flexShrink: 0,
+    marginBottom: SPACING.xl,
   },
   card: {
-    backgroundColor: theme.cardBackground || '#000000',
-    borderRadius: RADIUS.md,
+    backgroundColor: theme.cardBackground || '#0a0a0a',
+    borderRadius: RADIUS.lg,
     borderWidth: 1,
-    borderColor: theme.borderColor || 'rgba(255, 255, 255, 0.08)',
+    borderColor: 'rgba(255, 255, 255, 0.18)',
     overflow: 'hidden',
   },
   cardContent: {
@@ -159,7 +167,8 @@ const getStyles = (theme: any) => StyleSheet.create({
     width: '100%',
     aspectRatio: 1,
     position: 'relative',
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    backgroundColor: 'rgba(255, 255, 255, 0.04)',
+    overflow: 'hidden',
   },
   cardImage: {
     width: '100%',
@@ -173,25 +182,28 @@ const getStyles = (theme: any) => StyleSheet.create({
   },
   badgeContainer: {
     position: 'absolute',
-    top: SPACING.xs,
-    left: SPACING.xs,
+    top: SPACING.sm,
+    left: SPACING.sm,
   },
   infoSection: {
-    padding: SPACING.sm,
+    padding: SPACING.md,
+    paddingTop: SPACING.sm,
   },
   cardName: {
-    fontSize: TYPOGRAPHY.bodySmall,
+    fontSize: TYPOGRAPHY.body,
     fontFamily: theme.semiBoldFont,
     color: theme.textColor,
     fontWeight: '600',
-    marginBottom: SPACING.xs,
-    minHeight: 32,
+    marginBottom: SPACING.sm,
+    textAlign: 'left',
+    letterSpacing: 0.2,
+    lineHeight: 20,
   },
   price: {
-    fontSize: TYPOGRAPHY.h4,
+    fontSize: TYPOGRAPHY.h3,
     fontFamily: theme.boldFont,
     color: theme.tintColor || '#73EC8B',
-    fontWeight: '600',
+    fontWeight: '700',
     marginBottom: SPACING.sm,
   },
   bidInfo: {
@@ -210,51 +222,61 @@ const getStyles = (theme: any) => StyleSheet.create({
     color: 'rgba(255, 255, 255, 0.5)',
   },
   actionsContainer: {
-    gap: SPACING.xs,
+    gap: SPACING.sm,
+  },
+  ownListingActions: {
+    flexDirection: 'column',
+    alignItems: 'stretch',
+    width: '100%',
+    gap: SPACING.sm,
+  },
+  badgeBelowEdit: {
+    alignItems: 'center',
   },
   buyButton: {
     backgroundColor: theme.tintColor || '#73EC8B',
-    paddingVertical: SPACING.xs,
-    paddingHorizontal: SPACING.sm,
-    borderRadius: RADIUS.sm,
+    paddingVertical: SPACING.sm,
+    paddingHorizontal: SPACING.md,
+    borderRadius: RADIUS.md,
     alignItems: 'center',
   },
   buyButtonText: {
-    fontSize: TYPOGRAPHY.caption,
+    fontSize: TYPOGRAPHY.bodySmall,
     fontFamily: theme.semiBoldFont,
     color: '#000000',
     fontWeight: '600',
   },
   bidButton: {
-    backgroundColor: theme.buttonBackground || 'rgba(0, 0, 0, 0.8)',
-    paddingVertical: SPACING.xs,
-    paddingHorizontal: SPACING.sm,
-    borderRadius: RADIUS.sm,
+    backgroundColor: 'transparent',
+    paddingVertical: SPACING.sm,
+    paddingHorizontal: SPACING.md,
+    borderRadius: RADIUS.md,
     alignItems: 'center',
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.2)',
   },
   bidButtonText: {
-    fontSize: TYPOGRAPHY.caption,
+    fontSize: TYPOGRAPHY.bodySmall,
     fontFamily: theme.semiBoldFont,
     color: theme.textColor,
     fontWeight: '600',
   },
   editButton: {
     backgroundColor: theme.tintColor || '#73EC8B',
-    paddingVertical: SPACING.xs,
-    paddingHorizontal: SPACING.sm,
-    borderRadius: RADIUS.sm,
+    paddingVertical: SPACING.sm,
+    paddingHorizontal: SPACING.md,
+    borderRadius: RADIUS.md,
     alignItems: 'center',
-    flexDirection: 'row',
     justifyContent: 'center',
-    gap: 4,
+    flexDirection: 'row',
+    gap: 6,
+    alignSelf: 'stretch',
   },
   editIcon: {
-    marginRight: 2,
+    marginRight: 0,
   },
   editButtonText: {
-    fontSize: TYPOGRAPHY.caption,
+    fontSize: TYPOGRAPHY.bodySmall,
     fontFamily: theme.semiBoldFont,
     color: theme.tintTextColor || '#000000',
     fontWeight: '600',

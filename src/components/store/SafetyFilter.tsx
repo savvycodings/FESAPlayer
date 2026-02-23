@@ -1,93 +1,67 @@
 import { View, StyleSheet, TouchableOpacity } from 'react-native'
 import { useContext } from 'react'
-import { Text } from '../ui/text'
 import Ionicons from '@expo/vector-icons/Ionicons'
 import { ThemeContext } from '../../context'
-import { SPACING, TYPOGRAPHY, RADIUS, STORE_COLORS } from '../../constants/layout'
+import { SPACING, RADIUS } from '../../constants/layout'
 
 interface SafetyFilterProps {
   enabled: boolean
   onToggle: (enabled: boolean) => void
+  /** When true, removes bottom margin (e.g. when used in a section header row) */
+  compact?: boolean
 }
 
-export function SafetyFilter({ enabled, onToggle }: SafetyFilterProps) {
+export function SafetyFilter({ enabled, onToggle, compact }: SafetyFilterProps) {
   const { theme } = useContext(ThemeContext)
-  const styles = getStyles(theme, enabled)
+  const styles = getStyles(theme, enabled, compact)
 
   return (
-    <TouchableOpacity
-      style={styles.container}
-      onPress={() => onToggle(!enabled)}
-      activeOpacity={0.7}
-    >
-      <View style={styles.iconContainer}>
-        <Ionicons
-          name={enabled ? 'shield-checkmark' : 'shield-outline'}
-          size={18}
-          color={enabled ? STORE_COLORS.vaulted : 'rgba(255, 255, 255, 0.5)'}
-        />
-      </View>
-      <View style={styles.textContainer}>
-        <Text style={styles.title}>Vaulted Only</Text>
-        <Text style={styles.description}>
-          Only show cards in SA Player vault
-        </Text>
-      </View>
-      <View style={[styles.toggle, enabled && styles.toggleActive]}>
-        <View style={[styles.toggleThumb, enabled && styles.toggleThumbActive]} />
-      </View>
-    </TouchableOpacity>
+    <View style={styles.container}>
+      <TouchableOpacity
+        style={[styles.switch, enabled && styles.switchActive]}
+        onPress={() => onToggle(!enabled)}
+        activeOpacity={0.8}
+        accessibilityLabel={enabled ? 'Vaulting on' : 'Vaulting off'}
+      >
+        <View style={[styles.switchThumb, enabled && styles.switchThumbActive]}>
+          <Ionicons
+            name="shield-checkmark"
+            size={14}
+            color="#000000"
+          />
+        </View>
+      </TouchableOpacity>
+    </View>
   )
 }
 
-const getStyles = (theme: any, enabled: boolean) => StyleSheet.create({
+const getStyles = (theme: any, enabled: boolean, compact?: boolean) => StyleSheet.create({
   container: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: SPACING.cardPadding,
-    borderRadius: RADIUS.md,
-    backgroundColor: enabled ? `${STORE_COLORS.vaulted}15` : (theme.cardBackground || '#000000'),
-    borderWidth: 1,
-    borderColor: enabled ? `${STORE_COLORS.vaulted}40` : 'rgba(255, 255, 255, 0.1)',
-    marginBottom: SPACING.md,
-  },
-  iconContainer: {
-    marginRight: SPACING.md,
-  },
-  textContainer: {
-    flex: 1,
-  },
-  title: {
-    fontSize: TYPOGRAPHY.body,
-    fontFamily: theme.semiBoldFont,
-    color: theme.textColor,
-    fontWeight: '600',
-    marginBottom: SPACING.xs / 2,
-  },
-  description: {
-    fontSize: TYPOGRAPHY.bodySmall,
-    fontFamily: theme.regularFont,
-    color: 'rgba(255, 255, 255, 0.6)',
-  },
-  toggle: {
-    width: 44,
-    height: 24,
-    borderRadius: RADIUS.full,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    marginBottom: compact ? 0 : SPACING.lg,
+    alignSelf: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 2,
   },
-  toggleActive: {
-    backgroundColor: STORE_COLORS.vaulted,
+  switch: {
+    width: 48,
+    height: 28,
+    borderRadius: RADIUS.full,
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    justifyContent: 'center',
+    paddingHorizontal: 3,
   },
-  toggleThumb: {
-    width: 20,
-    height: 20,
+  switchActive: {
+    backgroundColor: (theme.tintColor || '#73EC8B') + '99',
+  },
+  switchThumb: {
+    width: 22,
+    height: 22,
     borderRadius: RADIUS.full,
     backgroundColor: '#FFFFFF',
     alignSelf: 'flex-start',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  toggleThumbActive: {
+  switchThumbActive: {
     alignSelf: 'flex-end',
   },
 })

@@ -10,6 +10,7 @@ interface SectionProps {
   showSeeAll?: boolean
   seeAllText?: string
   onSeeAllPress?: () => void
+  rightContent?: React.ReactNode
   children: React.ReactNode
   style?: ViewStyle
 }
@@ -19,6 +20,7 @@ export function Section({
   showSeeAll = false,
   seeAllText = 'See all',
   onSeeAllPress,
+  rightContent,
   children,
   style 
 }: SectionProps) {
@@ -29,11 +31,14 @@ export function Section({
     <View style={[styles.container, style]}>
       <View style={styles.header}>
         <Text style={styles.title}>{title}</Text>
-        {showSeeAll && (
-          <TouchableOpacity onPress={onSeeAllPress} activeOpacity={0.6}>
-            <Text style={styles.seeAll}>{seeAllText}</Text>
-          </TouchableOpacity>
-        )}
+        <View style={styles.headerRight}>
+          {rightContent}
+          {showSeeAll && (
+            <TouchableOpacity onPress={onSeeAllPress} activeOpacity={0.6}>
+              <Text style={styles.seeAll}>{seeAllText}</Text>
+            </TouchableOpacity>
+          )}
+        </View>
       </View>
       <View style={styles.content}>
         {children}
@@ -52,6 +57,12 @@ const getStyles = (theme: any) => StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     marginBottom: SPACING.sectionTitleBottom,
+    minHeight: 28,
+  },
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.sm,
   },
   title: {
     fontSize: TYPOGRAPHY.h2,
@@ -59,6 +70,7 @@ const getStyles = (theme: any) => StyleSheet.create({
     fontWeight: '600',
     color: theme.textColor,
     letterSpacing: -0.3,
+    lineHeight: TYPOGRAPHY.h2,
   },
   seeAll: {
     fontSize: TYPOGRAPHY.bodySmall,

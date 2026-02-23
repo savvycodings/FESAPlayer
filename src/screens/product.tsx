@@ -34,7 +34,7 @@ type ProductRouteParams = {
     description?: string
     set?: string
     fromProfile?: boolean
-    /** When true, show Remove listing and use listingId for DELETE store listing */
+    /** When true, opened from My Store (listingId may be set for context) */
     fromMyStore?: boolean
     listingId?: string
     storeName?: string
@@ -168,66 +168,6 @@ export function Product() {
     )
   }
 
-  // Remove store listing (when opened from My Store → My Listings)
-  const performRemoveListing = async () => {
-    const lid = listingId != null ? String(listingId).trim() : ''
-    if (!lid) {
-      if (Platform.OS !== 'web') Alert.alert('Error', 'Cannot remove: missing listing id.')
-      return
-    }
-    try {
-      setRemoving(true)
-      const session = await authClient.getSession()
-      const token = session?.data?.session?.token
-      if (!token) {
-        setRemoving(false)
-        if (Platform.OS !== 'web') Alert.alert('Error', 'Please log in')
-        return
-      }
-      const baseUrl = DOMAIN?.endsWith('/') ? DOMAIN.slice(0, -1) : DOMAIN
-      const response = await fetch(`${baseUrl}/api/store/listings/${lid}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-        credentials: 'include',
-      })
-      if (!response.ok) {
-        const data = await response.json().catch(() => ({}))
-        setRemoving(false)
-        if (Platform.OS !== 'web') Alert.alert('Error', data.message || 'Failed to remove listing')
-        return
-      }
-      navigation.goBack()
-    } catch (error: any) {
-      console.error('Error removing listing:', error)
-      setRemoving(false)
-      if (Platform.OS !== 'web') Alert.alert('Error', 'Failed to remove listing')
-    } finally {
-      setRemoving(false)
-    }
-  }
-
-  const handleRemoveListing = () => {
-    if (!fromMyStore) return
-    if (Platform.OS === 'web') {
-      if (window.confirm('Are you sure?')) performRemoveListing()
-      return
-    }
-    Alert.alert(
-      'Are you sure?',
-      undefined,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: "I'm sure",
-          style: 'destructive',
-          onPress: performRemoveListing,
-        },
-      ],
-    )
-  }
-
   // Fetch price history for chart when cardId is present (e.g. from collection)
   useEffect(() => {
     if (!cardId?.trim()) {
@@ -303,7 +243,7 @@ export function Product() {
               <Image
                 source={image}
                 style={styles.productImage}
-                resizeMode="contain"
+                resizeMode="cover"
               />
             </View>
           </CardContent>
@@ -471,23 +411,6 @@ export function Product() {
               </TouchableOpacity>
             </CardContent>
           </Card>
-        ) : fromMyStore && listingId ? (
-          <Card style={styles.aboutCard}>
-            <CardContent style={styles.aboutContent}>
-              <TouchableOpacity
-                style={[styles.removeFromCollectionButton, removing && { opacity: 0.7 }]}
-                onPress={handleRemoveListing}
-                activeOpacity={0.8}
-                disabled={removing}
-              >
-                {removing ? (
-                  <ActivityIndicator size="small" color="#000000" />
-                ) : (
-                  <Text style={styles.removeFromCollectionButtonText}>Remove listing</Text>
-                )}
-              </TouchableOpacity>
-            </CardContent>
-          </Card>
         ) : (
           <Card style={styles.aboutCard}>
             <CardContent style={styles.aboutContent}>
@@ -608,10 +531,9 @@ const getStyles = (theme: any, tintColor: string) => StyleSheet.create({
   },
   imageContainer: {
     width: '100%',
-    aspectRatio: 2.5 / 3.5, // standard trading card (portrait) so full image isn't cut off
+    aspectRatio: 2.5 / 3.5,
     backgroundColor: theme.cardBackground || 'rgba(255,255,255,0.06)',
-    justifyContent: 'center',
-    alignItems: 'center',
+    overflow: 'hidden',
     padding: 0,
   },
   productImage: {

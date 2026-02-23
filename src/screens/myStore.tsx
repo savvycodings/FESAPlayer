@@ -491,7 +491,7 @@ export function MyStore() {
       const token = await getSessionToken()
       if (!token) {
         Alert.alert('Error', 'Please log in')
-        return
+        throw new Error('Please log in')
       }
 
       const baseUrl = DOMAIN?.endsWith('/') ? DOMAIN.slice(0, -1) : DOMAIN
@@ -509,17 +509,22 @@ export function MyStore() {
         // Optimistically remove from list so the item disappears immediately
         setListings((prev) => prev.filter((l) => String(l.id) !== String(listingId)))
         await fetchListings()
-        // Close modal and clear editing state
+        // Close modal and clear editing state (caller may also close; harmless)
         setIsListItemModalVisible(false)
         setSelectedProduct(null)
         setEditingListing(null)
         Alert.alert('Done', 'Listing removed from your store.')
       } else {
-        Alert.alert('Error', data.message || 'Failed to remove listing')
+        const msg = data.message || 'Failed to remove listing'
+        Alert.alert('Error', msg)
+        throw new Error(msg)
       }
     } catch (error: any) {
       console.error('Error removing listing:', error)
-      Alert.alert('Error', 'Failed to remove listing')
+      if (error?.message !== 'Please log in') {
+        Alert.alert('Error', 'Failed to remove listing')
+      }
+      throw error
     }
   }
 
@@ -766,23 +771,40 @@ export function MyStore() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* Tabs */}
-        <View style={styles.tabsContainer}>
+        {/* Banner first (Destined Rivals–style layout) */}
+        <StoreHeader
+          storeName={storeName}
+          bannerUrl={store.bannerUrl ? { uri: store.bannerUrl } : require('../../assets/banners/banner2.jpg')}
+          profileImage={store.user?.avatar ? { uri: store.user.avatar } : require('../../assets/Avatars/guy1.jpg')}
+          profileInitials={store.user?.firstName?.[0] || store.user?.name?.[0] || 'U'}
+          level={userLevel}
+          currentXP={currentXP}
+          xpToNextLevel={xpToNextLevel}
+          salesCount={salesCount}
+          shareableLink={shareableLink}
+          onEditStorePress={openEditStoreModal}
+          twitchUrl={store.twitchUrl ?? undefined}
+          youtubeUrl={store.youtubeUrl ?? undefined}
+        />
+
+        {/* Tab bar below banner – full width, evenly spaced */}
+        <View style={styles.tabsRow}>
           {tabs.map((tab) => (
             <TouchableOpacity
               key={tab}
               style={[
-                styles.tabButton,
-                activeTab === tab && styles.tabButtonActive,
+                styles.tabPill,
+                activeTab === tab && styles.tabPillActive,
               ]}
               onPress={() => setActiveTab(tab)}
               activeOpacity={0.7}
             >
               <Text
                 style={[
-                  styles.tabText,
-                  activeTab === tab && styles.tabTextActive,
+                  styles.tabPillText,
+                  activeTab === tab && styles.tabPillTextActive,
                 ]}
+                numberOfLines={1}
               >
                 {tab}
               </Text>
@@ -898,20 +920,6 @@ export function MyStore() {
 
           {activeTab === 'MY STORE' && (
             <>
-              <StoreHeader
-                storeName={storeName}
-                bannerUrl={store.bannerUrl ? { uri: store.bannerUrl } : require('../../assets/banners/banner2.jpg')}
-                profileImage={store.user?.avatar ? { uri: store.user.avatar } : require('../../assets/Avatars/guy1.jpg')}
-                profileInitials={store.user?.firstName?.[0] || store.user?.name?.[0] || 'U'}
-                level={userLevel}
-                currentXP={currentXP}
-                xpToNextLevel={xpToNextLevel}
-                salesCount={salesCount}
-                shareableLink={shareableLink}
-                twitchUrl={store.twitchUrl ?? undefined}
-                youtubeUrl={store.youtubeUrl ?? undefined}
-              />
-
               <StoreStats
                 totalSales={store.totalSales || 0}
                 totalRevenue={totalRevenue}
@@ -919,20 +927,19 @@ export function MyStore() {
                 reviewPercentage={store.rating ? Math.round(parseFloat(store.rating) * 20) : 98}
               />
 
-              <SafetyFilter
-                enabled={vaultedOnly}
-                onToggle={setVaultedOnly}
-              />
-
-              <View style={styles.shareLinkContainer}>
-                <ShareLinkButton storeLink={shareableLink} />
-                <TouchableOpacity style={styles.editStoreDetailsButton} onPress={openEditStoreModal} activeOpacity={0.7}>
-                  <Ionicons name="pencil-outline" size={18} color={theme.tintColor || '#73EC8B'} />
-                  <Text style={styles.editStoreDetailsText}>Edit store details</Text>
-                </TouchableOpacity>
-              </View>
-
-              <Section title="My Listings">
+              <Section
+                title="My Listings"
+                rightContent={
+                  <>
+                    <SafetyFilter
+                      enabled={vaultedOnly}
+                      onToggle={setVaultedOnly}
+                      compact
+                    />
+                    <ShareLinkButton storeLink={shareableLink} />
+                  </>
+                }
+              >
                 {listingsLoading ? (
                   <View style={styles.emptyContainer}>
                     <ActivityIndicator size="large" color={theme.tintColor || '#73EC8B'} />
@@ -1162,42 +1169,42 @@ const getStyles = (theme: any) => StyleSheet.create({
   },
   scrollContent: {
     paddingHorizontal: SPACING.containerPadding,
-    paddingTop: SPACING.md,
+    paddingTop: SPACING['3xl'],
     paddingBottom: SPACING['4xl'],
   },
-  tabsContainer: {
+  tabsRow: {
     flexDirection: 'row',
-    backgroundColor: theme.backgroundColor,
-    borderRadius: RADIUS.sm,
-    padding: SPACING.xs,
-    marginBottom: SPACING['2xl'],
+    alignItems: 'stretch',
+    marginBottom: SPACING.xl,
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+    borderRadius: RADIUS.md,
+    padding: 3,
     borderWidth: 1,
-    borderColor: theme.textColor,
-    width: '100%',
+    borderColor: theme.borderColor || 'rgba(255, 255, 255, 0.1)',
   },
-  tabButton: {
+  tabPill: {
     flex: 1,
-    borderRadius: RADIUS.sm - 2,
+    paddingVertical: SPACING.sm,
+    paddingHorizontal: SPACING.xs,
+    borderRadius: RADIUS.sm,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: SPACING.sm,
   },
-  tabButtonActive: {
-    backgroundColor: theme.textColor,
+  tabPillActive: {
+    backgroundColor: theme.tintColor || '#73EC8B',
   },
-  tabText: {
-    fontSize: TYPOGRAPHY.body,
+  tabPillText: {
+    fontSize: TYPOGRAPHY.caption,
     fontFamily: theme.semiBoldFont,
     color: theme.textColor,
-    textAlign: 'center',
     fontWeight: '600',
-    letterSpacing: 0.5,
   },
-  tabTextActive: {
-    color: theme.backgroundColor,
+  tabPillTextActive: {
+    color: '#000000',
   },
   contentWrapper: {
     width: '100%',
+    paddingTop: SPACING.sm,
   },
   ordersContainer: {
     gap: SPACING.md,
@@ -1213,41 +1220,21 @@ const getStyles = (theme: any) => StyleSheet.create({
     color: 'rgba(255, 255, 255, 0.5)',
     marginTop: SPACING.md,
   },
-  shareLinkContainer: {
-    marginTop: SPACING.md,
-    marginBottom: SPACING.md,
-    gap: SPACING.sm,
-  },
-  editStoreDetailsButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: SPACING.xs,
-    paddingVertical: SPACING.sm,
-  },
-  editStoreDetailsText: {
-    fontSize: TYPOGRAPHY.body,
-    fontFamily: theme.semiBoldFont,
-    color: theme.tintColor || '#73EC8B',
-    fontWeight: '600',
-  },
   addISOButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: SPACING.md,
+    marginTop: SPACING.lg,
     paddingVertical: SPACING.sm,
-    paddingHorizontal: SPACING.md,
-    borderRadius: RADIUS.md,
-    borderWidth: 1,
-    borderColor: theme.tintColor || '#73EC8B',
+    paddingHorizontal: 0,
+    borderRadius: 0,
+    borderWidth: 0,
     gap: SPACING.xs,
   },
   addISOText: {
-    fontSize: TYPOGRAPHY.body,
-    fontFamily: theme.semiBoldFont,
-    color: theme.tintColor || '#73EC8B',
-    fontWeight: '600',
+    fontSize: TYPOGRAPHY.bodySmall,
+    fontFamily: theme.regularFont,
+    color: 'rgba(255, 255, 255, 0.55)',
   },
   isoCard: {
     backgroundColor: theme.cardBackground || '#000000',

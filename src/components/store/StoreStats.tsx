@@ -1,10 +1,8 @@
 import { View, StyleSheet } from 'react-native'
 import { useContext } from 'react'
 import { Text } from '../ui/text'
-import { Card, CardContent } from '../ui/card'
 import { ThemeContext } from '../../context'
 import { SPACING, TYPOGRAPHY, RADIUS } from '../../constants/layout'
-import Ionicons from '@expo/vector-icons/Ionicons'
 
 interface StoreStatsProps {
   totalSales: number
@@ -23,107 +21,73 @@ export function StoreStats({
   const styles = getStyles(theme)
 
   return (
-    <View style={styles.statsGrid}>
-      <Card style={styles.statCard}>
-        <CardContent style={styles.statContent}>
-          <View style={styles.statItem}>
-            <View style={styles.statRow}>
-              <Ionicons name="cube-outline" size={20} color={theme.textColor} style={styles.statIcon} />
-              <Text style={styles.statValue}>{totalSales}</Text>
-            </View>
-            <Text style={styles.statLabel} numberOfLines={1}>Total Sales</Text>
-          </View>
-        </CardContent>
-      </Card>
-      <Card style={styles.statCard}>
-        <CardContent style={styles.statContent}>
-          <View style={styles.statItem}>
-            <View style={styles.statRow}>
-              <Ionicons name="cash-outline" size={20} color={theme.tintColor || '#73EC8B'} style={styles.statIcon} />
-              <Text style={styles.revenueValue}>${totalRevenue}</Text>
-            </View>
-            <Text style={styles.statLabel} numberOfLines={1}>Revenue</Text>
-          </View>
-        </CardContent>
-      </Card>
-      <Card style={styles.statCard}>
-        <CardContent style={styles.statContent}>
-          <View style={styles.statItem}>
-            <View style={styles.statRow}>
-              <Ionicons name="time-outline" size={20} color={theme.textColor} style={styles.statIcon} />
-              <Text style={styles.statValue}>{responseTime}</Text>
-            </View>
-            <Text style={styles.statLabel} numberOfLines={1}>Response</Text>
-          </View>
-        </CardContent>
-      </Card>
-      <Card style={styles.statCard}>
-        <CardContent style={styles.statContent}>
-          <View style={styles.statItem}>
-            <View style={styles.statRow}>
-              <Ionicons name="star-outline" size={20} color={theme.textColor} style={styles.statIcon} />
-              <Text style={styles.statValue}>{reviewPercentage}%</Text>
-            </View>
-            <Text style={styles.statLabel} numberOfLines={1}>Rating</Text>
-          </View>
-        </CardContent>
-      </Card>
+    <View style={styles.statsWrapper}>
+      <View style={styles.statBlock}>
+        <Text style={styles.statValue}>{totalSales}</Text>
+        <Text style={styles.statLabel}>Sales</Text>
+      </View>
+      <View style={styles.statDivider} />
+      <View style={styles.statBlock}>
+        <Text style={styles.revenueValue}>${totalRevenue}</Text>
+        <Text style={styles.statLabel}>Revenue</Text>
+      </View>
+      <View style={styles.statDivider} />
+      <View style={styles.statBlock}>
+        <Text style={styles.statValue}>{responseTime}</Text>
+        <Text style={styles.statLabel}>Response</Text>
+      </View>
+      <View style={styles.statDivider} />
+      <View style={styles.statBlock}>
+        <Text style={styles.statValue}>{reviewPercentage}%</Text>
+        <Text style={styles.statLabel}>Rating</Text>
+      </View>
     </View>
   )
 }
 
 const getStyles = (theme: any) => StyleSheet.create({
-  statsGrid: {
+  statsWrapper: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-    marginTop: -SPACING.md,
-    marginBottom: SPACING.md,
-    gap: SPACING.md,
-  },
-  statCard: {
-    backgroundColor: theme.cardBackground || '#000000',
+    alignItems: 'center',
+    justifyContent: 'space-around',
+    paddingVertical: SPACING.lg,
+    paddingHorizontal: SPACING.sm,
+    marginTop: SPACING.sm,
+    marginBottom: SPACING.lg,
+    backgroundColor: 'rgba(255, 255, 255, 0.03)',
     borderRadius: RADIUS.lg,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
-    width: '48%',
-    minWidth: 0,
+    borderWidth: 0,
   },
-  statContent: {
-    padding: SPACING.md,
-    alignItems: 'center',
-  },
-  statItem: {
-    width: '100%',
-    alignItems: 'center',
-  },
-  statRow: {
-    flexDirection: 'row',
+  statBlock: {
+    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: SPACING.xs,
   },
-  statIcon: {
-    marginRight: 0,
+  statDivider: {
+    width: 1,
+    height: 28,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderRadius: 1,
   },
   statValue: {
-    fontSize: TYPOGRAPHY.h3,
+    fontSize: TYPOGRAPHY.h4,
     fontFamily: theme.boldFont,
     color: theme.textColor,
     fontWeight: '600',
-    marginBottom: SPACING.xs / 2,
+    marginBottom: 2,
   },
   statLabel: {
-    fontSize: TYPOGRAPHY.caption,
+    fontSize: 11,
     fontFamily: theme.regularFont,
-    color: 'rgba(255, 255, 255, 0.6)',
-    textAlign: 'center',
+    color: 'rgba(255, 255, 255, 0.5)',
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
   },
   revenueValue: {
-    fontSize: TYPOGRAPHY.h3,
+    fontSize: TYPOGRAPHY.h4,
     fontFamily: theme.boldFont,
     color: theme.tintColor || '#73EC8B',
     fontWeight: '600',
-    marginBottom: SPACING.xs / 2,
+    marginBottom: 2,
   },
 })

@@ -20,6 +20,7 @@ interface StoreHeaderProps {
   salesCount: number
   shareableLink: string
   onEditPress?: () => void
+  onEditStorePress?: () => void
   showBannerEdit?: boolean
   onBannerEditPress?: () => void
   twitchUrl?: string
@@ -37,6 +38,7 @@ export function StoreHeader({
   salesCount,
   shareableLink,
   onEditPress,
+  onEditStorePress,
   showBannerEdit = false,
   onBannerEditPress,
   twitchUrl,
@@ -136,6 +138,16 @@ export function StoreHeader({
             <View style={styles.bannerInfoSection}>
               <View style={styles.storeNameRow}>
                 <Text style={styles.storeName}>{storeName}</Text>
+                {onEditStorePress ? (
+                  <TouchableOpacity
+                    onPress={onEditStorePress}
+                    style={styles.storeNameEditIcon}
+                    activeOpacity={0.7}
+                    accessibilityLabel="Edit store details"
+                  >
+                    <Ionicons name="pencil-outline" size={18} color={theme.textColor} />
+                  </TouchableOpacity>
+                ) : null}
                 <View style={styles.storeNameBadges}>
                   {(twitchUrl || youtubeUrl) && (
                     <View style={styles.socialIconsRow}>
@@ -178,23 +190,6 @@ export function StoreHeader({
                 showVertical={false}
                 profileImage={profileImage}
               />
-
-              <View style={styles.featuresContainer}>
-                <View style={styles.featureItem}>
-                  <Ionicons name="rocket-outline" size={16} color={theme.tintColor || '#73EC8B'} style={styles.featureIcon} />
-                  <Text style={styles.featureText}>Fast Shipping</Text>
-                </View>
-                <View style={styles.separator} />
-                <View style={styles.featureItem}>
-                  <Ionicons name="shield-checkmark-outline" size={16} color={theme.tintColor || '#73EC8B'} style={styles.featureIcon} />
-                  <Text style={styles.featureText}>Buyer Protection</Text>
-                </View>
-                <View style={styles.separator} />
-                <View style={styles.featureItem}>
-                  <Ionicons name="star-outline" size={16} color={theme.tintColor || '#73EC8B'} style={styles.featureIcon} />
-                  <Text style={styles.featureText}>Top Rated Seller</Text>
-                </View>
-              </View>
             </View>
           </View>
         </View>
@@ -380,6 +375,12 @@ const getStyles = (theme: any) => StyleSheet.create({
     textShadowColor: 'rgba(0, 0, 0, 0.8)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 3,
+  },
+  storeNameEditIcon: {
+    padding: SPACING.xs,
+    marginRight: SPACING.xs,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   storeNameBadges: {
     flexDirection: 'row',

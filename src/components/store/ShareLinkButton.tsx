@@ -1,9 +1,8 @@
-import { View, StyleSheet, TouchableOpacity, Alert } from 'react-native'
+import { StyleSheet, TouchableOpacity, Alert } from 'react-native'
 import { useContext } from 'react'
-import { Text } from '../ui/text'
 import Ionicons from '@expo/vector-icons/Ionicons'
 import { ThemeContext } from '../../context'
-import { SPACING, TYPOGRAPHY, RADIUS } from '../../constants/layout'
+import { SPACING } from '../../constants/layout'
 
 interface ShareLinkButtonProps {
   storeLink: string
@@ -21,45 +20,25 @@ export function ShareLinkButton({ storeLink }: ShareLinkButtonProps) {
 
   return (
     <TouchableOpacity
-      style={styles.button}
+      style={styles.iconButton}
       onPress={handleCopy}
-      activeOpacity={0.7}
+      activeOpacity={0.6}
+      accessibilityLabel="Copy store link"
     >
       <Ionicons
         name="link"
-        size={16}
-        color="rgba(255, 255, 255, 0.7)"
-        style={styles.icon}
-      />
-      <Text style={styles.text}>Copy Store Link</Text>
-      <Ionicons
-        name="copy-outline"
-        size={14}
-        color="rgba(255, 255, 255, 0.5)"
+        size={22}
+        color="rgba(255, 255, 255, 0.6)"
       />
     </TouchableOpacity>
   )
 }
 
 const getStyles = (theme: any) => StyleSheet.create({
-  button: {
-    flexDirection: 'row',
+  iconButton: {
+    padding: SPACING.sm,
+    justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.sm,
-    borderRadius: RADIUS.md,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
-  },
-  icon: {
-    marginRight: SPACING.xs,
-  },
-  text: {
-    fontSize: TYPOGRAPHY.bodySmall,
-    fontFamily: theme.regularFont,
-    color: 'rgba(255, 255, 255, 0.7)',
-    marginRight: SPACING.xs,
-    letterSpacing: 0.1,
+    alignSelf: 'center',
   },
 })

@@ -417,6 +417,113 @@ export function ViewProfile() {
           </Section>
         )}
 
+        <Section title="Listings">
+          <SafetyFilter
+            enabled={vaultedOnly}
+            onToggle={setVaultedOnly}
+          />
+          <StoreListings
+            listings={filteredListings}
+            onListingPress={(listing: StoreListing) => {
+              if (listing.cardImage) {
+                navigation.navigate('Product', {
+                  name: listing.cardName,
+                  image: listing.cardImage,
+                  category: 'listing',
+                  price: listing.price,
+                  description: `Premium ${listing.cardName}. Authentic and verified with secure shipping.`,
+                })
+              }
+            }}
+            onBuyPress={async (listing) => {
+              // Ensure currentUser is loaded, if not, fetch it
+              let user = currentUser
+              if (!user || !user.id) {
+                console.log('🔄 [VIEW PROFILE] User not loaded, fetching from Better Auth...')
+                try {
+                  const session = await authClient.getSession()
+                  const userFromSession = (session?.data as any)?.user
+                  if (userFromSession) {
+                    user = userFromSession
+                    setCurrentUser(userFromSession)
+                    console.log('✅ [VIEW PROFILE] User loaded from session:', user.id)
+                  } else {
+                    console.error('❌ [VIEW PROFILE] Cannot buy - user not found in session')
+                    Alert.alert('Error', 'Please log in to purchase items')
+                    return
+                  }
+                } catch (error) {
+                  console.error('❌ [VIEW PROFILE] Error fetching user:', error)
+                  Alert.alert('Error', 'Please log in to purchase items')
+                  return
+                }
+              }
+              
+              // Validate user has email
+              if (!user.email) {
+                console.error('❌ [VIEW PROFILE] User email not found:', user)
+                Alert.alert('Error', 'User email not found. Please update your profile.')
+                return
+              }
+              
+              if (!storeData) {
+                console.error('❌ [VIEW PROFILE] Cannot buy - store data not loaded')
+                Alert.alert('Error', 'Store information not available')
+                return
+              }
+              
+              // Get sellerId from store
+              const sellerId = storeData.userId || userId
+              if (!sellerId) {
+                console.error('❌ [VIEW PROFILE] Cannot buy - seller ID not found:', {
+                  storeDataUserId: storeData.userId,
+                  userId: userId,
+                  storeData: storeData,
+                })
+                Alert.alert('Error', 'Seller information not available')
+                return
+              }
+              
+              // Get listingId
+              const listingId = (listing as any).listingId || listing.id
+              if (!listingId) {
+                console.error('❌ [VIEW PROFILE] Cannot buy - listing ID not found:', listing)
+                Alert.alert('Error', 'Listing information not available')
+                return
+              }
+              
+              console.log('✅ [VIEW PROFILE] Opening payment modal with:', {
+                listingId,
+                buyerId: user.id,
+                sellerId,
+                buyerEmail: user.email,
+                storeData: storeData,
+              })
+              
+              setSelectedListing(listing)
+              setPaymentType('buy')
+              setIsPaymentModalVisible(true)
+            }}
+            onBidPress={(listing) => {
+              if (!currentUser || !currentUser.id) {
+                console.error('❌ [VIEW PROFILE] Cannot bid - user not loaded:', {
+                  hasCurrentUser: !!currentUser,
+                  userId: currentUser?.id,
+                })
+                // TODO: Show login prompt
+                return
+              }
+              if (!storeData) {
+                console.error('❌ [VIEW PROFILE] Cannot bid - store data not loaded')
+                return
+              }
+              setSelectedListing(listing)
+              setPaymentType('bid')
+              setIsPaymentModalVisible(true)
+            }}
+          />
+        </Section>
+
         <Section title="In Search Of">
           <Card style={styles.isoCard}>
             <CardContent style={styles.isoCardContent}>
@@ -578,113 +685,6 @@ export function ViewProfile() {
               )}
             </CardContent>
           </Card>
-        </Section>
-
-        <Section title="Listings">
-          <SafetyFilter
-            enabled={vaultedOnly}
-            onToggle={setVaultedOnly}
-          />
-          <StoreListings
-            listings={filteredListings}
-            onListingPress={(listing: StoreListing) => {
-              if (listing.cardImage) {
-                navigation.navigate('Product', {
-                  name: listing.cardName,
-                  image: listing.cardImage,
-                  category: 'listing',
-                  price: listing.price,
-                  description: `Premium ${listing.cardName}. Authentic and verified with secure shipping.`,
-                })
-              }
-            }}
-            onBuyPress={async (listing) => {
-              // Ensure currentUser is loaded, if not, fetch it
-              let user = currentUser
-              if (!user || !user.id) {
-                console.log('🔄 [VIEW PROFILE] User not loaded, fetching from Better Auth...')
-                try {
-                  const session = await authClient.getSession()
-                  const userFromSession = (session?.data as any)?.user
-                  if (userFromSession) {
-                    user = userFromSession
-                    setCurrentUser(userFromSession)
-                    console.log('✅ [VIEW PROFILE] User loaded from session:', user.id)
-                  } else {
-                    console.error('❌ [VIEW PROFILE] Cannot buy - user not found in session')
-                    Alert.alert('Error', 'Please log in to purchase items')
-                    return
-                  }
-                } catch (error) {
-                  console.error('❌ [VIEW PROFILE] Error fetching user:', error)
-                  Alert.alert('Error', 'Please log in to purchase items')
-                  return
-                }
-              }
-              
-              // Validate user has email
-              if (!user.email) {
-                console.error('❌ [VIEW PROFILE] User email not found:', user)
-                Alert.alert('Error', 'User email not found. Please update your profile.')
-                return
-              }
-              
-              if (!storeData) {
-                console.error('❌ [VIEW PROFILE] Cannot buy - store data not loaded')
-                Alert.alert('Error', 'Store information not available')
-                return
-              }
-              
-              // Get sellerId from store
-              const sellerId = storeData.userId || userId
-              if (!sellerId) {
-                console.error('❌ [VIEW PROFILE] Cannot buy - seller ID not found:', {
-                  storeDataUserId: storeData.userId,
-                  userId: userId,
-                  storeData: storeData,
-                })
-                Alert.alert('Error', 'Seller information not available')
-                return
-              }
-              
-              // Get listingId
-              const listingId = (listing as any).listingId || listing.id
-              if (!listingId) {
-                console.error('❌ [VIEW PROFILE] Cannot buy - listing ID not found:', listing)
-                Alert.alert('Error', 'Listing information not available')
-                return
-              }
-              
-              console.log('✅ [VIEW PROFILE] Opening payment modal with:', {
-                listingId,
-                buyerId: user.id,
-                sellerId,
-                buyerEmail: user.email,
-                storeData: storeData,
-              })
-              
-              setSelectedListing(listing)
-              setPaymentType('buy')
-              setIsPaymentModalVisible(true)
-            }}
-            onBidPress={(listing) => {
-              if (!currentUser || !currentUser.id) {
-                console.error('❌ [VIEW PROFILE] Cannot bid - user not loaded:', {
-                  hasCurrentUser: !!currentUser,
-                  userId: currentUser?.id,
-                })
-                // TODO: Show login prompt
-                return
-              }
-              if (!storeData) {
-                console.error('❌ [VIEW PROFILE] Cannot bid - store data not loaded')
-                return
-              }
-              setSelectedListing(listing)
-              setPaymentType('bid')
-              setIsPaymentModalVisible(true)
-            }}
-          />
         </Section>
       </ScrollView>
 

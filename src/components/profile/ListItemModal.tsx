@@ -115,8 +115,12 @@ export function ListItemModal({
           text: 'Remove',
           style: 'destructive',
           onPress: async () => {
-            await onRemoveListing?.()
-            handleClose()
+            try {
+              await onRemoveListing?.()
+              handleClose()
+            } catch {
+              // Error already shown by parent; keep modal open
+            }
           },
         },
       ]
