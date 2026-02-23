@@ -3,6 +3,12 @@ module.exports = function(api) {
   return {
     presets: ['babel-preset-expo', 'nativewind/babel'],
     plugins: [
+      [
+        'react-native-iconify/babel',
+        {
+          icons: ['simple-icons:twitch', 'simple-icons:youtube'],
+        },
+      ],
       'react-native-reanimated/plugin',
       [
         'module-resolver',

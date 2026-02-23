@@ -90,6 +90,13 @@ export function MyStore() {
   const [newYoutubeUrl, setNewYoutubeUrl] = useState('')
   const [creatingStore, setCreatingStore] = useState(false)
 
+  // Edit store details modal (store name + optional Twitch/YouTube URLs)
+  const [isEditStoreModalVisible, setIsEditStoreModalVisible] = useState(false)
+  const [editStoreName, setEditStoreName] = useState('')
+  const [editTwitchUrl, setEditTwitchUrl] = useState('')
+  const [editYoutubeUrl, setEditYoutubeUrl] = useState('')
+  const [updatingStore, setUpdatingStore] = useState(false)
+
   // Get Better Auth session token for API calls
   const getSessionToken = async () => {
     try {
@@ -186,6 +193,52 @@ export function MyStore() {
       Alert.alert('Error', 'Failed to create store')
     } finally {
       setCreatingStore(false)
+    }
+  }
+
+  const openEditStoreModal = () => {
+    if (!store) return
+    setEditStoreName(store.storeName || '')
+    setEditTwitchUrl(store.twitchUrl || '')
+    setEditYoutubeUrl(store.youtubeUrl || '')
+    setIsEditStoreModalVisible(true)
+  }
+
+  const updateStoreDetails = async () => {
+    try {
+      setUpdatingStore(true)
+      const token = await getSessionToken()
+      if (!token) {
+        Alert.alert('Error', 'Please log in')
+        return
+      }
+      const baseUrl = DOMAIN?.endsWith('/') ? DOMAIN.slice(0, -1) : DOMAIN
+      const response = await fetch(`${baseUrl}/api/store`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          storeName: editStoreName.trim() || undefined,
+          twitchUrl: editTwitchUrl.trim() === '' ? null : editTwitchUrl.trim() || undefined,
+          youtubeUrl: editYoutubeUrl.trim() === '' ? null : editYoutubeUrl.trim() || undefined,
+        }),
+      })
+      const data = await response.json()
+      if (response.ok) {
+        await fetchStore()
+        setIsEditStoreModalVisible(false)
+        Alert.alert('Success', 'Store details updated.')
+      } else {
+        Alert.alert('Error', data.message || 'Failed to update store')
+      }
+    } catch (error: any) {
+      console.error('Error updating store:', error)
+      Alert.alert('Error', 'Failed to update store')
+    } finally {
+      setUpdatingStore(false)
     }
   }
 
@@ -546,79 +599,6 @@ export function MyStore() {
     }
   }
 
-  // Update store banner
-  const updateStoreBanner = async (imageUri: string) => {
-    try {
-      const token = await getSessionToken()
-      if (!token) {
-        Alert.alert('Error', 'Please log in')
-        return
-      }
-
-      const baseUrl = DOMAIN?.endsWith('/') ? DOMAIN.slice(0, -1) : DOMAIN
-      const response = await fetch(`${baseUrl}/api/store`, {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include', // Include cookies for web
-        body: JSON.stringify({
-          bannerUrl: imageUri,
-        }),
-      })
-
-      const data = await response.json()
-
-      if (response.ok) {
-        await fetchStore()
-        Alert.alert('Success', 'Banner updated successfully!')
-      } else {
-        Alert.alert('Error', data.message || 'Failed to update banner')
-      }
-    } catch (error: any) {
-      console.error('Error updating banner:', error)
-      Alert.alert('Error', 'Failed to update banner')
-    }
-  }
-
-  // Update user avatar (shared across profile and store)
-  const updateUserAvatar = async (imageUri: string) => {
-    try {
-      const token = await getSessionToken()
-      if (!token) {
-        Alert.alert('Error', 'Please log in')
-        return
-      }
-
-      const baseUrl = DOMAIN?.endsWith('/') ? DOMAIN.slice(0, -1) : DOMAIN
-      const response = await fetch(`${baseUrl}/api/profile/user`, {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include', // Include cookies for web
-        body: JSON.stringify({
-          avatar: imageUri,
-        }),
-      })
-
-      const data = await response.json()
-
-      if (response.ok) {
-        // Refresh store to get updated user data
-        await fetchStore()
-        Alert.alert('Success', 'Avatar updated successfully!')
-      } else {
-        Alert.alert('Error', data.message || 'Failed to update avatar')
-      }
-    } catch (error: any) {
-      console.error('Error updating avatar:', error)
-      Alert.alert('Error', 'Failed to update avatar')
-    }
-  }
-
   // Load store when screen is focused (mount + when returning from other screens)
   useFocusEffect(
     useCallback(() => {
@@ -715,24 +695,34 @@ export function MyStore() {
                   value={newStoreName}
                   onChangeText={setNewStoreName}
                 />
-                <TextInput
-                  style={styles.modalInput}
-                  placeholder="Twitch URL (optional)"
-                  placeholderTextColor={theme.mutedForegroundColor || 'rgba(255, 255, 255, 0.6)'}
-                  value={newTwitchUrl}
-                  onChangeText={setNewTwitchUrl}
-                  autoCapitalize="none"
-                  keyboardType="url"
-                />
-                <TextInput
-                  style={styles.modalInput}
-                  placeholder="YouTube URL (optional)"
-                  placeholderTextColor={theme.mutedForegroundColor || 'rgba(255, 255, 255, 0.6)'}
-                  value={newYoutubeUrl}
-                  onChangeText={setNewYoutubeUrl}
-                  autoCapitalize="none"
-                  keyboardType="url"
-                />
+                <View style={styles.modalInputRow}>
+                  <View style={styles.modalInputIcon}>
+                    <Ionicons name="logo-twitch" size={20} color={theme.mutedForegroundColor || 'rgba(255, 255, 255, 0.6)'} />
+                  </View>
+                  <TextInput
+                    style={[styles.modalInput, styles.modalInputInRow]}
+                    placeholder="Twitch URL (optional)"
+                    placeholderTextColor={theme.mutedForegroundColor || 'rgba(255, 255, 255, 0.6)'}
+                    value={newTwitchUrl}
+                    onChangeText={setNewTwitchUrl}
+                    autoCapitalize="none"
+                    keyboardType="url"
+                  />
+                </View>
+                <View style={styles.modalInputRow}>
+                  <View style={styles.modalInputIcon}>
+                    <Ionicons name="logo-youtube" size={20} color={theme.mutedForegroundColor || 'rgba(255, 255, 255, 0.6)'} />
+                  </View>
+                  <TextInput
+                    style={[styles.modalInput, styles.modalInputInRow]}
+                    placeholder="YouTube URL (optional)"
+                    placeholderTextColor={theme.mutedForegroundColor || 'rgba(255, 255, 255, 0.6)'}
+                    value={newYoutubeUrl}
+                    onChangeText={setNewYoutubeUrl}
+                    autoCapitalize="none"
+                    keyboardType="url"
+                  />
+                </View>
                 <View style={styles.modalActions}>
                   <TouchableOpacity
                     style={[styles.modalButton, styles.modalButtonSecondary]}
@@ -920,53 +910,6 @@ export function MyStore() {
                 shareableLink={shareableLink}
                 twitchUrl={store.twitchUrl ?? undefined}
                 youtubeUrl={store.youtubeUrl ?? undefined}
-                showBannerEdit={true}
-                onBannerEditPress={async () => {
-                  const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync()
-                  if (status !== 'granted') {
-                    Alert.alert('Permission needed', 'Photo library access is required.')
-                    return
-                  }
-                  const result = await ImagePicker.launchImageLibraryAsync({
-                    mediaTypes: ImagePicker.MediaTypeOptions.Images,
-                    allowsEditing: true,
-                    quality: 0.8,
-                  })
-                  if (!result.canceled && result.assets[0]) {
-                    try {
-                      // Upload image to Cloudinary first
-                      const imageUrl = await uploadImage(result.assets[0].uri, 'gradeit/banners')
-                      // Then update store with the Cloudinary URL
-                      updateStoreBanner(imageUrl)
-                    } catch (error: any) {
-                      Alert.alert('Upload Error', error.message || 'Failed to upload banner image')
-                    }
-                  }
-                }}
-                onEditPress={async () => {
-                  // Update avatar (shared with profile)
-                  const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync()
-                  if (status !== 'granted') {
-                    Alert.alert('Permission needed', 'Photo library access is required.')
-                    return
-                  }
-                  const result = await ImagePicker.launchImageLibraryAsync({
-                    mediaTypes: ImagePicker.MediaTypeOptions.Images,
-                    allowsEditing: true,
-                    quality: 0.8,
-                    aspect: [1, 1], // Square for avatar
-                  })
-                  if (!result.canceled && result.assets[0]) {
-                    try {
-                      // Upload image to Cloudinary first
-                      const imageUrl = await uploadImage(result.assets[0].uri, 'gradeit/avatars')
-                      // Then update user avatar with the Cloudinary URL
-                      updateUserAvatar(imageUrl)
-                    } catch (error: any) {
-                      Alert.alert('Upload Error', error.message || 'Failed to upload avatar image')
-                    }
-                  }
-                }}
               />
 
               <StoreStats
@@ -983,6 +926,10 @@ export function MyStore() {
 
               <View style={styles.shareLinkContainer}>
                 <ShareLinkButton storeLink={shareableLink} />
+                <TouchableOpacity style={styles.editStoreDetailsButton} onPress={openEditStoreModal} activeOpacity={0.7}>
+                  <Ionicons name="pencil-outline" size={18} color={theme.tintColor || '#73EC8B'} />
+                  <Text style={styles.editStoreDetailsText}>Edit store details</Text>
+                </TouchableOpacity>
               </View>
 
               <Section title="My Listings">
@@ -1131,6 +1078,79 @@ export function MyStore() {
         }}
         apiBaseUrl={DOMAIN}
       />
+
+      {/* Edit store details modal */}
+      <Modal
+        visible={isEditStoreModalVisible}
+        animationType="slide"
+        transparent={true}
+      >
+        <View style={styles.modalOverlay}>
+          <Card style={styles.modalCard}>
+            <CardContent style={styles.modalContent}>
+              <Text style={styles.modalTitle}>Edit store details</Text>
+              <Text style={styles.modalSubtitle}>
+                Store name and social links (Twitch & YouTube are optional).
+              </Text>
+              <TextInput
+                style={styles.modalInput}
+                placeholder="Store name (required)"
+                placeholderTextColor={theme.mutedForegroundColor || 'rgba(255, 255, 255, 0.6)'}
+                value={editStoreName}
+                onChangeText={setEditStoreName}
+              />
+              <View style={styles.modalInputRow}>
+                <View style={styles.modalInputIcon}>
+                  <Ionicons name="logo-twitch" size={20} color={theme.mutedForegroundColor || 'rgba(255, 255, 255, 0.6)'} />
+                </View>
+                <TextInput
+                  style={[styles.modalInput, styles.modalInputInRow]}
+                  placeholder="Twitch URL (optional)"
+                  placeholderTextColor={theme.mutedForegroundColor || 'rgba(255, 255, 255, 0.6)'}
+                  value={editTwitchUrl}
+                  onChangeText={setEditTwitchUrl}
+                  autoCapitalize="none"
+                  keyboardType="url"
+                />
+              </View>
+              <View style={styles.modalInputRow}>
+                <View style={styles.modalInputIcon}>
+                  <Ionicons name="logo-youtube" size={20} color={theme.mutedForegroundColor || 'rgba(255, 255, 255, 0.6)'} />
+                </View>
+                <TextInput
+                  style={[styles.modalInput, styles.modalInputInRow]}
+                  placeholder="YouTube URL (optional)"
+                  placeholderTextColor={theme.mutedForegroundColor || 'rgba(255, 255, 255, 0.6)'}
+                  value={editYoutubeUrl}
+                  onChangeText={setEditYoutubeUrl}
+                  autoCapitalize="none"
+                  keyboardType="url"
+                />
+              </View>
+              <View style={styles.modalActions}>
+                <TouchableOpacity
+                  style={[styles.modalButton, styles.modalButtonSecondary]}
+                  onPress={() => setIsEditStoreModalVisible(false)}
+                  disabled={updatingStore}
+                >
+                  <Text style={styles.modalButtonTextSecondary}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.modalButton, styles.modalButtonPrimary, !editStoreName.trim() && styles.modalButtonDisabled]}
+                  onPress={updateStoreDetails}
+                  disabled={updatingStore || !editStoreName.trim()}
+                >
+                  {updatingStore ? (
+                    <ActivityIndicator size="small" color="#fff" />
+                  ) : (
+                    <Text style={styles.modalButtonTextPrimary}>Save</Text>
+                  )}
+                </TouchableOpacity>
+              </View>
+            </CardContent>
+          </Card>
+        </View>
+      </Modal>
     </View>
   )
 }
@@ -1196,6 +1216,20 @@ const getStyles = (theme: any) => StyleSheet.create({
   shareLinkContainer: {
     marginTop: SPACING.md,
     marginBottom: SPACING.md,
+    gap: SPACING.sm,
+  },
+  editStoreDetailsButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: SPACING.xs,
+    paddingVertical: SPACING.sm,
+  },
+  editStoreDetailsText: {
+    fontSize: TYPOGRAPHY.body,
+    fontFamily: theme.semiBoldFont,
+    color: theme.tintColor || '#73EC8B',
+    fontWeight: '600',
   },
   addISOButton: {
     flexDirection: 'row',
@@ -1370,6 +1404,18 @@ const getStyles = (theme: any) => StyleSheet.create({
     fontSize: TYPOGRAPHY.body,
     fontFamily: theme.regularFont,
     marginBottom: SPACING.xl,
+  },
+  modalInputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: SPACING.xl,
+  },
+  modalInputIcon: {
+    marginRight: SPACING.sm,
+  },
+  modalInputInRow: {
+    marginBottom: 0,
+    flex: 1,
   },
   modalActions: {
     flexDirection: 'row',

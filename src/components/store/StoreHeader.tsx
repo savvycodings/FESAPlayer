@@ -7,6 +7,7 @@ import { VerificationRings } from './VerificationRings'
 import { ProgressBars } from './ProgressBars'
 import { LevelRewardModal } from './LevelRewardModal'
 import Ionicons from '@expo/vector-icons/Ionicons'
+import { Iconify } from 'react-native-iconify/native'
 
 interface StoreHeaderProps {
   storeName: string
@@ -88,23 +89,39 @@ export function StoreHeader({
           <View style={styles.bannerProfileSection}>
             <View style={styles.profileContainer}>
               <View style={styles.profileWrapper}>
-                <TouchableOpacity
-                  style={styles.profileIcon}
-                  onPress={onEditPress}
-                  activeOpacity={0.8}
-                >
-                  {profileImage ? (
-                    <Image
-                      source={profileImage}
-                      style={styles.profileImage}
-                      resizeMode="cover"
-                    />
-                  ) : (
-                    <View style={styles.profileInitialsContainer}>
-                      <Text style={styles.profileInitialsText}>{profileInitials}</Text>
-                    </View>
-                  )}
-                </TouchableOpacity>
+                {onEditPress ? (
+                  <TouchableOpacity
+                    style={styles.profileIcon}
+                    onPress={onEditPress}
+                    activeOpacity={0.8}
+                  >
+                    {profileImage ? (
+                      <Image
+                        source={profileImage}
+                        style={styles.profileImage}
+                        resizeMode="cover"
+                      />
+                    ) : (
+                      <View style={styles.profileInitialsContainer}>
+                        <Text style={styles.profileInitialsText}>{profileInitials}</Text>
+                      </View>
+                    )}
+                  </TouchableOpacity>
+                ) : (
+                  <View style={styles.profileIcon}>
+                    {profileImage ? (
+                      <Image
+                        source={profileImage}
+                        style={styles.profileImage}
+                        resizeMode="cover"
+                      />
+                    ) : (
+                      <View style={styles.profileInitialsContainer}>
+                        <Text style={styles.profileInitialsText}>{profileInitials}</Text>
+                      </View>
+                    )}
+                  </View>
+                )}
                 <VerificationRings salesCount={salesCount} size={108} />
                 <View style={styles.trustedBadge}>
                   <View style={styles.shieldIconContainer}>
@@ -129,7 +146,7 @@ export function StoreHeader({
                           activeOpacity={0.7}
                           accessibilityLabel="Open Twitch"
                         >
-                          <Ionicons name="logo-twitch" size={22} color={theme.textColor} />
+                          <Iconify icon="simple-icons:twitch" size={22} color={theme.textColor} />
                         </TouchableOpacity>
                       ) : null}
                       {youtubeUrl ? (
@@ -139,7 +156,7 @@ export function StoreHeader({
                           activeOpacity={0.7}
                           accessibilityLabel="Open YouTube"
                         >
-                          <Ionicons name="logo-youtube" size={22} color={theme.textColor} />
+                          <Iconify icon="simple-icons:youtube" size={22} color={theme.textColor} />
                         </TouchableOpacity>
                       ) : null}
                     </View>
