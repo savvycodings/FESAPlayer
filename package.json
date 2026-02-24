@@ -11,6 +11,8 @@
   },
   "dependencies": {
     "@better-auth/expo": "^1.4.17",
+    "@expo-google-fonts/bagel-fat-one": "^0.4.0",
+    "@expo-google-fonts/google-sans": "^0.4.0",
     "@expo/metro-runtime": "~6.1.2",
     "@expo/react-native-action-sheet": "^4.0.1",
     "@gorhom/bottom-sheet": "^4",

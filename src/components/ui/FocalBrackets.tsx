@@ -19,8 +19,9 @@ interface FocalBracketsProps {
 }
 
 /**
- * Wraps a focal element (e.g. icon, profile image) with four L-shaped corner brackets
- * as an accent, pointing inward. Use for emphasis and consistent icon treatment.
+ * Corner Frame Overlay: four L-shaped corner markers, bright theme accent, absolutely
+ * positioned. Use with a center icon (white stroke, no fill, thin outline) for
+ * tactical/HUD-style focal points. See app/docs/ICON_AND_FOCAL_FRAME.md.
  */
 export function FocalBrackets({
   children,

@@ -3,6 +3,16 @@ import { useState, useEffect, useRef } from 'react'
 import { NavigationContainer } from '@react-navigation/native'
 import { RootNavigator } from './src/navigation/RootNavigator'
 import { useFonts } from 'expo-font'
+import {
+  GoogleSans_400Regular,
+  GoogleSans_500Medium,
+  GoogleSans_600SemiBold,
+  GoogleSans_700Bold,
+  GoogleSans_400Regular_Italic,
+  GoogleSans_500Medium_Italic,
+  GoogleSans_600SemiBold_Italic,
+  GoogleSans_700Bold_Italic,
+} from '@expo-google-fonts/google-sans'
 import { ThemeContext, AppContext } from './src/context'
 import * as themes from './src/theme'
 import { IMAGE_MODELS, MODELS, ILLUSION_DIFFUSION_IMAGES } from './constants'
@@ -40,7 +50,15 @@ export default function App() {
     'Geist-SemiBold': require('./assets/fonts/Geist-SemiBold.otf'),
     'Geist-Thin': require('./assets/fonts/Geist-Thin.otf'),
     'Geist-UltraLight': require('./assets/fonts/Geist-UltraLight.otf'),
-    'Geist-UltraBlack': require('./assets/fonts/Geist-UltraBlack.otf')
+    'Geist-UltraBlack': require('./assets/fonts/Geist-UltraBlack.otf'),
+    GoogleSans_400Regular,
+    GoogleSans_500Medium,
+    GoogleSans_600SemiBold,
+    GoogleSans_700Bold,
+    GoogleSans_400Regular_Italic,
+    GoogleSans_500Medium_Italic,
+    GoogleSans_600SemiBold_Italic,
+    GoogleSans_700Bold_Italic,
   })
 
   useEffect(() => {

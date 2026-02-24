@@ -108,9 +108,11 @@ export function OrderCard({ order, onPress }: OrderCardProps) {
               </View>
 
               <View style={styles.detailsRow}>
-                <View style={styles.detailItem}>
+                <View style={[styles.detailItem, styles.orderNumberWrap]}>
                   <Ionicons name="receipt-outline" size={12} color="rgba(255, 255, 255, 0.6)" />
-                  <Text style={styles.detailText}>#{order.orderNumber}</Text>
+                  <Text style={styles.orderNumberText} numberOfLines={1} ellipsizeMode="tail">
+                    #{order.orderNumber}
+                  </Text>
                 </View>
                 <View style={styles.detailItem}>
                   <Ionicons name="calendar-outline" size={12} color="rgba(255, 255, 255, 0.6)" />
@@ -203,6 +205,16 @@ const getStyles = (theme: any) => StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: SPACING.xs / 2,
+  },
+  orderNumberWrap: {
+    flex: 1,
+    minWidth: 0,
+  },
+  orderNumberText: {
+    fontSize: TYPOGRAPHY.label,
+    fontFamily: theme.regularFont,
+    color: 'rgba(255, 255, 255, 0.6)',
+    flex: 1,
   },
   detailText: {
     fontSize: TYPOGRAPHY.caption,

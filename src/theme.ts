@@ -9,16 +9,17 @@ const colors = {
   lightPink: '#F7B5CD'
 }
 
+// Paragraph/body font: Google Sans (replaces Courier family)
 const fonts = {
-  ultraLightFont: 'Geist-Ultralight',
-  thinFont: 'Geist-Thin',
-  regularFont: 'Geist-Regular',
-  lightFont: 'Geist-Light',
-  mediumFont: 'Geist-Medium',
-  semiBoldFont: 'Geist-SemiBold',
-  boldFont: 'Geist-Bold',
-  blackFont: 'Geist-Black',
-  ultraBlackFont: 'Geist-Ultrablack',
+  ultraLightFont: 'GoogleSans_400Regular',
+  thinFont: 'GoogleSans_400Regular',
+  regularFont: 'GoogleSans_400Regular',
+  lightFont: 'GoogleSans_400Regular',
+  mediumFont: 'GoogleSans_500Medium',
+  semiBoldFont: 'GoogleSans_600SemiBold',
+  boldFont: 'GoogleSans_700Bold',
+  blackFont: 'GoogleSans_700Bold',
+  ultraBlackFont: 'GoogleSans_700Bold',
 }
 
 const lightTheme = {
