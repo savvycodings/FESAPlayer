@@ -17,6 +17,8 @@ interface ListItemModalProps {
   initialDescription?: string
   /** When set, shows a "Remove listing" button at the bottom (for your store edit only). */
   onRemoveListing?: () => void | Promise<void>
+  /** Minimum listing price (USD) = 20% of market price from Pokedata. When set, user cannot list below this. */
+  minPriceFromMarketUsd?: number
 }
 
 export function ListItemModal({
@@ -28,6 +30,7 @@ export function ListItemModal({
   initialPrice,
   initialDescription,
   onRemoveListing,
+  minPriceFromMarketUsd,
 }: ListItemModalProps) {
   const { theme } = useContext(ThemeContext)
   const styles = getStyles(theme)
@@ -61,7 +64,9 @@ export function ListItemModal({
   const hasRequiredImage = isEditing || !!listingImageUri
   const isValid = () => {
     const numericPrice = parseFloat(price.replace(/[^0-9.]/g, ''))
-    return numericPrice > 0 && description.trim().length > 0 && hasRequiredImage
+    if (numericPrice <= 0 || description.trim().length === 0 || !hasRequiredImage) return false
+    if (minPriceFromMarketUsd != null && minPriceFromMarketUsd > 0 && numericPrice < minPriceFromMarketUsd) return false
+    return true
   }
 
   const handlePickListingImage = async () => {
@@ -84,6 +89,13 @@ export function ListItemModal({
   const handleList = async () => {
     if (!isValid() || submitting) return
     const numericPrice = parseFloat(price.replace(/[^0-9.]/g, ''))
+    if (minPriceFromMarketUsd != null && minPriceFromMarketUsd > 0 && numericPrice < minPriceFromMarketUsd) {
+      Alert.alert(
+        'Price too low',
+        `Listing price cannot be below 20% of market value. Minimum: $${minPriceFromMarketUsd.toFixed(2)}`
+      )
+      return
+    }
     setSubmitting(true)
     try {
       await Promise.resolve(onList(numericPrice, listingImageUri ?? undefined))
@@ -199,6 +211,11 @@ export function ListItemModal({
             {/* Price Input Section */}
             <View style={styles.inputSection}>
               <Text style={styles.inputLabel}>Set Your Price</Text>
+              {minPriceFromMarketUsd != null && minPriceFromMarketUsd > 0 && (
+                <Text style={styles.inputHint}>
+                  Minimum 20% of market: ${minPriceFromMarketUsd.toFixed(2)}
+                </Text>
+              )}
               <View style={styles.priceInputContainer}>
                 <View style={styles.dollarSignContainer}>
                   <Text style={styles.dollarSign}>$</Text>

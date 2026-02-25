@@ -36,7 +36,7 @@ export function Profile() {
   const navigation = useNavigation<ProfileScreenNavigationProp>()
   const styles = getStyles(theme)
   const [isListItemModalVisible, setIsListItemModalVisible] = useState(false)
-  const [selectedProduct, setSelectedProduct] = useState<{ name: string; image?: any; id?: number; cardId?: string } | null>(null)
+  const [selectedProduct, setSelectedProduct] = useState<{ name: string; image?: any; id?: number; cardId?: string; marketPriceUsd?: number } | null>(null)
 
   // State for user data
   const [user, setUser] = useState<any>(null)
@@ -85,9 +85,10 @@ export function Profile() {
   }
 
   // Fetch collections
-  const fetchCollections = async () => {
+  const fetchCollections = async (options?: { silent?: boolean }) => {
+    const silent = options?.silent === true
     try {
-      setLoading(true)
+      if (!silent) setLoading(true)
       // Check session
       const session = await authClient.getSession()
       if (!session?.data?.session) return
@@ -147,7 +148,7 @@ export function Profile() {
     } catch (error: any) {
       console.error('Error fetching collections:', error)
     } finally {
-      setLoading(false)
+      if (!silent) setLoading(false)
     }
   }
 
@@ -233,8 +234,8 @@ export function Profile() {
       })
 
       if (response.ok) {
-        // Refresh collections and user data
-        await fetchCollections()
+        // Refresh collections and user data without showing full-screen loader (keeps modal from unmounting/remounting)
+        await fetchCollections({ silent: true })
         await fetchUserProfile()
         // Don't show alert here - let the modal handle success and close
         // The modal will show success message and close itself
@@ -455,6 +456,7 @@ export function Profile() {
       isListed: collection.isListed || false,
       cardId: collection.cardId ?? undefined,
       set: collection.set ?? undefined,
+      marketPriceUsd: primaryUsd ?? undefined,
     }
   })
 
@@ -614,6 +616,7 @@ export function Profile() {
                       name: product.name, 
                       image: product.image,
                       cardId: (product as any).cardId,
+                      marketPriceUsd: (product as any).marketPriceUsd,
                     })
                     setIsListItemModalVisible(true)
                   }
@@ -662,6 +665,11 @@ export function Profile() {
           visible={isListItemModalVisible}
           productName={selectedProduct.name}
           productImage={selectedProduct.image}
+          minPriceFromMarketUsd={
+            selectedProduct.marketPriceUsd != null && selectedProduct.marketPriceUsd > 0
+              ? 0.2 * selectedProduct.marketPriceUsd
+              : undefined
+          }
           onClose={() => {
             setIsListItemModalVisible(false)
             setSelectedProduct(null)

@@ -1,5 +1,5 @@
 import { View, StyleSheet, Modal, TouchableOpacity, ScrollView, TextInput, Alert, ActivityIndicator, FlatList, Image } from 'react-native'
-import { useContext, useState, useEffect, useMemo } from 'react'
+import { useContext, useState, useEffect, useMemo, useRef } from 'react'
 import { Text } from '../ui/text'
 import Ionicons from '@expo/vector-icons/Ionicons'
 import { ThemeContext } from '../../context'
@@ -36,6 +36,18 @@ export function AddISOModal({
   const [setSearch, setSetSearch] = useState('')
   const [lookupResults, setLookupResults] = useState<{ id: string; name: string; set?: string; number?: string }[]>([])
   const [lookupLoading, setLookupLoading] = useState(false)
+  const lookupRef = useRef<() => Promise<void>>(() => Promise.resolve())
+
+  // Auto-search when user has card name + (set or card number); no button click needed
+  useEffect(() => {
+    if (!visible || !apiBaseUrl) return
+    const hasName = cardName.trim().length >= 2
+    const hasSetOrNumber = set.trim().length > 0 || cardNumber.trim().length > 0
+    if (!hasName || !hasSetOrNumber) return
+    lookupRef.current = handleLookupCard
+    const t = setTimeout(() => lookupRef.current(), 600)
+    return () => clearTimeout(t)
+  }, [cardName, set, cardNumber, visible, apiBaseUrl])
 
   const filteredSets = useMemo(() => {
     if (!setSearch.trim()) return TCG_SETS
@@ -60,14 +72,8 @@ export function AddISOModal({
 
   const handleLookupCard = async () => {
     const query = [cardName.trim(), cardNumber.trim(), set.trim()].filter(Boolean).join(' ')
-    if (!query) {
-      Alert.alert('Enter name or set', 'Type the card name (and optionally card number and set) first, then tap Look up card.')
-      return
-    }
-    if (!apiBaseUrl) {
-      Alert.alert('Not available', 'API URL not configured for card lookup.')
-      return
-    }
+    if (!query) return
+    if (!apiBaseUrl) return
     setLookupLoading(true)
     setLookupResults([])
     try {
@@ -94,6 +100,8 @@ export function AddISOModal({
           })
         }
         setLookupResults(list)
+        // Auto-apply first result so user doesn't have to tap
+        await handleSelectLookupCard(list[0])
       }
     } catch (e: any) {
       Alert.alert('Lookup failed', e?.message || 'Could not search cards.')
@@ -101,6 +109,7 @@ export function AddISOModal({
       setLookupLoading(false)
     }
   }
+  lookupRef.current = handleLookupCard
 
   const handleSelectLookupCard = async (item: { id: string; name: string; set?: string; number?: string }) => {
     setCardName(item.name)
@@ -122,22 +131,17 @@ export function AddISOModal({
   const handleAdd = () => {
     if (isValid()) {
       onAdd(cardName.trim(), cardNumber.trim(), set.trim())
-      setCardName('')
-      setCardNumber('')
-      setSet('')
-      setLookupResults([])
       onClose()
+      // Form reset happens when modal opens again (useEffect when visible becomes true)
     }
   }
 
   const handleClose = () => {
-    setCardName('')
-    setCardNumber('')
-    setSet('')
-    setSetSearch('')
-    setLookupResults([])
     setSetPickerVisible(false)
+    setSetSearch('')
     onClose()
+    // Don't reset form state here — avoids flash of empty form before modal unmounts.
+    // Reset happens in useEffect when visible becomes true (next time modal opens).
   }
 
   return (
@@ -276,20 +280,15 @@ export function AddISOModal({
               })()}
             </View>
 
-            {/* Look up card – same as Add Card in Profile */}
+            {/* Find the correct card: search runs automatically when you enter name + set or number */}
             <View style={styles.inputSection}>
               <Text style={styles.inputLabel}>Find the correct card</Text>
-              <TouchableOpacity
-                style={[styles.lookupButton, lookupLoading && styles.lookupButtonDisabled]}
-                onPress={handleLookupCard}
-                disabled={lookupLoading}
-              >
-                {lookupLoading ? (
-                  <ActivityIndicator size="small" color={theme.textColor} />
-                ) : (
-                  <Text style={styles.lookupButtonText}>Look up card</Text>
-                )}
-              </TouchableOpacity>
+              {lookupLoading && (
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: SPACING.xs }}>
+                  <ActivityIndicator size="small" color={theme.tintColor || '#73EC8B'} />
+                  <Text style={[styles.lookupHint, { marginLeft: SPACING.sm }]}>Looking up card…</Text>
+                </View>
+              )}
               {lookupResults.length > 0 && (
                 <View style={styles.lookupResults}>
                   <Text style={styles.lookupHint}>Tap to select (match # to your card)</Text>
