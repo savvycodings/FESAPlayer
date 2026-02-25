@@ -27,6 +27,8 @@ interface PayFastPaymentProps {
   visible: boolean
   amount: number
   itemName: string
+  itemAmount?: number
+  shippingFee?: number
   itemDescription?: string
   userEmail?: string
   userNameFirst?: string
@@ -45,6 +47,8 @@ export function PayFastPayment({
   visible,
   amount,
   itemName,
+  itemAmount,
+  shippingFee,
   itemDescription,
   userEmail,
   userNameFirst,
@@ -444,8 +448,20 @@ export function PayFastPayment({
                   <Text style={styles.detailLabel}>Item:</Text>
                   <Text style={styles.detailValue}>{itemName}</Text>
                 </View>
+                {itemAmount != null && shippingFee != null && (
+                  <>
+                    <View style={styles.detailRow}>
+                      <Text style={styles.detailLabel}>Item price:</Text>
+                      <Text style={styles.detailValue}>R{itemAmount.toFixed(2)}</Text>
+                    </View>
+                    <View style={styles.detailRow}>
+                      <Text style={styles.detailLabel}>Shipping:</Text>
+                      <Text style={styles.detailValue}>R{shippingFee.toFixed(2)}</Text>
+                    </View>
+                  </>
+                )}
                 <View style={styles.detailRow}>
-                  <Text style={styles.detailLabel}>Amount:</Text>
+                  <Text style={styles.detailLabel}>Amount to pay:</Text>
                   <Text style={styles.detailValue}>R{amount.toFixed(2)}</Text>
                 </View>
               </View>

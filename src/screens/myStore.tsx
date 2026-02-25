@@ -311,6 +311,8 @@ export function MyStore() {
           orderDate: new Date(order.orderDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
           status: order.status || 'processing',
           orderNumber: order.orderNumber,
+          shippingFeeZar: order.shippingFeeZar != null ? parseFloat(order.shippingFeeZar) : undefined,
+          trackingStatus: order.trackingStatus || undefined,
         }))
         setOrders(transformedOrders)
       }
@@ -389,8 +391,8 @@ export function MyStore() {
     }
   }
 
-  // Create listing
-  const createListing = async (cardName: string, price: number, cardImage?: any) => {
+  // Create listing (optionally with 3 photos: front, back, up close)
+  const createListing = async (cardName: string, price: number, cardImage?: any, listingPhotos?: { front: string; back: string; close: string }) => {
     try {
       const token = await getSessionToken()
       if (!token) {
@@ -398,21 +400,48 @@ export function MyStore() {
         return
       }
 
-      // Upload image if it's a local URI (not already an external URL)
       let imageUrl: string | null = null
-      const imageUri = cardImage?.uri || (typeof cardImage === 'string' ? cardImage : null)
-      
-      if (imageUri) {
-        if (isExternalUrl(imageUri)) {
-          imageUrl = imageUri
-        } else {
-          try {
-            imageUrl = await uploadImage(imageUri, 'gradeit/listings')
-          } catch (error: any) {
-            Alert.alert('Upload Error', error.message || 'Failed to upload listing image')
-            return
+      let imageBackUrl: string | undefined
+      let imageCloseUrl: string | undefined
+
+      const uploadOne = async (uri: string): Promise<string> => {
+        if (isExternalUrl(uri)) return uri
+        return uploadImage(uri, 'gradeit/listings')
+      }
+
+      if (listingPhotos) {
+        try {
+          const [front, back, close] = await Promise.all([
+            uploadOne(listingPhotos.front),
+            uploadOne(listingPhotos.back),
+            uploadOne(listingPhotos.close),
+          ])
+          imageUrl = front
+          imageBackUrl = back
+          imageCloseUrl = close
+        } catch (error: any) {
+          Alert.alert('Upload Error', error.message || 'Failed to upload listing photos')
+          return
+        }
+      } else {
+        const imageUri = cardImage?.uri || (typeof cardImage === 'string' ? cardImage : null)
+        if (imageUri) {
+          if (isExternalUrl(imageUri)) {
+            imageUrl = imageUri
+          } else {
+            try {
+              imageUrl = await uploadImage(imageUri, 'gradeit/listings')
+            } catch (error: any) {
+              Alert.alert('Upload Error', error.message || 'Failed to upload listing image')
+              return
+            }
           }
         }
+      }
+
+      if (!imageUrl) {
+        Alert.alert('Photo required', 'Please add all 3 photos to list your card.')
+        return
       }
 
       const baseUrl = DOMAIN?.endsWith('/') ? DOMAIN.slice(0, -1) : DOMAIN
@@ -422,11 +451,13 @@ export function MyStore() {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
-        credentials: 'include', // Include cookies for web
+        credentials: 'include',
         body: JSON.stringify({
           cardName,
           price,
           cardImage: imageUrl,
+          ...(imageBackUrl && { cardImageBack: imageBackUrl }),
+          ...(imageCloseUrl && { cardImageClose: imageCloseUrl }),
         }),
       })
 
@@ -1047,15 +1078,15 @@ export function MyStore() {
             setSelectedProduct(null)
             setEditingListing(null)
           }}
-          onList={async (price, listingImageUri) => {
+          onList={async (price, listingImageUri, listingPhotos) => {
             if (editingListing) {
               await updateListing(editingListing.id, { price })
             } else {
-              if (!listingImageUri) {
-                Alert.alert('Photo required', 'Please select a photo of your card to list it on your store.')
-                throw new Error('Photo required')
+              if (!listingImageUri || !listingPhotos) {
+                Alert.alert('Photos required', 'Please add all 3 photos (front, back, up close) to list your card.')
+                throw new Error('Photos required')
               }
-              await createListing(selectedProduct.name, price, { uri: listingImageUri })
+              await createListing(selectedProduct.name, price, { uri: listingImageUri }, listingPhotos)
             }
             setIsListItemModalVisible(false)
             setSelectedProduct(null)

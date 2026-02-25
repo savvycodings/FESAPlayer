@@ -698,7 +698,13 @@ export function ViewProfile() {
       {selectedListing && (
         <PayFastPayment
           visible={isPaymentModalVisible}
-          amount={paymentType === 'buy' ? selectedListing.price : (selectedListing.currentBid || selectedListing.price) + 1}
+          amount={
+            paymentType === 'buy'
+              ? (parseFloat(String(selectedListing.price)) || 0) + 100
+              : (parseFloat(String(selectedListing.currentBid || selectedListing.price)) || 0) + 1
+          }
+          itemAmount={paymentType === 'buy' ? (parseFloat(String(selectedListing.price)) || 0) : undefined}
+          shippingFee={paymentType === 'buy' ? 100 : undefined}
           itemName={selectedListing.cardName}
           itemDescription={`Premium ${selectedListing.cardName}. Authentic and verified with secure shipping.`}
           userEmail={currentUser?.email || ''}

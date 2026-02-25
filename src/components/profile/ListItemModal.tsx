@@ -12,12 +12,14 @@ interface ListItemModalProps {
   productImage?: any
   onClose: () => void
   /** Called with price and the selected listing photo URI (required for new listings; omitted when editing). Can return a Promise so the modal waits and shows loading. */
-  onList: (price: number, listingImageUri?: string) => void | Promise<void>
+  onList: (price: number, listingImageUri?: string, listingPhotos?: { front: string; back: string; close: string }) => void | Promise<void>
   initialPrice?: number
   initialDescription?: string
   /** When set, shows a "Remove listing" button at the bottom (for your store edit only). */
   onRemoveListing?: () => void | Promise<void>
-  /** Minimum listing price (USD) = 20% of market price from Pokedata. When set, user cannot list below this. */
+  /** Minimum listing price (ZAR) = 20% of market price (from Pokedata, converted to ZAR). When set, user cannot list below this. */
+  minPriceFromMarketZar?: number
+  /** @deprecated Use minPriceFromMarketZar. When set without minPriceFromMarketZar, used for validation (assumes price in USD). */
   minPriceFromMarketUsd?: number
 }
 
@@ -30,13 +32,16 @@ export function ListItemModal({
   initialPrice,
   initialDescription,
   onRemoveListing,
+  minPriceFromMarketZar,
   minPriceFromMarketUsd,
 }: ListItemModalProps) {
   const { theme } = useContext(ThemeContext)
   const styles = getStyles(theme)
   const [price, setPrice] = useState('')
   const [description, setDescription] = useState('')
-  const [listingImageUri, setListingImageUri] = useState<string | null>(null)
+  const [frontUri, setFrontUri] = useState<string | null>(null)
+  const [backUri, setBackUri] = useState<string | null>(null)
+  const [closeUri, setCloseUri] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
 
   const isEditing = initialPrice !== undefined
@@ -55,53 +60,61 @@ export function ListItemModal({
         setDescription('')
       }
       if (!isEditing) {
-        setListingImageUri(null)
+        setFrontUri(null)
+        setBackUri(null)
+        setCloseUri(null)
       }
     }
   }, [visible, initialPrice, initialDescription, isEditing])
 
-  // Listing photo is required for new listings (store uses Cloudinary for listing images)
-  const hasRequiredImage = isEditing || !!listingImageUri
+  const minZar = minPriceFromMarketZar ?? (minPriceFromMarketUsd != null && minPriceFromMarketUsd > 0 ? minPriceFromMarketUsd * (Number(process.env.EXPO_PUBLIC_USD_TO_ZAR) || 16) : undefined)
+  const hasRequiredImages = isEditing || (!!frontUri && !!backUri && !!closeUri)
   const isValid = () => {
     const numericPrice = parseFloat(price.replace(/[^0-9.]/g, ''))
-    if (numericPrice <= 0 || description.trim().length === 0 || !hasRequiredImage) return false
-    if (minPriceFromMarketUsd != null && minPriceFromMarketUsd > 0 && numericPrice < minPriceFromMarketUsd) return false
+    if (numericPrice <= 0 || description.trim().length === 0 || !hasRequiredImages) return false
+    if (minZar != null && minZar > 0 && numericPrice < minZar) return false
     return true
   }
 
-  const handlePickListingImage = async () => {
+  const pickImage = (slot: 'front' | 'back' | 'close') => async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync()
     if (status !== 'granted') {
-      Alert.alert('Permission needed', 'Photo library access is required to add a listing photo.')
+      Alert.alert('Permission needed', 'Photo library access is required to add listing photos.')
       return
     }
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
       quality: 0.7,
-      aspect: [1, 1],
+      aspect: slot === 'close' ? [1, 1] : [3, 4], // card-like for front/back
     })
     if (!result.canceled && result.assets[0]) {
-      setListingImageUri(result.assets[0].uri)
+      if (slot === 'front') setFrontUri(result.assets[0].uri)
+      else if (slot === 'back') setBackUri(result.assets[0].uri)
+      else setCloseUri(result.assets[0].uri)
     }
   }
 
   const handleList = async () => {
     if (!isValid() || submitting) return
     const numericPrice = parseFloat(price.replace(/[^0-9.]/g, ''))
-    if (minPriceFromMarketUsd != null && minPriceFromMarketUsd > 0 && numericPrice < minPriceFromMarketUsd) {
+    if (minZar != null && minZar > 0 && numericPrice < minZar) {
       Alert.alert(
         'Price too low',
-        `Listing price cannot be below 20% of market value. Minimum: $${minPriceFromMarketUsd.toFixed(2)}`
+        `Listing price cannot be below 20% of market value. Minimum: R${minZar.toFixed(2)}`
       )
       return
     }
     setSubmitting(true)
     try {
-      await Promise.resolve(onList(numericPrice, listingImageUri ?? undefined))
+      const primaryUri = frontUri ?? undefined
+      const listingPhotos = frontUri && backUri && closeUri ? { front: frontUri, back: backUri, close: closeUri } : undefined
+      await Promise.resolve(onList(numericPrice, primaryUri, listingPhotos))
       setPrice('')
       setDescription('')
-      setListingImageUri(null)
+      setFrontUri(null)
+      setBackUri(null)
+      setCloseUri(null)
       onClose()
     } catch (e) {
       // Error already shown by parent (e.g. Alert)
@@ -113,7 +126,9 @@ export function ListItemModal({
   const handleClose = () => {
     setPrice('')
     setDescription('')
-    setListingImageUri(null)
+    setFrontUri(null)
+    setBackUri(null)
+    setCloseUri(null)
     onClose()
   }
 
@@ -167,7 +182,7 @@ export function ListItemModal({
             nestedScrollEnabled={true}
             bounces={false}
           >
-            {/* Product Preview */}
+            {/* Product Preview - TCG card portrait aspect (e.g. 63x88mm ≈ 0.72) */}
             {productImage && (
               <View style={styles.productPreview}>
                 <Image
@@ -181,29 +196,47 @@ export function ListItemModal({
               </View>
             )}
 
-            {/* Listing photo (required for new listings — stored in Cloudinary) */}
+            {/* 3 listing photos - bento: Front | Back, then Up close / Damage */}
             {!isEditing && (
               <View style={styles.inputSection}>
-                <Text style={styles.inputLabel}>Listing photo (required)</Text>
+                <Text style={styles.inputLabel}>Listing photos (all 3 required)</Text>
                 <Text style={styles.inputHint}>
-                  Add a photo of your physical card. This will be shown on your store.
+                  Add clear photos of your physical card: front, back, and a close-up (or any damage).
                 </Text>
-                <TouchableOpacity
-                  style={styles.imagePickerButton}
-                  onPress={handlePickListingImage}
-                  activeOpacity={0.8}
-                >
-                  {listingImageUri ? (
-                    <Image source={{ uri: listingImageUri }} style={styles.listingImagePreview} resizeMode="cover" />
+                <View style={styles.bentoRow}>
+                  <TouchableOpacity style={styles.bentoBox} onPress={pickImage('front')} activeOpacity={0.8}>
+                    {frontUri ? (
+                      <Image source={{ uri: frontUri }} style={styles.bentoImage} resizeMode="cover" />
+                    ) : (
+                      <View style={styles.bentoPlaceholder}>
+                        <Ionicons name="card-outline" size={28} color="rgba(255, 255, 255, 0.5)" />
+                        <Text style={styles.bentoLabel}>Front</Text>
+                      </View>
+                    )}
+                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.bentoBox} onPress={pickImage('back')} activeOpacity={0.8}>
+                    {backUri ? (
+                      <Image source={{ uri: backUri }} style={styles.bentoImage} resizeMode="cover" />
+                    ) : (
+                      <View style={styles.bentoPlaceholder}>
+                        <Ionicons name="card-outline" size={28} color="rgba(255, 255, 255, 0.5)" />
+                        <Text style={styles.bentoLabel}>Back</Text>
+                      </View>
+                    )}
+                  </TouchableOpacity>
+                </View>
+                <TouchableOpacity style={styles.bentoWide} onPress={pickImage('close')} activeOpacity={0.8}>
+                  {closeUri ? (
+                    <Image source={{ uri: closeUri }} style={styles.bentoImage} resizeMode="cover" />
                   ) : (
-                    <View style={styles.imagePickerPlaceholder}>
-                      <Ionicons name="camera" size={32} color="rgba(255, 255, 255, 0.5)" />
-                      <Text style={styles.imagePickerPlaceholderText}>Tap to select photo</Text>
+                    <View style={styles.bentoPlaceholder}>
+                      <Ionicons name="scan-outline" size={28} color="rgba(255, 255, 255, 0.5)" />
+                      <Text style={styles.bentoLabel}>Up close / Damage</Text>
                     </View>
                   )}
                 </TouchableOpacity>
-                {!listingImageUri && (
-                  <Text style={styles.requiredBadge}>Required to list</Text>
+                {(!frontUri || !backUri || !closeUri) && (
+                  <Text style={styles.requiredBadge}>All 3 photos required to list</Text>
                 )}
               </View>
             )}
@@ -211,14 +244,14 @@ export function ListItemModal({
             {/* Price Input Section */}
             <View style={styles.inputSection}>
               <Text style={styles.inputLabel}>Set Your Price</Text>
-              {minPriceFromMarketUsd != null && minPriceFromMarketUsd > 0 && (
+              {minZar != null && minZar > 0 && (
                 <Text style={styles.inputHint}>
-                  Minimum 20% of market: ${minPriceFromMarketUsd.toFixed(2)}
+                  Minimum 20% of market: R{minZar.toFixed(2)}
                 </Text>
               )}
               <View style={styles.priceInputContainer}>
-                <View style={styles.dollarSignContainer}>
-                  <Text style={styles.dollarSign}>$</Text>
+                <View style={styles.currencySignContainer}>
+                  <Text style={styles.currencySign}>R</Text>
                 </View>
                 <TextInput
                   style={styles.priceInput}
@@ -300,16 +333,16 @@ const getStyles = (theme: any) =>
     modalContainer: {
       backgroundColor: theme.backgroundColor,
       borderRadius: RADIUS.lg,
-      width: '85%',
-      maxWidth: 400,
-      maxHeight: '85%',
+      width: '90%',
+      maxWidth: 420,
+      maxHeight: '90%',
       padding: SPACING.containerPadding,
       borderWidth: 1,
       borderColor: 'rgba(255, 255, 255, 0.08)',
     },
     scrollContent: {
       flexGrow: 1,
-      paddingBottom: SPACING.xs,
+      paddingBottom: SPACING.lg,
     },
     header: {
       flexDirection: 'row',
@@ -330,13 +363,14 @@ const getStyles = (theme: any) =>
     },
     productPreview: {
       alignItems: 'center',
-      marginBottom: SPACING.xl,
+      marginBottom: SPACING.lg,
     },
     productImage: {
-      width: 120,
-      height: 120,
+      width: 100,
+      aspectRatio: 63 / 88,
+      maxHeight: 140,
       borderRadius: RADIUS.md,
-      marginBottom: SPACING.md,
+      marginBottom: SPACING.sm,
       backgroundColor: theme.cardBackground || '#000000',
     },
     productName: {
@@ -362,10 +396,15 @@ const getStyles = (theme: any) =>
       color: theme.mutedForegroundColor || 'rgba(255, 255, 255, 0.6)',
       marginBottom: SPACING.sm,
     },
-    imagePickerButton: {
-      width: '100%',
-      aspectRatio: 1,
-      maxHeight: 180,
+    bentoRow: {
+      flexDirection: 'row',
+      gap: SPACING.sm,
+      marginBottom: SPACING.sm,
+    },
+    bentoBox: {
+      flex: 1,
+      aspectRatio: 3 / 4,
+      maxHeight: 120,
       borderRadius: RADIUS.md,
       overflow: 'hidden',
       backgroundColor: theme.cardBackground || '#000000',
@@ -373,21 +412,33 @@ const getStyles = (theme: any) =>
       borderStyle: 'dashed',
       borderColor: 'rgba(255, 255, 255, 0.2)',
     },
-    listingImagePreview: {
+    bentoWide: {
+      width: '100%',
+      aspectRatio: 2,
+      maxHeight: 100,
+      borderRadius: RADIUS.md,
+      overflow: 'hidden',
+      backgroundColor: theme.cardBackground || '#000000',
+      borderWidth: 2,
+      borderStyle: 'dashed',
+      borderColor: 'rgba(255, 255, 255, 0.2)',
+      marginBottom: SPACING.xs,
+    },
+    bentoImage: {
       width: '100%',
       height: '100%',
     },
-    imagePickerPlaceholder: {
+    bentoPlaceholder: {
       flex: 1,
+      height: '100%',
       justifyContent: 'center',
       alignItems: 'center',
-      padding: SPACING.lg,
     },
-    imagePickerPlaceholderText: {
+    bentoLabel: {
       fontSize: TYPOGRAPHY.caption,
-      fontFamily: theme.regularFont,
+      fontFamily: theme.semiBoldFont,
       color: 'rgba(255, 255, 255, 0.5)',
-      marginTop: SPACING.sm,
+      marginTop: SPACING.xs,
     },
     requiredBadge: {
       fontSize: TYPOGRAPHY.caption,
@@ -404,14 +455,14 @@ const getStyles = (theme: any) =>
       borderColor: 'rgba(255, 255, 255, 0.1)',
       overflow: 'hidden',
     },
-    dollarSignContainer: {
+    currencySignContainer: {
       paddingHorizontal: SPACING.md,
       paddingVertical: SPACING.md,
       backgroundColor: 'rgba(255, 255, 255, 0.08)',
       justifyContent: 'center',
       alignItems: 'center',
     },
-    dollarSign: {
+    currencySign: {
       fontSize: TYPOGRAPHY.h3,
       fontFamily: theme.boldFont,
       color: theme.textColor,
@@ -435,8 +486,8 @@ const getStyles = (theme: any) =>
       fontSize: TYPOGRAPHY.body,
       fontFamily: theme.regularFont,
       color: theme.textColor,
-      minHeight: 100,
-      maxHeight: 150,
+      minHeight: 88,
+      maxHeight: 120,
     },
     listButton: {
       backgroundColor: theme.tintColor || '#73EC8B',

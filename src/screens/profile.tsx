@@ -250,32 +250,58 @@ export function Profile() {
     }
   }
 
-  // Create listing from collection item (collectionId links listing to this item so "Listed" is accurate; cardId optional - primes price cache when present)
-  const createListing = async (cardName: string, price: number, cardImage?: any, cardId?: string, collectionId?: number) => {
+  // Create listing from collection item (collectionId links listing to this item so "Listed" is accurate; cardId optional - primes price cache when present). When listingPhotos provided, uploads all 3 to Cloudinary.
+  const createListing = async (
+    cardName: string,
+    price: number,
+    cardImage?: any,
+    cardId?: string,
+    collectionId?: number,
+    listingPhotos?: { front: string; back: string; close: string }
+  ) => {
     try {
-      // Check session
       const session = await authClient.getSession()
       if (!session?.data?.session) {
         Alert.alert('Error', 'Please log in')
         return
       }
-
-      // Get session token
       const sessionToken = session.data.session.token
 
-      // Store listings require a photo (Cloudinary). Never use Pokemon TCG artwork URLs for listings.
-      const imageUri = cardImage?.uri || (typeof cardImage === 'string' ? cardImage : null)
-      const isPokemonTcgUrl = imageUri && typeof imageUri === 'string' && imageUri.includes('images.pokemontcg.io')
-      if (!imageUri || isPokemonTcgUrl) {
-        Alert.alert('Photo required', 'Please select a photo of your card. Listings must use a photo stored in Cloudinary.')
-        return
+      const uploadOne = async (uri: string): Promise<string> => {
+        if (isExternalUrl(uri)) return uri
+        return uploadImage(uri, 'gradeit/listings')
       }
+
       let imageUrl: string
-      if (isExternalUrl(imageUri)) {
-        imageUrl = imageUri
-      } else {
+      let imageBackUrl: string | undefined
+      let imageCloseUrl: string | undefined
+
+      if (listingPhotos) {
+        const frontUri = listingPhotos.front
+        const isTcg = frontUri.includes('images.pokemontcg.io')
+        if (!frontUri || isTcg) {
+          Alert.alert('Photo required', 'Please add all 3 photos of your card. Listings must use your own photos.')
+          return
+        }
         try {
-          imageUrl = await uploadImage(imageUri, 'gradeit/listings')
+          ;[imageUrl, imageBackUrl, imageCloseUrl] = await Promise.all([
+            uploadOne(listingPhotos.front),
+            uploadOne(listingPhotos.back),
+            uploadOne(listingPhotos.close),
+          ])
+        } catch (error: any) {
+          Alert.alert('Upload Error', error.message || 'Failed to upload listing photos')
+          return
+        }
+      } else {
+        const imageUri = cardImage?.uri || (typeof cardImage === 'string' ? cardImage : null)
+        const isTcg = imageUri && typeof imageUri === 'string' && imageUri.includes('images.pokemontcg.io')
+        if (!imageUri || isTcg) {
+          Alert.alert('Photo required', 'Please select a photo of your card. Listings must use a photo stored in Cloudinary.')
+          return
+        }
+        try {
+          imageUrl = await uploadOne(imageUri)
         } catch (error: any) {
           Alert.alert('Upload Error', error.message || 'Failed to upload listing image')
           return
@@ -287,13 +313,15 @@ export function Profile() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${sessionToken}`, // Send session token for mobile
+          'Authorization': `Bearer ${sessionToken}`,
         },
-        credentials: 'include', // Include cookies for web
+        credentials: 'include',
         body: JSON.stringify({
           cardName,
           price,
           cardImage: imageUrl,
+          ...(imageBackUrl && { cardImageBack: imageBackUrl }),
+          ...(imageCloseUrl && { cardImageClose: imageCloseUrl }),
           ...(cardId && { cardId }),
           ...(collectionId != null && { collectionId }),
         }),
@@ -665,22 +693,21 @@ export function Profile() {
           visible={isListItemModalVisible}
           productName={selectedProduct.name}
           productImage={selectedProduct.image}
-          minPriceFromMarketUsd={
+          minPriceFromMarketZar={
             selectedProduct.marketPriceUsd != null && selectedProduct.marketPriceUsd > 0
-              ? 0.2 * selectedProduct.marketPriceUsd
+              ? Math.round(0.2 * selectedProduct.marketPriceUsd * USD_TO_ZAR)
               : undefined
           }
           onClose={() => {
             setIsListItemModalVisible(false)
             setSelectedProduct(null)
           }}
-          onList={async (price, listingImageUri) => {
-            // Listing photo is required (uploaded to Cloudinary); never use TCG artwork for store listing
-            if (!listingImageUri) {
-              Alert.alert('Photo required', 'Please select a photo of your card to list it on your store.')
+          onList={async (price, listingImageUri, listingPhotos) => {
+            if (!listingImageUri || !listingPhotos) {
+              Alert.alert('Photos required', 'Please add all 3 photos (front, back, up close) to list your card.')
               return
             }
-            await createListing(selectedProduct.name, price, { uri: listingImageUri }, selectedProduct.cardId, selectedProduct.id)
+            await createListing(selectedProduct.name, price, { uri: listingImageUri }, selectedProduct.cardId, selectedProduct.id, listingPhotos)
             setIsListItemModalVisible(false)
             setSelectedProduct(null)
           }}
