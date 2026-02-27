@@ -1,6 +1,6 @@
 import { useContext, useState, useEffect, useMemo, useCallback } from 'react'
 import { useFocusEffect } from '@react-navigation/native'
-import { View, StyleSheet, ScrollView, TouchableOpacity, Image, Alert, ActivityIndicator, Modal, TextInput } from 'react-native'
+import { View, StyleSheet, ScrollView, TouchableOpacity, Image, Alert, ActivityIndicator, Modal, TextInput, RefreshControl } from 'react-native'
 import { useNavigation } from '@react-navigation/native'
 import { NativeStackNavigationProp } from '@react-navigation/native-stack'
 import { Text } from '../components/ui/text'
@@ -10,6 +10,7 @@ import Ionicons from '@expo/vector-icons/Ionicons'
 import { Card, CardContent } from '../components/ui/card'
 import { AuctionSection, CreateAuctionModal, type Auction, OrderCard, type Order, ListItemModal, AddISOModal } from '../components/profile'
 import { Section } from '../components/layout/Section'
+import { SkeletonBox } from '../components/layout/SkeletonBox'
 import {
   StoreHeader,
   StoreStats,
@@ -74,6 +75,7 @@ export function MyStore() {
   // Store state
   const [store, setStore] = useState<any>(null)
   const [storeLoading, setStoreLoading] = useState(true)
+  const [refreshing, setRefreshing] = useState(false)
   const [listings, setListings] = useState<StoreListing[]>([])
   const [listingsLoading, setListingsLoading] = useState(false)
   const [orders, setOrders] = useState<Order[]>([])
@@ -112,12 +114,13 @@ export function MyStore() {
   }
 
   // Fetch store data
-  const fetchStore = async () => {
+  const fetchStore = async (options?: { silent?: boolean }) => {
+    const silent = options?.silent === true
     try {
-      setStoreLoading(true)
+      if (!silent) setStoreLoading(true)
       const token = await getSessionToken()
       if (!token) {
-        setStoreLoading(false)
+        if (!silent) setStoreLoading(false)
         Alert.alert('Error', 'Please log in to access your store')
         return
       }
@@ -147,7 +150,7 @@ export function MyStore() {
       console.error('Error fetching store:', error)
       Alert.alert('Error', 'Failed to load store data')
     } finally {
-      setStoreLoading(false)
+      if (!silent) setStoreLoading(false)
     }
   }
 
@@ -228,7 +231,7 @@ export function MyStore() {
       })
       const data = await response.json()
       if (response.ok) {
-        await fetchStore()
+        await fetchStore({ silent: true })
         setIsEditStoreModalVisible(false)
         Alert.alert('Success', 'Store details updated.')
       } else {
@@ -248,7 +251,10 @@ export function MyStore() {
     try {
       setListingsLoading(true)
       const token = await getSessionToken()
-      if (!token) return
+      if (!token) {
+        setListingsLoading(false)
+        return
+      }
 
       const baseUrl = DOMAIN?.endsWith('/') ? DOMAIN.slice(0, -1) : DOMAIN
       const response = await fetch(`${baseUrl}/api/store/listings`, {
@@ -262,8 +268,9 @@ export function MyStore() {
       const data = await response.json()
 
       if (response.ok) {
-        // Transform database listings to component format
-        const transformedListings: StoreListing[] = data.listings.map((listing: any) => ({
+        // Transform database listings to component format (default to [] if missing)
+        const raw = data.listings || []
+        const transformedListings: StoreListing[] = raw.map((listing: any) => ({
           id: listing.id.toString(),
           cardName: listing.cardName,
           cardImage: listing.cardImage ? { uri: listing.cardImage } : require('../../assets/singles/Shining_Charizard_Secret.jpg'),
@@ -274,9 +281,12 @@ export function MyStore() {
           bidCount: listing.bidCount || 0,
         }))
         setListings(transformedListings)
+      } else {
+        setListings([])
       }
     } catch (error: any) {
       console.error('Error fetching listings:', error)
+      setListings([])
     } finally {
       setListingsLoading(false)
     }
@@ -288,7 +298,10 @@ export function MyStore() {
     try {
       setOrdersLoading(true)
       const token = await getSessionToken()
-      if (!token) return
+      if (!token) {
+        setOrdersLoading(false)
+        return
+      }
 
       const baseUrl = DOMAIN?.endsWith('/') ? DOMAIN.slice(0, -1) : DOMAIN
       const response = await fetch(`${baseUrl}/api/store/orders`, {
@@ -302,7 +315,7 @@ export function MyStore() {
       const data = await response.json()
 
       if (response.ok) {
-        const transformedOrders: Order[] = data.orders.map((order: any) => ({
+        const transformedOrders: Order[] = (data.orders || []).map((order: any) => ({
           id: order.id.toString(),
           itemName: order.itemName,
           itemImage: order.itemImage ? { uri: order.itemImage } : require('../../assets/singles/Shining_Charizard_Secret.jpg'),
@@ -315,9 +328,12 @@ export function MyStore() {
           trackingStatus: order.trackingStatus || undefined,
         }))
         setOrders(transformedOrders)
+      } else {
+        setOrders([])
       }
     } catch (error: any) {
       console.error('Error fetching orders:', error)
+      setOrders([])
     } finally {
       setOrdersLoading(false)
     }
@@ -329,7 +345,10 @@ export function MyStore() {
     try {
       setAuctionsLoading(true)
       const token = await getSessionToken()
-      if (!token) return
+      if (!token) {
+        setAuctionsLoading(false)
+        return
+      }
 
       const baseUrl = DOMAIN?.endsWith('/') ? DOMAIN.slice(0, -1) : DOMAIN
       const response = await fetch(`${baseUrl}/api/store/auctions`, {
@@ -343,7 +362,7 @@ export function MyStore() {
       const data = await response.json()
 
       if (response.ok) {
-        const transformedAuctions: Auction[] = data.auctions.map((auction: any) => ({
+        const transformedAuctions: Auction[] = (data.auctions || []).map((auction: any) => ({
           id: auction.id.toString(),
           title: auction.title,
           description: auction.description || '',
@@ -354,9 +373,12 @@ export function MyStore() {
           bidCount: auction.bidCount || 0,
         }))
         setAuctions(transformedAuctions)
+      } else {
+        setAuctions([])
       }
     } catch (error: any) {
       console.error('Error fetching auctions:', error)
+      setAuctions([])
     } finally {
       setAuctionsLoading(false)
     }
@@ -368,7 +390,10 @@ export function MyStore() {
     try {
       setIsoLoading(true)
       const token = await getSessionToken()
-      if (!token) return
+      if (!token) {
+        setIsoLoading(false)
+        return
+      }
 
       const baseUrl = DOMAIN?.endsWith('/') ? DOMAIN.slice(0, -1) : DOMAIN
       const response = await fetch(`${baseUrl}/api/store/iso`, {
@@ -383,9 +408,12 @@ export function MyStore() {
 
       if (response.ok) {
         setIsoItems(data.isoItems || [])
+      } else {
+        setIsoItems([])
       }
     } catch (error: any) {
       console.error('Error fetching ISO items:', error)
+      setIsoItems([])
     } finally {
       setIsoLoading(false)
     }
@@ -635,13 +663,28 @@ export function MyStore() {
     }
   }
 
-  // Load store when screen is focused (mount + when returning from other screens)
+  // Load store when screen is focused (silent refresh when store already loaded)
   useFocusEffect(
     useCallback(() => {
-      fetchStore()
-      fetchListings()
-    }, [])
+      if (store) {
+        fetchStore({ silent: true })
+      } else {
+        fetchStore()
+      }
+    }, [store])
   )
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true)
+    await fetchStore({ silent: true })
+    if (store) {
+      if (activeTab === 'MY STORE') await fetchListings()
+      else if (activeTab === 'ORDERS') await fetchOrders()
+      else if (activeTab === 'AUCTIONS') await fetchAuctions()
+      else if (activeTab === 'ISO') await fetchISOItems()
+    }
+    setRefreshing(false)
+  }, [store, activeTab])
 
   // Load data when store is available and tab changes
   useEffect(() => {
@@ -698,18 +741,8 @@ export function MyStore() {
     fetchUser()
   }, [])
 
-  // Show loading or store creation modal
-  if (storeLoading) {
-    return (
-      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
-        <ActivityIndicator size="large" color={theme.tintColor || '#73EC8B'} />
-        <Text style={[styles.emptyText, { marginTop: SPACING.md }]}>Loading store...</Text>
-      </View>
-    )
-  }
-
-  // No store yet (e.g. new account opening the page for the first time) – always show Create Store modal
-  if (!store) {
+  // No store yet and not loading – show Create Store modal
+  if (!store && !storeLoading) {
     return (
       <View style={styles.container}>
         <Modal
@@ -787,21 +820,66 @@ export function MyStore() {
     )
   }
 
-  // Get store display values
-  const storeName = store.storeName || `${store.user?.firstName || store.user?.name || 'User'}'s Card Shop`
-  const userLevel = store.user?.level || 1
-  const currentXP = store.user?.currentXP || 0
-  const xpToNextLevel = store.user?.xpToNextLevel || 100
-  const salesCount = store.totalSales || 0
+  // Get store display values (when store is set)
+  const storeName = store?.storeName || (store ? `${store.user?.firstName || store.user?.name || 'User'}'s Card Shop` : '')
+  const userLevel = store?.user?.level || 1
+  const currentXP = store?.user?.currentXP || 0
+  const xpToNextLevel = store?.user?.xpToNextLevel || 100
+  const salesCount = store?.totalSales || 0
   const totalRevenue = 0 // TODO: Calculate from orders
-  const shareableLink = `saplayer.app/store/${store.id}`
+  const shareableLink = store ? `saplayer.app/store/${store.id}` : ''
 
   return (
     <View style={styles.container}>
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={theme.tintColor || '#73EC8B'}
+          />
+        }
       >
+        {storeLoading && !store ? (
+          <>
+            <View style={styles.skeletonHeader}>
+              <SkeletonBox width="100%" height={120} borderRadius={0} />
+              <View style={styles.skeletonHeaderRow}>
+                <SkeletonBox width={56} height={56} borderRadius={28} style={{ marginRight: SPACING.md }} />
+                <View style={styles.skeletonHeaderText}>
+                  <SkeletonBox width={140} height={18} borderRadius={4} style={{ marginBottom: SPACING.sm }} />
+                  <SkeletonBox width={80} height={12} borderRadius={4} />
+                </View>
+              </View>
+            </View>
+            <View style={styles.tabsRow}>
+              {tabs.map((tab) => (
+                <TouchableOpacity key={tab} style={styles.tabPill} activeOpacity={0.7}>
+                  <Text style={styles.tabPillText} numberOfLines={1}>{tab}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+            <View style={styles.contentWrapper}>
+              <View style={styles.skeletonLoadingLabel}>
+                <ActivityIndicator size="small" color={theme.tintColor || '#73EC8B'} />
+                <Text style={styles.skeletonLoadingText}>Loading your store…</Text>
+              </View>
+              <SkeletonBox width="100%" height={64} borderRadius={RADIUS.md} style={{ marginBottom: SPACING.lg }} />
+              <View style={styles.skeletonListingsRow}>
+                {[1, 2, 3].map((i) => (
+                  <View key={i} style={styles.skeletonListingCard}>
+                    <SkeletonBox width="100%" height={100} borderRadius={RADIUS.md} style={{ marginBottom: SPACING.sm }} />
+                    <SkeletonBox width={60} height={14} borderRadius={4} style={{ marginBottom: 4 }} />
+                    <SkeletonBox width="70%" height={12} borderRadius={4} />
+                  </View>
+                ))}
+              </View>
+            </View>
+          </>
+        ) : store ? (
+          <>
         {/* Banner first (Destined Rivals–style layout) */}
         <StoreHeader
           storeName={storeName}
@@ -847,9 +925,17 @@ export function MyStore() {
           {activeTab === 'AUCTIONS' && (
             <Section title="Auctions">
               {auctionsLoading ? (
-                <View style={styles.emptyContainer}>
-                  <ActivityIndicator size="large" color={theme.tintColor || '#73EC8B'} />
-                </View>
+                <>
+                  <View style={styles.skeletonLoadingLabel}>
+                    <ActivityIndicator size="small" color={theme.tintColor || '#73EC8B'} />
+                    <Text style={styles.skeletonLoadingText}>Loading auctions…</Text>
+                  </View>
+                  <View style={styles.skeletonAuctionList}>
+                    {[1, 2].map((i) => (
+                      <SkeletonBox key={i} width="100%" height={72} borderRadius={RADIUS.md} style={{ marginBottom: SPACING.sm }} />
+                    ))}
+                  </View>
+                </>
               ) : (
                 <AuctionSection
                   auctions={auctions}
@@ -876,9 +962,23 @@ export function MyStore() {
                     <Text style={styles.addISOText}>Add Card to ISO</Text>
                   </TouchableOpacity>
                   {isoLoading ? (
-                    <View style={styles.emptyContainer}>
-                      <ActivityIndicator size="small" color={theme.tintColor || '#73EC8B'} />
-                    </View>
+                    <>
+                      <View style={styles.skeletonLoadingLabel}>
+                        <ActivityIndicator size="small" color={theme.tintColor || '#73EC8B'} />
+                        <Text style={styles.skeletonLoadingText}>Loading ISO list…</Text>
+                      </View>
+                      <View style={styles.skeletonIsoList}>
+                        {[1, 2, 3].map((i) => (
+                          <View key={i} style={styles.skeletonIsoRow}>
+                            <SkeletonBox width={72} height={100} borderRadius={RADIUS.md} />
+                            <View style={{ flex: 1, marginLeft: SPACING.md }}>
+                              <SkeletonBox width="80%" height={16} borderRadius={4} style={{ marginBottom: SPACING.sm }} />
+                              <SkeletonBox width="50%" height={12} borderRadius={4} />
+                            </View>
+                          </View>
+                        ))}
+                      </View>
+                    </>
                   ) : isoItems.length > 0 ? (
                     <>
                       <View style={styles.isoSeparator} />
@@ -972,9 +1072,21 @@ export function MyStore() {
                 }
               >
                 {listingsLoading ? (
-                  <View style={styles.emptyContainer}>
-                    <ActivityIndicator size="large" color={theme.tintColor || '#73EC8B'} />
-                  </View>
+                  <>
+                    <View style={styles.skeletonLoadingLabel}>
+                      <ActivityIndicator size="small" color={theme.tintColor || '#73EC8B'} />
+                      <Text style={styles.skeletonLoadingText}>Loading your listings…</Text>
+                    </View>
+                    <View style={styles.skeletonListingsRow}>
+                      {[1, 2, 3, 4].map((i) => (
+                        <View key={i} style={styles.skeletonListingCard}>
+                          <SkeletonBox width="100%" height={100} borderRadius={RADIUS.md} style={{ marginBottom: SPACING.sm }} />
+                          <SkeletonBox width={60} height={14} borderRadius={4} style={{ marginBottom: 4 }} />
+                          <SkeletonBox width="70%" height={12} borderRadius={4} />
+                        </View>
+                      ))}
+                    </View>
+                  </>
                 ) : (
                   <StoreListings
                     listings={filteredListings}
@@ -1013,9 +1125,17 @@ export function MyStore() {
             <>
               <Section title="Ongoing Orders">
                 {ordersLoading ? (
-                  <View style={styles.emptyContainer}>
-                    <ActivityIndicator size="large" color={theme.tintColor || '#73EC8B'} />
-                  </View>
+                  <>
+                    <View style={styles.skeletonLoadingLabel}>
+                      <ActivityIndicator size="small" color={theme.tintColor || '#73EC8B'} />
+                      <Text style={styles.skeletonLoadingText}>Loading orders…</Text>
+                    </View>
+                    <View style={styles.skeletonOrdersList}>
+                      {[1, 2].map((i) => (
+                        <SkeletonBox key={i} width="100%" height={88} borderRadius={RADIUS.md} style={{ marginBottom: SPACING.sm }} />
+                      ))}
+                    </View>
+                  </>
                 ) : getOngoingOrders().length > 0 ? (
                   <View style={styles.ordersContainer}>
                     {getOngoingOrders().map((order) => (
@@ -1038,9 +1158,17 @@ export function MyStore() {
 
               <Section title="Completed Orders">
                 {ordersLoading ? (
-                  <View style={styles.emptyContainer}>
-                    <ActivityIndicator size="large" color={theme.tintColor || '#73EC8B'} />
-                  </View>
+                  <>
+                    <View style={styles.skeletonLoadingLabel}>
+                      <ActivityIndicator size="small" color={theme.tintColor || '#73EC8B'} />
+                      <Text style={styles.skeletonLoadingText}>Loading orders…</Text>
+                    </View>
+                    <View style={styles.skeletonOrdersList}>
+                      {[1, 2].map((i) => (
+                        <SkeletonBox key={i} width="100%" height={88} borderRadius={RADIUS.md} style={{ marginBottom: SPACING.sm }} />
+                      ))}
+                    </View>
+                  </>
                 ) : getCompletedOrders().length > 0 ? (
                   <View style={styles.ordersContainer}>
                     {getCompletedOrders().map((order) => (
@@ -1063,6 +1191,8 @@ export function MyStore() {
             </>
           )}
         </View>
+        </>
+        ) : null}
       </ScrollView>
 
       {/* List Item Modal */}
@@ -1237,6 +1367,52 @@ const getStyles = (theme: any) => StyleSheet.create({
   contentWrapper: {
     width: '100%',
     paddingTop: SPACING.lg,
+  },
+  skeletonHeader: {
+    marginBottom: SPACING.lg,
+  },
+  skeletonHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 0,
+    paddingTop: SPACING.lg,
+  },
+  skeletonHeaderText: {
+    flex: 1,
+  },
+  skeletonLoadingLabel: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.sm,
+    marginBottom: SPACING.sm,
+  },
+  skeletonLoadingText: {
+    fontSize: TYPOGRAPHY.caption,
+    fontFamily: theme.regularFont,
+    color: theme.mutedForegroundColor || 'rgba(255, 255, 255, 0.5)',
+  },
+  skeletonListingsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: SPACING.sm,
+  },
+  skeletonListingCard: {
+    width: '31%',
+    minWidth: 0,
+  },
+  skeletonAuctionList: {
+    width: '100%',
+  },
+  skeletonIsoList: {
+    width: '100%',
+  },
+  skeletonIsoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: SPACING.md,
+  },
+  skeletonOrdersList: {
+    width: '100%',
   },
   ordersContainer: {
     gap: SPACING.md,

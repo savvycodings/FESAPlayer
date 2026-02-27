@@ -10,6 +10,7 @@ import {
   Platform,
   TouchableOpacity,
   FlatList,
+  ActivityIndicator,
 } from 'react-native'
 import { useNavigation } from '@react-navigation/native'
 import { NativeStackNavigationProp } from '@react-navigation/native-stack'
@@ -549,37 +550,52 @@ export function Search() {
       </View>
 
       {/* Search Suggestions Dropdown - Overlay */}
-      {searchSuggestions.length > 0 && searchQuery.length > 0 && (
+      {(searchSuggestions.length > 0 || storesLoading) && searchQuery.length > 0 && (
         <View style={styles.suggestionsDropdown}>
           <FlatList
             data={searchSuggestions}
             keyExtractor={(item) => item.id}
+            ListHeaderComponent={
+              storesLoading ? (
+                <View style={styles.suggestionLoadingRow}>
+                  <ActivityIndicator size="small" color={theme.tintColor || '#73EC8B'} />
+                  <Text style={styles.suggestionLoadingText}>Searching for stores…</Text>
+                </View>
+              ) : null
+            }
+            ListEmptyComponent={
+              storesLoading ? (
+                <View style={styles.suggestionLoadingRow}>
+                  <ActivityIndicator size="small" color={theme.tintColor || '#73EC8B'} />
+                  <Text style={styles.suggestionLoadingText}>Searching for stores…</Text>
+                </View>
+              ) : null
+            }
             renderItem={({ item, index }) => (
               <TouchableOpacity
                 style={[
                   styles.suggestionItem,
                   index === searchSuggestions.length - 1 && styles.suggestionItemLast
                 ]}
-                onPress={() => handleSuggestionPress(item)}
-                activeOpacity={0.6}
-              >
-                <Ionicons 
-                  name={item.type === 'store' ? 'storefront-outline' : 'search-outline'} 
-                  size={18} 
-                  color="rgba(255, 255, 255, 0.7)" 
-                  style={styles.suggestionIcon} 
-                />
-                <Text style={styles.suggestionText} numberOfLines={1}>{item.displayName}</Text>
-                {item.type === 'store' && (
-                  <Text style={styles.suggestionTypeText}>Store</Text>
-                )}
-              </TouchableOpacity>
-            )}
-            ListEmptyComponent={null}
-            showsVerticalScrollIndicator={false}
-            keyboardShouldPersistTaps="handled"
-          />
-        </View>
+              onPress={() => handleSuggestionPress(item)}
+              activeOpacity={0.6}
+            >
+              <Ionicons 
+                name={item.type === 'store' ? 'storefront-outline' : 'search-outline'} 
+                size={18} 
+                color="rgba(255, 255, 255, 0.7)" 
+                style={styles.suggestionIcon} 
+              />
+              <Text style={styles.suggestionText} numberOfLines={1}>{item.displayName}</Text>
+              {item.type === 'store' && (
+                <Text style={styles.suggestionTypeText}>Store</Text>
+              )}
+            </TouchableOpacity>
+          )}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        />
+      </View>
       )}
 
       <ScrollView
@@ -1039,6 +1055,21 @@ const getStyles = (theme: any) => StyleSheet.create({
   },
   suggestionItemLast: {
     borderBottomWidth: 0,
+  },
+  suggestionLoadingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: SPACING.md,
+    gap: SPACING.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255, 255, 255, 0.06)',
+    minHeight: 48,
+  },
+  suggestionLoadingText: {
+    fontSize: TYPOGRAPHY.body,
+    fontFamily: theme.regularFont,
+    color: 'rgba(255, 255, 255, 0.6)',
   },
   suggestionIcon: {
     marginRight: SPACING.md,

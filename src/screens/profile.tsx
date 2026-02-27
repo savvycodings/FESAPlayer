@@ -1,5 +1,5 @@
-import React, { useContext, useState, useEffect } from 'react'
-import { View, StyleSheet, ScrollView, Alert, ActivityIndicator, TouchableOpacity } from 'react-native'
+import React, { useContext, useState, useEffect, useCallback } from 'react'
+import { View, StyleSheet, ScrollView, Alert, TouchableOpacity, RefreshControl, ActivityIndicator } from 'react-native'
 import { useNavigation, useFocusEffect } from '@react-navigation/native'
 import { NativeStackNavigationProp } from '@react-navigation/native-stack'
 import { Text } from '../components/ui/text'
@@ -7,6 +7,7 @@ import { ThemeContext } from '../context'
 import { SPACING, TYPOGRAPHY, RADIUS } from '../constants/layout'
 import Ionicons from '@expo/vector-icons/Ionicons'
 import { ProfileHeader, ProductGrid, ListItemModal, AddCardModal, BulkVaultingModal } from '../components/profile'
+import { SkeletonBox } from '../components/layout/SkeletonBox'
 import { Section } from '../components/layout/Section'
 import { DOMAIN } from '../../constants'
 import * as ImagePicker from 'expo-image-picker'
@@ -44,6 +45,7 @@ export function Profile() {
   const [stats, setStats] = useState({ cards: 0, sealed: 0, slabs: 0, total: 0 })
   const [portfolioValue, setPortfolioValue] = useState(0)
   const [loading, setLoading] = useState(true)
+  const [refreshing, setRefreshing] = useState(false)
   const [portfolioData, setPortfolioData] = useState<{ x: number; y: number }[]>([])
   const [setDistribution, setSetDistribution] = useState<{ label: string; value: number }[]>([])
   const [isAddCardModalVisible, setIsAddCardModalVisible] = useState(false)
@@ -91,7 +93,15 @@ export function Profile() {
       if (!silent) setLoading(true)
       // Check session
       const session = await authClient.getSession()
-      if (!session?.data?.session) return
+      if (!session?.data?.session) {
+        if (!silent) setLoading(false)
+        setCollections([])
+        setStats({ cards: 0, sealed: 0, slabs: 0, total: 0 })
+        setPortfolioValue(0)
+        setSetDistribution([])
+        setPortfolioData([])
+        return
+      }
 
       // Get session token for API calls
       const sessionToken = session.data.session.token
@@ -438,13 +448,19 @@ export function Profile() {
     fetchCollections()
   }, [])
 
-  // Refresh data when screen comes into focus (e.g., after returning from payment)
+  // Refresh data when screen comes into focus (silent: no full loading state, so list/chart update in place)
   useFocusEffect(
-    React.useCallback(() => {
+    useCallback(() => {
       fetchUserProfile()
-      fetchCollections()
+      fetchCollections({ silent: true })
     }, [])
   )
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true)
+    await Promise.all([fetchUserProfile(), fetchCollections({ silent: true })])
+    setRefreshing(false)
+  }, [])
 
   // Price from API/cache (marketPrice USD → ZAR) when cardId set; else legacy or R0. Only hit API every 48h; data lives in DB.
   const USD_TO_ZAR = Number(process.env.EXPO_PUBLIC_USD_TO_ZAR) || 16
@@ -501,20 +517,18 @@ export function Profile() {
   // Default goal - can be made user-configurable later
   const defaultGoal = 200
 
-  if (loading) {
-    return (
-      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
-        <ActivityIndicator size="large" color={theme.tintColor || '#73EC8B'} />
-        <Text style={[styles.emptyText, { marginTop: SPACING.md }]}>Loading profile...</Text>
-      </View>
-    )
-  }
-
   return (
     <View style={styles.container}>
       <ScrollView
         contentContainerStyle={styles.scrollContentContainer}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={theme.tintColor || '#73EC8B'}
+          />
+        }
       >
         <ProfileHeader
           userName={userName}
@@ -526,9 +540,9 @@ export function Profile() {
           currentXP={currentXP}
           xpToNextLevel={xpToNextLevel}
           profileImage={user?.avatar ? { uri: user.avatar } : require('../../assets/Avatars/guy1.jpg')}
-          productsCount={user?.productsCount || 0}
-          followersCount={user?.followersCount || 0}
-          salesCount={user?.salesCount || 0}
+          productsCount={user?.productsCount ?? 0}
+          followersCount={user?.followersCount ?? 0}
+          salesCount={user?.salesCount ?? 0}
           onEditPress={async () => {
             // Update avatar
             const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync()
@@ -586,31 +600,58 @@ export function Profile() {
           </View>
 
           <View style={styles.productsBlock}>
-            <View style={styles.statsPillContainer}>
-              <View style={styles.statsGrid}>
-                <View style={styles.statItem}>
-                  <Text style={styles.statValue}>{stats.cards}</Text>
-                  <Text style={styles.statLabel}>Cards</Text>
+            {loading ? (
+              <>
+                <View style={styles.skeletonLoadingLabel}>
+                  <ActivityIndicator size="small" color={theme.tintColor || '#73EC8B'} />
+                  <Text style={styles.skeletonLoadingText}>Loading your collection…</Text>
                 </View>
-                <View style={styles.statSeparator} />
-                <View style={styles.statItem}>
-                  <Text style={styles.statValue}>{stats.sealed}</Text>
-                  <Text style={styles.statLabel}>Sealed</Text>
+                <View style={styles.statsPillContainer}>
+                  <View style={styles.statsGrid}>
+                    {[1, 2, 3, 4].map((i) => (
+                      <View key={i} style={styles.statItem}>
+                        <SkeletonBox width={32} height={18} borderRadius={4} style={{ marginBottom: 4 }} />
+                        <SkeletonBox width={36} height={10} borderRadius={4} />
+                      </View>
+                    ))}
+                  </View>
                 </View>
-                <View style={styles.statSeparator} />
-                <View style={styles.statItem}>
-                  <Text style={styles.statValue}>{stats.slabs}</Text>
-                  <Text style={styles.statLabel}>Slabs</Text>
+                <View style={styles.skeletonCardsRow}>
+                  {[1, 2, 3].map((i) => (
+                    <View key={i} style={styles.skeletonCard}>
+                      <SkeletonBox width="100%" height={120} borderRadius={RADIUS.md} style={{ marginBottom: SPACING.sm }} />
+                      <SkeletonBox width={60} height={14} borderRadius={4} style={{ marginBottom: 4 }} />
+                      <SkeletonBox width="90%" height={12} borderRadius={4} />
+                    </View>
+                  ))}
                 </View>
-                <View style={styles.statSeparator} />
-                <View style={styles.statItem}>
-                  <Text style={styles.statValue}>{stats.total}</Text>
-                  <Text style={styles.statLabel}>Total</Text>
+              </>
+            ) : (
+              <>
+                <View style={styles.statsPillContainer}>
+                  <View style={styles.statsGrid}>
+                    <View style={styles.statItem}>
+                      <Text style={styles.statValue}>{stats.cards}</Text>
+                      <Text style={styles.statLabel}>Cards</Text>
+                    </View>
+                    <View style={styles.statSeparator} />
+                    <View style={styles.statItem}>
+                      <Text style={styles.statValue}>{stats.sealed}</Text>
+                      <Text style={styles.statLabel}>Sealed</Text>
+                    </View>
+                    <View style={styles.statSeparator} />
+                    <View style={styles.statItem}>
+                      <Text style={styles.statValue}>{stats.slabs}</Text>
+                      <Text style={styles.statLabel}>Slabs</Text>
+                    </View>
+                    <View style={styles.statSeparator} />
+                    <View style={styles.statItem}>
+                      <Text style={styles.statValue}>{stats.total}</Text>
+                      <Text style={styles.statLabel}>Total</Text>
+                    </View>
+                  </View>
                 </View>
-              </View>
-            </View>
-            
-            {products.length > 0 ? (
+                {products.length > 0 ? (
               <ProductGrid
                 products={products}
                 onProductPress={(product) => {
@@ -653,6 +694,8 @@ export function Profile() {
                   Add items to your collection to list them for sale
                 </Text>
               </View>
+            )}
+              </>
             )}
           </View>
 
@@ -776,6 +819,26 @@ const getStyles = (theme: any) => StyleSheet.create({
     fontFamily: theme.regularFont,
     color: 'rgba(255, 255, 255, 0.5)',
     letterSpacing: 0.2,
+  },
+  skeletonCardsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: SPACING.sm,
+  },
+  skeletonCard: {
+    width: '31%',
+    minWidth: 0,
+  },
+  skeletonLoadingLabel: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.sm,
+    marginBottom: SPACING.sm,
+  },
+  skeletonLoadingText: {
+    fontSize: TYPOGRAPHY.caption,
+    fontFamily: theme.regularFont,
+    color: theme.mutedForegroundColor || 'rgba(255, 255, 255, 0.5)',
   },
   emptyContainer: {
     padding: SPACING['2xl'],
