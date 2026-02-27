@@ -172,6 +172,15 @@ export function ProfileHeader({
     }, '')
   })() : ''
 
+  // For area fill: use chart edges (left/right) so single-point doesn't form a triangle
+  const fillLeftX = hasData && normalizedPoints.length > 0
+    ? (normalizedPoints.length === 1 ? chartPaddingLeft : normalizedPoints[0].x)
+    : 0
+  const fillRightX = hasData && normalizedPoints.length > 0
+    ? (normalizedPoints.length === 1 ? chartPaddingLeft + graphWidth : normalizedPoints[normalizedPoints.length - 1].x)
+    : 0
+  const fillBottomY = chartHeight - chartPaddingBottom
+
   const latestValue = hasData ? (chartData[chartData.length - 1]?.y || 0) : 0
   const previousValue = hasData && chartData.length > 1 ? (chartData[chartData.length - 2]?.y || 0) : 0
   const change = latestValue - previousValue
@@ -492,10 +501,10 @@ export function ProfileHeader({
                     )
                   })}
 
-                  {/* Filled area - subtle gradient */}
+                  {/* Filled area - from line down to bottom (use chart edges so single point = rectangle, not triangle) */}
                   {normalizedPoints.length > 0 && (
                     <Path
-                      d={`${chartPathData} L ${normalizedPoints[normalizedPoints.length - 1].x} ${chartHeight - chartPaddingBottom} L ${normalizedPoints[0].x} ${chartHeight - chartPaddingBottom} Z`}
+                      d={`${chartPathData} L ${fillRightX} ${fillBottomY} L ${fillLeftX} ${fillBottomY} Z`}
                       fill={theme.tintColor || '#73EC8B'}
                       fillOpacity={0.1}
                     />

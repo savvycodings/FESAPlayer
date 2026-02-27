@@ -78,6 +78,7 @@ export function MyStore() {
   const [refreshing, setRefreshing] = useState(false)
   const [listings, setListings] = useState<StoreListing[]>([])
   const [listingsLoading, setListingsLoading] = useState(false)
+  const [listingsHasLoadedOnce, setListingsHasLoadedOnce] = useState(false)
   const [orders, setOrders] = useState<Order[]>([])
   const [ordersLoading, setOrdersLoading] = useState(false)
   const [auctions, setAuctions] = useState<Auction[]>([])
@@ -289,6 +290,7 @@ export function MyStore() {
       setListings([])
     } finally {
       setListingsLoading(false)
+      setListingsHasLoadedOnce(true)
     }
   }
 
@@ -1071,7 +1073,7 @@ export function MyStore() {
                   </>
                 }
               >
-                {listingsLoading ? (
+                {listingsLoading && !listingsHasLoadedOnce ? (
                   <>
                     <View style={styles.skeletonLoadingLabel}>
                       <ActivityIndicator size="small" color={theme.tintColor || '#73EC8B'} />
