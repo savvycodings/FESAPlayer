@@ -1,11 +1,10 @@
-import { View, StyleSheet, ScrollView, TextInput, TouchableOpacity, FlatList, Platform } from 'react-native'
-import { useContext, useState, useMemo, useEffect, useCallback } from 'react'
+import { View, StyleSheet, ScrollView } from 'react-native'
+import { useContext, useCallback, useEffect, useState } from 'react'
 import { useNavigation, useFocusEffect } from '@react-navigation/native'
 import { NativeStackNavigationProp } from '@react-navigation/native-stack'
 import { ThemeContext } from '../context'
 import { Section } from '../components/layout/Section'
-import { SPACING, TYPOGRAPHY, RADIUS } from '../constants/layout'
-import Ionicons from '@expo/vector-icons/Ionicons'
+import { SPACING, TYPOGRAPHY } from '../constants/layout'
 import {
   ShopHeader,
   PromoCarousel,
@@ -46,8 +45,6 @@ export function Shop() {
   const navigation = useNavigation<ShopScreenNavigationProp>()
   const styles = getStyles(theme)
   const [selectedCategory, setSelectedCategory] = useState<string>('all')
-  const [searchQuery, setSearchQuery] = useState('')
-  const [isSearchExpanded, setIsSearchExpanded] = useState(false)
   const [isVerifiedStoreModalVisible, setIsVerifiedStoreModalVisible] = useState(false)
   const [recentListings, setRecentListings] = useState<Array<{
     id: number
@@ -216,171 +213,9 @@ export function Shop() {
   ]
   const singlesItems = singlesData
 
-  // Helper function to normalize names for searching
-  const normalizeName = (name: string) => {
-    return name.toLowerCase().replace(/[-_]/g, ' ').trim()
-  }
-
-  // Helper function to format display names
-  const formatDisplayName = (name: string) => {
-    return name
-      .replace(/[-_]/g, ' ')
-      .split(' ')
-      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-      .join(' ')
-  }
-
-  // Create searchable items array
-  const allSearchableItems = useMemo(() => {
-    const items: Array<{
-      id: string
-      name: string
-      displayName: string
-      image: any
-      type: 'product' | 'set' | 'single' | 'featured'
-      originalItem: any
-    }> = []
-
-    // Add products
-    productsItems.forEach(item => {
-      items.push({
-        id: `product-${item.name}`,
-        name: item.name,
-        displayName: formatDisplayName(item.name),
-        image: item.image,
-        type: 'product',
-        originalItem: item,
-      })
-    })
-
-    // Add sets
-    setsItems.forEach(item => {
-      items.push({
-        id: `set-${item.name}`,
-        name: item.name,
-        displayName: formatDisplayName(item.name),
-        image: item.image,
-        type: 'set',
-        originalItem: item,
-      })
-    })
-
-    // Add singles
-    singlesItems.forEach(item => {
-      items.push({
-        id: `single-${item.name}`,
-        name: item.name,
-        displayName: formatDisplayName(item.name),
-        image: item.image,
-        type: 'single',
-        originalItem: item,
-      })
-    })
-
-    // Add featured
-    featuredItems.forEach(item => {
-      items.push({
-        id: `featured-${item.name}`,
-        name: item.name,
-        displayName: formatDisplayName(item.name),
-        image: item.image,
-        type: 'featured',
-        originalItem: item,
-      })
-    })
-
-    return items
-  }, [productsItems, setsItems, singlesItems, featuredItems])
-
-  // Filter suggestions based on search query - prioritize items that start with query
-  const searchSuggestions = useMemo(() => {
-    if (!searchQuery.trim()) return []
-    
-    const query = normalizeName(searchQuery)
-    const matchingItems = allSearchableItems.filter(item => {
-      const normalizedItemName = normalizeName(item.name)
-      return normalizedItemName.includes(query)
-    })
-    
-    // Sort: items that start with query first, then items that contain query
-    const sortedItems = matchingItems.sort((a, b) => {
-      const aName = normalizeName(a.name)
-      const bName = normalizeName(b.name)
-      const aStarts = aName.startsWith(query)
-      const bStarts = bName.startsWith(query)
-      
-      if (aStarts && !bStarts) return -1
-      if (!aStarts && bStarts) return 1
-      return 0
-    })
-    
-    return sortedItems.slice(0, 10) // Limit to 10 suggestions
-  }, [searchQuery, allSearchableItems])
-
-  // Handle suggestion selection
-  const handleSuggestionPress = (item: typeof allSearchableItems[0]) => {
-    setSearchQuery('')
-    
-    if (item.type === 'set') {
-      // Navigate to SetProducts page for sets
-      navigation.navigate('SetProducts', {
-        setName: item.originalItem.name,
-        setImage: item.originalItem.image,
-      })
-    } else {
-      // Navigate to Product page for other types
-      navigation.navigate('Product', {
-        name: item.originalItem.name,
-        image: item.originalItem.image,
-        category: item.type === 'featured' ? 'product' : item.type,
-      })
-    }
-  }
-
   return (
     <View style={styles.container}>
-      <ShopHeader 
-        userName={userName}
-        isSearchExpanded={isSearchExpanded}
-        searchQuery={searchQuery}
-        onSearchToggle={() => {
-          setIsSearchExpanded(!isSearchExpanded)
-          if (isSearchExpanded) {
-            setSearchQuery('')
-          }
-        }}
-        onSearchChange={setSearchQuery}
-        onSearchClear={() => setSearchQuery('')}
-      />
-
-      {/* Search Suggestions Dropdown - Overlay */}
-      {isSearchExpanded && searchSuggestions.length > 0 && searchQuery.length > 0 && (
-        <View style={styles.suggestionsDropdown}>
-          <FlatList
-            data={searchSuggestions}
-            keyExtractor={(item) => item.id}
-            renderItem={({ item, index }) => (
-              <TouchableOpacity
-                style={[
-                  styles.suggestionItem,
-                  index === searchSuggestions.length - 1 && styles.suggestionItemLast
-                ]}
-                onPress={() => {
-                  handleSuggestionPress(item)
-                  setIsSearchExpanded(false)
-                }}
-                activeOpacity={0.6}
-              >
-                <Ionicons name="search-outline" size={18} color={theme.mutedForegroundColor || 'rgba(255, 255, 255, 0.7)'} style={styles.suggestionIcon} />
-                <Text style={styles.suggestionText} numberOfLines={1}>{item.displayName}</Text>
-              </TouchableOpacity>
-            )}
-            ListEmptyComponent={null}
-            showsVerticalScrollIndicator={false}
-            keyboardShouldPersistTaps="handled"
-          />
-        </View>
-      )}
+      <ShopHeader userName={userName} />
 
       <ScrollView
         contentContainerStyle={styles.scrollContentContainer}
@@ -450,51 +285,6 @@ const getStyles = (theme: any) => StyleSheet.create({
     paddingHorizontal: SPACING.containerPadding,
     paddingTop: SPACING.lg,
     paddingBottom: SPACING['4xl'],
-  },
-  suggestionsDropdown: {
-    position: 'absolute',
-    top: 80,
-    left: SPACING.containerPadding,
-    right: SPACING.containerPadding,
-    backgroundColor: theme.backgroundColor || 'rgba(20, 20, 20, 0.98)',
-    borderRadius: RADIUS.lg,
-    maxHeight: 400,
-    borderWidth: 1,
-    borderColor: theme.borderColor || 'rgba(255, 255, 255, 0.12)',
-    ...(Platform.OS === 'web'
-      ? { boxShadow: '0 8px 12px rgba(0,0,0,0.4)' }
-      : {
-          shadowColor: '#000',
-          shadowOffset: { width: 0, height: 8 },
-          shadowOpacity: 0.4,
-          shadowRadius: 12,
-        }),
-    elevation: 9999,
-    zIndex: 9999,
-    overflow: 'hidden',
-  },
-  suggestionItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: SPACING.lg,
-    paddingVertical: SPACING.md,
-    borderBottomWidth: 1,
-    borderBottomColor: theme.borderColor || 'rgba(255, 255, 255, 0.06)',
-    minHeight: 48,
-  },
-  suggestionItemLast: {
-    borderBottomWidth: 0,
-  },
-  suggestionIcon: {
-    marginRight: SPACING.md,
-    opacity: 0.7,
-  },
-  suggestionText: {
-    flex: 1,
-    fontSize: TYPOGRAPHY.body,
-    fontFamily: theme.regularFont,
-    color: theme.textColor,
-    letterSpacing: 0.1,
   },
   recentListingsPlaceholder: {
     alignItems: 'center',
