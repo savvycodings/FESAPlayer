@@ -6,13 +6,13 @@ import {
   ScrollView,
   Dimensions,
   Image,
-  ActivityIndicator,
 } from 'react-native'
-import { useContext, useState, useEffect, useCallback } from 'react'
+import { useContext, useState, useCallback } from 'react'
 import { useNavigation, useFocusEffect } from '@react-navigation/native'
 import { ThemeContext } from '../context'
 import Ionicons from '@expo/vector-icons/Ionicons'
 import { SPACING, TYPOGRAPHY, RADIUS } from '../constants/layout'
+import { SkeletonBox } from '../components/layout/SkeletonBox'
 import { authClient } from '../lib/auth-client'
 import { DOMAIN } from '../../constants'
 
@@ -82,8 +82,14 @@ export function Settings() {
       {/* Same profile block as Profile tab: picture, Trusted, name, level */}
       <View style={styles.headerSection}>
         {loading ? (
-          <View style={styles.headerLoader}>
-            <ActivityIndicator size="small" color={theme.tintColor || '#73EC8B'} />
+          <View style={styles.profileRow}>
+            <View style={styles.avatarWrapper}>
+              <SkeletonBox width={112} height={112} borderRadius={RADIUS.full} />
+            </View>
+            <View style={styles.nameAndLevel}>
+              <SkeletonBox width="80%" height={28} borderRadius={RADIUS.sm} style={{ marginBottom: SPACING.sm }} />
+              <SkeletonBox width={60} height={32} borderRadius={RADIUS.sm} />
+            </View>
           </View>
         ) : (
           <View style={styles.profileRow}>
@@ -150,10 +156,6 @@ const getStyles = (theme: any) =>
       marginBottom: SPACING.xl,
       paddingVertical: SPACING.xl,
       paddingHorizontal: SPACING.sm,
-    },
-    headerLoader: {
-      paddingVertical: SPACING.xl,
-      alignItems: 'center',
     },
     profileRow: {
       flexDirection: 'row',

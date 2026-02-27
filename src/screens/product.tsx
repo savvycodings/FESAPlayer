@@ -37,6 +37,7 @@ type ProductRouteParams = {
     /** When true, opened from My Store (listingId may be set for context) */
     fromMyStore?: boolean
     listingId?: string
+    sellerId?: string
     storeName?: string
   }
   ViewProfile: {
@@ -65,12 +66,14 @@ export function Product() {
   const { theme } = useContext(ThemeContext)
   const navigation = useNavigation<ProductScreenNavigationProp>()
   const route = useRoute<ProductScreenRouteProp>()
-  const { id, name, image, category, price, ebayPrice, description, fromProfile, fromMyStore, listingId, storeName, cardId } = route.params || {}
+  const { id, name, image, category, price, ebayPrice, description, fromProfile, fromMyStore, listingId, sellerId, storeName, cardId } = route.params || {}
   const tintColor = theme.tintColor || '#73EC8B'
   const styles = getStyles(theme, tintColor)
   const [isFavorited, setIsFavorited] = useState(false)
   const [isPaymentModalVisible, setIsPaymentModalVisible] = useState(false)
   const [paymentType, setPaymentType] = useState<'buy' | 'bid'>('buy')
+  /** Set when opening payment for a listing so PayFastPayment has buyerId and user details */
+  const [paymentBuyer, setPaymentBuyer] = useState<{ id: string; email: string; firstName: string; lastName: string } | null>(null)
   const [removing, setRemoving] = useState(false)
   const [chartData, setChartData] = useState<{ x: number; y: number }[]>([])
   const [chartDates, setChartDates] = useState<string[]>([])
@@ -146,6 +149,43 @@ export function Product() {
     } finally {
       setRemoving(false)
     }
+  }
+
+  // Open payment modal; for listings, ensure we have listingId, sellerId and fetch buyer from session
+  const openPaymentModal = async (type: 'buy' | 'bid') => {
+    setPaymentType(type)
+    if (isListing) {
+      if (!listingId || !sellerId) {
+        Alert.alert('Error', 'Missing listing or seller information. Please go back and try again from the listing.')
+        return
+      }
+      try {
+        const session = await authClient.getSession()
+        const user = (session?.data as any)?.user
+        if (!user?.id) {
+          Alert.alert('Error', 'Please log in to purchase.')
+          return
+        }
+        if (!user.email) {
+          Alert.alert('Error', 'Please add an email to your profile to complete payment.')
+          return
+        }
+        const nameParts = (user.name || 'User').trim().split(' ')
+        setPaymentBuyer({
+          id: user.id,
+          email: user.email,
+          firstName: user.firstName ?? nameParts[0] ?? 'User',
+          lastName: user.lastName ?? nameParts.slice(1).join(' ') ?? '',
+        })
+      } catch (e) {
+        console.error('Error getting session for payment:', e)
+        Alert.alert('Error', 'Please log in to purchase.')
+        return
+      }
+    } else {
+      setPaymentBuyer(null)
+    }
+    setIsPaymentModalVisible(true)
   }
 
   const handleRemoveFromCollection = () => {
@@ -436,10 +476,7 @@ export function Product() {
         <View style={styles.bottomActionBar}>
           <TouchableOpacity
             style={styles.bidNowButton}
-            onPress={() => {
-              setPaymentType('bid')
-              setIsPaymentModalVisible(true)
-            }}
+            onPress={() => openPaymentModal('bid')}
             activeOpacity={0.8}
           >
             <Ionicons name="hand-left-outline" size={20} color={theme.textColor} style={styles.bidIcon} />
@@ -448,10 +485,7 @@ export function Product() {
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.buyNowButton}
-            onPress={() => {
-              setPaymentType('buy')
-              setIsPaymentModalVisible(true)
-            }}
+            onPress={() => openPaymentModal('buy')}
             activeOpacity={0.8}
           >
             <Ionicons name="flash-outline" size={20} color={theme.tintTextColor || '#000000'} style={styles.buyIcon} />
@@ -461,31 +495,37 @@ export function Product() {
         </View>
       )}
 
-      {/* PayFast Payment Modal */}
+      {/* PayFast Payment Modal - for listings requires listingId, sellerId, buyerId from route/session */}
       <PayFastPayment
         visible={isPaymentModalVisible}
         amount={paymentType === 'buy' ? buyNowPrice : minBidPrice}
         itemName={formattedName}
         itemDescription={displayDescription}
-        onClose={() => setIsPaymentModalVisible(false)}
+        itemAmount={paymentType === 'buy' ? buyNowPrice : undefined}
+        shippingFee={isListing && paymentType === 'buy' ? 100 : undefined}
+        userEmail={paymentBuyer?.email}
+        userNameFirst={paymentBuyer?.firstName}
+        userNameLast={paymentBuyer?.lastName}
+        listingId={isListing && listingId != null ? String(listingId) : undefined}
+        buyerId={isListing ? paymentBuyer?.id : undefined}
+        sellerId={isListing && sellerId != null ? String(sellerId) : undefined}
+        onClose={() => {
+          setIsPaymentModalVisible(false)
+          setPaymentBuyer(null)
+        }}
         onSuccess={(paymentData) => {
           console.log('Payment successful:', paymentData)
-          // Payment success is already shown in PayFastPayment component
-          // Here we can handle additional actions:
-          // - Update order status in database
-          // - Notify seller
-          // - Add to orders
-          // - Refresh product data
           setIsPaymentModalVisible(false)
-          // TODO: Navigate to order confirmation or refresh product
+          setPaymentBuyer(null)
         }}
         onCancel={() => {
-          console.log('Payment cancelled')
           setIsPaymentModalVisible(false)
+          setPaymentBuyer(null)
         }}
         onError={(error) => {
           console.error('Payment error:', error)
-          // TODO: Show error message to user
+          setIsPaymentModalVisible(false)
+          setPaymentBuyer(null)
         }}
       />
     </View>

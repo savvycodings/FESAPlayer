@@ -81,10 +81,13 @@ export function MyStore() {
   const [listingsHasLoadedOnce, setListingsHasLoadedOnce] = useState(false)
   const [orders, setOrders] = useState<Order[]>([])
   const [ordersLoading, setOrdersLoading] = useState(false)
+  const [ordersHasLoadedOnce, setOrdersHasLoadedOnce] = useState(false)
   const [auctions, setAuctions] = useState<Auction[]>([])
   const [auctionsLoading, setAuctionsLoading] = useState(false)
+  const [auctionsHasLoadedOnce, setAuctionsHasLoadedOnce] = useState(false)
   const [isoItems, setIsoItems] = useState<any[]>([])
   const [isoLoading, setIsoLoading] = useState(false)
+  const [isoHasLoadedOnce, setIsoHasLoadedOnce] = useState(false)
 
   // Store creation modal
   const [isCreateStoreModalVisible, setIsCreateStoreModalVisible] = useState(false)
@@ -338,6 +341,7 @@ export function MyStore() {
       setOrders([])
     } finally {
       setOrdersLoading(false)
+      setOrdersHasLoadedOnce(true)
     }
   }
 
@@ -383,6 +387,7 @@ export function MyStore() {
       setAuctions([])
     } finally {
       setAuctionsLoading(false)
+      setAuctionsHasLoadedOnce(true)
     }
   }
 
@@ -418,6 +423,7 @@ export function MyStore() {
       setIsoItems([])
     } finally {
       setIsoLoading(false)
+      setIsoHasLoadedOnce(true)
     }
   }
 
@@ -926,7 +932,7 @@ export function MyStore() {
         <View style={styles.contentWrapper}>
           {activeTab === 'AUCTIONS' && (
             <Section title="Auctions">
-              {auctionsLoading ? (
+              {auctionsLoading && !auctionsHasLoadedOnce ? (
                 <>
                   <View style={styles.skeletonLoadingLabel}>
                     <ActivityIndicator size="small" color={theme.tintColor || '#73EC8B'} />
@@ -963,7 +969,7 @@ export function MyStore() {
                     <Ionicons name="add-circle-outline" size={20} color={theme.tintColor || '#73EC8B'} />
                     <Text style={styles.addISOText}>Add Card to ISO</Text>
                   </TouchableOpacity>
-                  {isoLoading ? (
+                  {isoLoading && !isoHasLoadedOnce ? (
                     <>
                       <View style={styles.skeletonLoadingLabel}>
                         <ActivityIndicator size="small" color={theme.tintColor || '#73EC8B'} />
@@ -1126,7 +1132,7 @@ export function MyStore() {
           {activeTab === 'ORDERS' && (
             <>
               <Section title="Ongoing Orders">
-                {ordersLoading ? (
+                {ordersLoading && !ordersHasLoadedOnce ? (
                   <>
                     <View style={styles.skeletonLoadingLabel}>
                       <ActivityIndicator size="small" color={theme.tintColor || '#73EC8B'} />
@@ -1159,7 +1165,7 @@ export function MyStore() {
               </Section>
 
               <Section title="Completed Orders">
-                {ordersLoading ? (
+                {ordersLoading && !ordersHasLoadedOnce ? (
                   <>
                     <View style={styles.skeletonLoadingLabel}>
                       <ActivityIndicator size="small" color={theme.tintColor || '#73EC8B'} />

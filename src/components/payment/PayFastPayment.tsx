@@ -1,4 +1,4 @@
-import { View, StyleSheet, Modal, TouchableOpacity, ActivityIndicator, Linking, Alert, Platform } from 'react-native'
+import { View, StyleSheet, Modal, TouchableOpacity, ActivityIndicator, Linking, Alert, Platform, TextInput, ScrollView } from 'react-native'
 import { useContext, useState, useEffect, useRef } from 'react'
 import * as WebBrowser from 'expo-web-browser'
 import Constants from 'expo-constants'
@@ -66,26 +66,26 @@ export function PayFastPayment({
   const styles = getStyles(theme)
   const [loading, setLoading] = useState(false)
   const [paymentData, setPaymentData] = useState<any>(null)
+  /** PUDO locker-to-locker: collected before payment for listing purchases */
+  const [pudoLockerCode, setPudoLockerCode] = useState('')
+  const [shippingAddress, setShippingAddress] = useState('')
   // Use ref to persist payment ID even if component state resets
   const paymentIdRef = useRef<string | null>(null)
   // Track if status check is already running to prevent multiple polls
   const statusCheckRunningRef = useRef<boolean>(false)
 
-  // Set up deep link listener (backup for direct deep links)
+  // For listing purchases: show shipping form first; don't auto-call createPayment. For non-listing, createPayment runs on open.
   useEffect(() => {
-    if (visible) {
-      // Validate required data before creating payment
-      if (!buyerId || !sellerId || !listingId) {
-        console.error('❌ [PAYFAST] Missing required IDs:', {
-          buyerId,
-          sellerId,
-          listingId,
-        })
+    if (visible && !listingId) {
+      createPayment()
+    }
+    if (visible && listingId) {
+      // Validate required data (form will be shown; createPayment called when user taps Proceed)
+      if (!buyerId || !sellerId) {
         onError?.('Missing payment information. Please try again.')
         onClose()
         return
       }
-      createPayment()
     }
 
     // Listen for deep links as backup (openAuthSessionAsync handles most cases)
@@ -229,7 +229,7 @@ export function PayFastPayment({
     }
   }
 
-  const createPayment = async () => {
+  const createPayment = async (shippingPayload?: { pudoLockerCode?: string; shippingAddress?: string }) => {
     try {
       setLoading(true)
       
@@ -247,9 +247,10 @@ export function PayFastPayment({
         listingIdType: typeof listingId,
         buyerIdType: typeof buyerId,
         sellerIdType: typeof sellerId,
+        hasShipping: !!(shippingPayload?.pudoLockerCode || shippingPayload?.shippingAddress),
       })
       
-      // Validate IDs and email are present
+      // Validate IDs and email are present (listingId required for listing flow)
       if (!buyerId || !sellerId || !listingId) {
         const missing = []
         if (!buyerId) missing.push('buyerId')
@@ -281,8 +282,9 @@ export function PayFastPayment({
           listingId,
           buyerId,
           sellerId,
-          // Send backend URL so server knows what URL to use for return URLs
           backendUrl: backendUrl,
+          pudoLockerCode: shippingPayload?.pudoLockerCode || undefined,
+          shippingAddress: shippingPayload?.shippingAddress || undefined,
         }),
       })
 
@@ -434,8 +436,55 @@ export function PayFastPayment({
           </View>
         )}
 
-        {/* Payment Info */}
-        {!loading && (
+        {/* Shipping form (PUDO locker-to-locker) – for listing purchases before opening PayFast */}
+        {!loading && listingId && !paymentData && (
+          <ScrollView style={styles.contentContainer} contentContainerStyle={styles.shippingFormContent}>
+            <View style={styles.infoCard}>
+              <Ionicons name="cube-outline" size={40} color={theme.tintColor || '#73EC8B'} />
+              <Text style={styles.shippingFormTitle}>Shipping (PUDO locker-to-locker)</Text>
+              <Text style={styles.infoText}>
+                Enter your PUDO locker code and address so the seller can send your order.
+              </Text>
+              <Text style={styles.shippingLabel}>PUDO Locker Code</Text>
+              <TextInput
+                style={styles.shippingInput}
+                placeholder="e.g. ABC123"
+                placeholderTextColor="rgba(255, 255, 255, 0.4)"
+                value={pudoLockerCode}
+                onChangeText={setPudoLockerCode}
+                autoCapitalize="characters"
+                autoCorrect={false}
+              />
+              <Text style={styles.shippingLabel}>Address / Locker name</Text>
+              <TextInput
+                style={[styles.shippingInput, styles.shippingInputMultiline]}
+                placeholder="Full address or locker location"
+                placeholderTextColor="rgba(255, 255, 255, 0.4)"
+                value={shippingAddress}
+                onChangeText={setShippingAddress}
+                multiline
+                numberOfLines={2}
+              />
+              <View style={styles.paymentDetails}>
+                <View style={styles.detailRow}>
+                  <Text style={styles.detailLabel}>Amount to pay:</Text>
+                  <Text style={styles.detailValue}>R{amount.toFixed(2)}</Text>
+                </View>
+              </View>
+            </View>
+            <TouchableOpacity
+              style={[styles.actionButton, styles.proceedButton]}
+              onPress={() => createPayment({ pudoLockerCode: pudoLockerCode.trim() || undefined, shippingAddress: shippingAddress.trim() || undefined })}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="card-outline" size={20} color="#000" />
+              <Text style={[styles.actionButtonText, styles.proceedButtonText]}>Proceed to PayFast</Text>
+            </TouchableOpacity>
+          </ScrollView>
+        )}
+
+        {/* Payment Info (after payment created or non-listing / retry) */}
+        {!loading && (paymentData || !listingId) && (
           <View style={styles.contentContainer}>
             <View style={styles.infoCard}>
               <Ionicons name="card-outline" size={48} color={theme.tintColor || '#73EC8B'} />
@@ -470,7 +519,7 @@ export function PayFastPayment({
             <View style={styles.buttonContainer}>
               <TouchableOpacity
                 style={[styles.actionButton, styles.retryButton]}
-                onPress={createPayment}
+                onPress={() => createPayment()}
               >
                 <Ionicons name="refresh-outline" size={20} color={theme.textColor} />
                 <Text style={styles.actionButtonText}>Retry Payment</Text>
@@ -533,6 +582,46 @@ const getStyles = (theme: any) => StyleSheet.create({
     flex: 1,
     padding: SPACING.containerPadding,
     justifyContent: 'center',
+  },
+  shippingFormContent: {
+    paddingBottom: SPACING['2xl'],
+  },
+  shippingFormTitle: {
+    fontSize: TYPOGRAPHY.h4,
+    fontFamily: theme.boldFont,
+    color: theme.textColor,
+    marginTop: SPACING.md,
+    marginBottom: SPACING.sm,
+    fontWeight: '600',
+  },
+  shippingLabel: {
+    fontSize: TYPOGRAPHY.caption,
+    fontFamily: theme.semiBoldFont,
+    color: 'rgba(255, 255, 255, 0.7)',
+    marginTop: SPACING.md,
+    marginBottom: SPACING.xs,
+  },
+  shippingInput: {
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
+    borderRadius: RADIUS.md,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.sm,
+    fontSize: TYPOGRAPHY.body,
+    color: theme.textColor,
+  },
+  shippingInputMultiline: {
+    minHeight: 64,
+    textAlignVertical: 'top',
+  },
+  proceedButton: {
+    backgroundColor: theme.tintColor || '#73EC8B',
+    marginTop: SPACING.md,
+  },
+  proceedButtonText: {
+    color: '#000',
+    fontWeight: '600',
   },
   infoCard: {
     backgroundColor: theme.cardBackground || '#1a1a1a',

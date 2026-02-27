@@ -37,6 +37,9 @@ type ViewProfileStackParamList = {
     category?: 'product' | 'set' | 'single' | 'featured' | 'listing'
     price?: number
     description?: string
+    listingId?: string
+    sellerId?: string
+    storeName?: string
   }
 }
 
@@ -432,12 +435,17 @@ export function ViewProfile() {
             listings={filteredListings}
             onListingPress={(listing: StoreListing) => {
               if (listing.cardImage) {
+                const listingId = (listing as any).listingId ?? listing.id
+                const sellerId = storeData?.userId ?? userId
                 navigation.navigate('Product', {
                   name: listing.cardName,
                   image: listing.cardImage,
                   category: 'listing',
                   price: listing.price,
                   description: `Premium ${listing.cardName}. Authentic and verified with secure shipping.`,
+                  listingId: listingId != null ? String(listingId) : undefined,
+                  sellerId: sellerId ?? undefined,
+                  storeName: storeData?.storeName ?? storeData?.name ?? undefined,
                 })
               }
             }}

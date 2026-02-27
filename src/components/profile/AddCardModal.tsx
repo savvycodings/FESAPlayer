@@ -17,6 +17,8 @@ try {
 }
 
 const CONDITION_OPTIONS = ['Mint', 'Near Mint', 'Lightly Played', 'Moderately Played', 'Heavily Played', 'Damaged'] as const
+/** Hide Set dropdown in UI (set is still used for image search/lookup). Set true to show again. */
+const SHOW_SET_IN_UI = false
 // USD to ZAR for displaying API prices in South African Rand (override via env if needed)
 const USD_TO_ZAR = Number(process.env.EXPO_PUBLIC_USD_TO_ZAR) || 16
 
@@ -68,11 +70,11 @@ export function AddCardModal({
   const [setSearch, setSetSearch] = useState('')
   const lookupRef = useRef<() => Promise<void>>(() => Promise.resolve())
 
-  // Auto-search when user has name + (set or card number); no button click needed
+  // Auto-search when user has name + (set or card number). Card number only triggers search when 3+ digits.
   useEffect(() => {
     if (!visible || !apiBaseUrl) return
     const hasName = name.trim().length >= 2
-    const hasSetOrNumber = set.trim().length > 0 || cardNumber.trim().length > 0
+    const hasSetOrNumber = set.trim().length > 0 || cardNumber.trim().length >= 3
     if (!hasName || !hasSetOrNumber) return
     lookupRef.current = handleLookupCard
     const t = setTimeout(() => lookupRef.current(), 600)
@@ -106,7 +108,9 @@ export function AddCardModal({
   }, [visible])
 
   const isValid = () => {
-    return name.trim().length > 0
+    if (name.trim().length === 0) return false
+    if (type === 'card') return condition.trim().length > 0
+    return true
   }
 
   const handlePickImage = async () => {
@@ -389,64 +393,66 @@ export function AddCardModal({
               </View>
             )}
 
-            {/* Set: dropdown from TCG sets */}
-            <View style={styles.inputSection}>
-              <Text style={styles.inputLabel}>Set</Text>
-              <TouchableOpacity
-                style={[styles.textInput, styles.setSelectorButton]}
-                onPress={() => setSetPickerVisible(true)}
-                activeOpacity={0.7}
-              >
-                <Text style={set ? styles.setSelectorText : styles.setSelectorPlaceholder} numberOfLines={1}>
-                  {set || 'Select set...'}
-                </Text>
-                <Ionicons name="chevron-down" size={20} color="rgba(255, 255, 255, 0.5)" />
-              </TouchableOpacity>
-            </View>
-
-            {/* Set picker modal */}
-            <Modal visible={setPickerVisible} transparent animationType="slide">
-              <View style={styles.setPickerBackdrop}>
-                <TouchableOpacity
-                  style={StyleSheet.absoluteFill}
-                  activeOpacity={1}
-                  onPress={() => { setSetPickerVisible(false); setSetSearch('') }}
-                />
-                <View style={styles.setPickerSheet}>
-                  <View style={styles.setPickerHeader}>
-                    <Text style={styles.setPickerTitle}>Select set</Text>
-                    <TouchableOpacity onPress={() => { setSetPickerVisible(false); setSetSearch('') }} hitSlop={12}>
-                      <Ionicons name="close" size={24} color={theme.textColor} />
-                    </TouchableOpacity>
-                  </View>
-                  <TextInput
-                    style={[styles.textInput, styles.setSearchInput]}
-                    value={setSearch}
-                    onChangeText={setSetSearch}
-                    placeholder="Search sets..."
-                    placeholderTextColor="rgba(255, 255, 255, 0.3)"
-                  />
-                  <FlatList
-                    data={filteredSets}
-                    keyExtractor={(item) => item.id}
-                    style={styles.setPickerList}
-                    keyboardShouldPersistTaps="handled"
-                    renderItem={({ item }) => (
-                      <TouchableOpacity
-                        style={[styles.setPickerItem, set === item.name && styles.setPickerItemActive]}
-                        onPress={() => {
-                          setSet(item.name)
-                          setSetPickerVisible(false)
-                          setSetSearch('')
-                        }}
-                      >
-                        <Text style={styles.setPickerItemText} numberOfLines={1}>{item.name}</Text>
-                      </TouchableOpacity>
-                    )}
-                  />
+            {/* Set: dropdown from TCG sets (hidden in UI; set state still used for image search/lookup) */}
+            {SHOW_SET_IN_UI && (
+              <>
+                <View style={styles.inputSection}>
+                  <Text style={styles.inputLabel}>Set</Text>
+                  <TouchableOpacity
+                    style={[styles.textInput, styles.setSelectorButton]}
+                    onPress={() => setSetPickerVisible(true)}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={set ? styles.setSelectorText : styles.setSelectorPlaceholder} numberOfLines={1}>
+                      {set || 'Select set...'}
+                    </Text>
+                    <Ionicons name="chevron-down" size={20} color="rgba(255, 255, 255, 0.5)" />
+                  </TouchableOpacity>
                 </View>
-              </View>
-            </Modal>
+                <Modal visible={setPickerVisible} transparent animationType="slide">
+                  <View style={styles.setPickerBackdrop}>
+                    <TouchableOpacity
+                      style={StyleSheet.absoluteFill}
+                      activeOpacity={1}
+                      onPress={() => { setSetPickerVisible(false); setSetSearch('') }}
+                    />
+                    <View style={styles.setPickerSheet}>
+                      <View style={styles.setPickerHeader}>
+                        <Text style={styles.setPickerTitle}>Select set</Text>
+                        <TouchableOpacity onPress={() => { setSetPickerVisible(false); setSetSearch('') }} hitSlop={12}>
+                          <Ionicons name="close" size={24} color={theme.textColor} />
+                        </TouchableOpacity>
+                      </View>
+                      <TextInput
+                        style={[styles.textInput, styles.setSearchInput]}
+                        value={setSearch}
+                        onChangeText={setSetSearch}
+                        placeholder="Search sets..."
+                        placeholderTextColor="rgba(255, 255, 255, 0.3)"
+                      />
+                      <FlatList
+                        data={filteredSets}
+                        keyExtractor={(item) => item.id}
+                        style={styles.setPickerList}
+                        keyboardShouldPersistTaps="handled"
+                        renderItem={({ item }) => (
+                          <TouchableOpacity
+                            style={[styles.setPickerItem, set === item.name && styles.setPickerItemActive]}
+                            onPress={() => {
+                              setSet(item.name)
+                              setSetPickerVisible(false)
+                              setSetSearch('')
+                            }}
+                          >
+                            <Text style={styles.setPickerItemText} numberOfLines={1}>{item.name}</Text>
+                          </TouchableOpacity>
+                        )}
+                      />
+                    </View>
+                  </View>
+                </Modal>
+              </>
+            )}
 
             {/* Image: built only from set + card number (independent of price lookup). Image in DB is set by the image API only. */}
             <View style={styles.inputSection}>
@@ -488,19 +494,19 @@ export function AddCardModal({
               )}
             </View>
 
-            {/* Link to Pokedata: search runs automatically when you enter name + set or number */}
+            {/* Searching market: lookup runs when name + (set or 3+ card number); style aligned with app */}
             {type === 'card' && (
               <View style={styles.inputSection}>
-                <Text style={styles.inputLabel}>Link to Pokedata (optional)</Text>
+                <Text style={styles.searchingMarketLabel}>Searching market</Text>
                 {lookupLoading && (
-                  <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: SPACING.xs }}>
+                  <View style={styles.searchingMarketLoading}>
                     <ActivityIndicator size="small" color={theme.tintColor || '#73EC8B'} />
-                    <Text style={[styles.inputLabel, { marginLeft: SPACING.sm, fontWeight: '400', opacity: 0.9 }]}>Looking up card…</Text>
+                    <Text style={styles.searchingMarketLoadingText}>Searching market…</Text>
                   </View>
                 )}
                 {lookupResults.length > 0 && (
                   <View style={styles.lookupResults}>
-                    <Text style={styles.inputLabel}>Tap to select (match # to your card)</Text>
+                    <Text style={styles.lookupResultsHint}>Tap to select (match # to your card)</Text>
                     {lookupResults.slice(0, 8).map((item) => (
                       <TouchableOpacity
                         key={item.id}
@@ -516,27 +522,44 @@ export function AddCardModal({
                           <Text style={styles.lookupRowText} numberOfLines={1}>{item.name}</Text>
                           {item.set ? <Text style={styles.lookupRowSet} numberOfLines={1}>{item.set}</Text> : null}
                         </View>
-                        <Text style={styles.lookupRowId}>ID: {item.id}</Text>
+                        <Text style={styles.lookupRowId}>{item.id}</Text>
                       </TouchableOpacity>
                     ))}
                   </View>
                 )}
                 {cardId && (
-                  <View style={[styles.cardInfoBox, { borderColor: theme.tintColor || '#73EC8B' }]}>
-                    <Text style={styles.cardInfoTitle}>Linked: Pokedata ID {cardId}{cardNumber ? ` · #${cardNumber}` : ''}</Text>
+                  <View style={styles.cardInfoBox}>
+                    <View style={styles.cardInfoHeader}>
+                      <Ionicons name="checkmark-circle" size={18} color={theme.tintColor || '#73EC8B'} />
+                      <Text style={styles.cardInfoTitle}>Matched</Text>
+                    </View>
+                    {cardNumber ? (
+                      <Text style={styles.cardInfoSubtitle}>Card #{cardNumber}</Text>
+                    ) : null}
                     {cardInfo && (
-                      <Text style={styles.cardInfoText}>
-                        Market {cardInfo.marketPrice != null ? formatZar(usdToZar(cardInfo.marketPrice)) : '—'} · eBay: {cardInfo.ebayLastSold != null ? formatZar(usdToZar(cardInfo.ebayLastSold)) : '—'}
-                      </Text>
+                      <View style={styles.cardInfoPrices}>
+                        <View style={styles.cardInfoPriceRow}>
+                          <Text style={styles.cardInfoPriceLabel}>Market</Text>
+                          <Text style={styles.cardInfoPriceValue}>
+                            {cardInfo.marketPrice != null ? formatZar(usdToZar(cardInfo.marketPrice)) : '—'}
+                          </Text>
+                        </View>
+                        <View style={styles.cardInfoPriceRow}>
+                          <Text style={styles.cardInfoPriceLabel}>eBay last sold</Text>
+                          <Text style={styles.cardInfoPriceValue}>
+                            {cardInfo.ebayLastSold != null ? formatZar(usdToZar(cardInfo.ebayLastSold)) : '—'}
+                          </Text>
+                        </View>
+                      </View>
                     )}
                   </View>
                 )}
               </View>
             )}
 
-            {/* Condition – tap to select */}
+            {/* Condition – required for cards */}
             <View style={styles.inputSection}>
-              <Text style={styles.inputLabel}>Condition</Text>
+              <Text style={styles.inputLabel}>Condition {type === 'card' ? '*' : ''}</Text>
               <View style={styles.conditionRow}>
                 {CONDITION_OPTIONS.map((opt) => (
                   <TouchableOpacity
@@ -578,20 +601,6 @@ export function AddCardModal({
                 placeholderTextColor="rgba(255, 255, 255, 0.3)"
                 multiline
                 numberOfLines={3}
-              />
-            </View>
-
-            {/* Notes */}
-            <View style={styles.inputSection}>
-              <Text style={styles.inputLabel}>Notes</Text>
-              <TextInput
-                style={[styles.textInput, styles.textArea]}
-                value={notes}
-                onChangeText={setNotes}
-                placeholder="Personal notes..."
-                placeholderTextColor="rgba(255, 255, 255, 0.3)"
-                multiline
-                numberOfLines={2}
               />
             </View>
 
@@ -900,18 +909,74 @@ const getStyles = (theme: any) => StyleSheet.create({
     fontFamily: theme.regularFont,
     color: 'rgba(255, 255, 255, 0.5)',
   },
+  searchingMarketLabel: {
+    fontSize: TYPOGRAPHY.body,
+    fontFamily: theme.semiBoldFont,
+    color: theme.textColor,
+    marginBottom: SPACING.xs,
+    fontWeight: '600',
+  },
+  searchingMarketLoading: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: SPACING.xs,
+  },
+  searchingMarketLoadingText: {
+    marginLeft: SPACING.sm,
+    fontSize: TYPOGRAPHY.bodySmall,
+    fontFamily: theme.regularFont,
+    color: 'rgba(255, 255, 255, 0.8)',
+  },
+  lookupResultsHint: {
+    fontSize: TYPOGRAPHY.bodySmall,
+    fontFamily: theme.regularFont,
+    color: 'rgba(255, 255, 255, 0.6)',
+    marginBottom: SPACING.xs,
+  },
   cardInfoBox: {
     marginTop: SPACING.sm,
     padding: SPACING.md,
     borderRadius: RADIUS.md,
     borderWidth: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+    borderColor: theme.tintColor || '#73EC8B',
+    backgroundColor: 'rgba(115, 236, 139, 0.06)',
+  },
+  cardInfoHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.xs,
+    marginBottom: SPACING.xs,
   },
   cardInfoTitle: {
+    fontSize: TYPOGRAPHY.body,
+    fontFamily: theme.semiBoldFont,
+    color: theme.textColor,
+    fontWeight: '600',
+  },
+  cardInfoSubtitle: {
+    fontSize: TYPOGRAPHY.bodySmall,
+    fontFamily: theme.regularFont,
+    color: 'rgba(255, 255, 255, 0.7)',
+    marginBottom: SPACING.sm,
+  },
+  cardInfoPrices: {
+    gap: SPACING.xs,
+  },
+  cardInfoPriceRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  cardInfoPriceLabel: {
+    fontSize: TYPOGRAPHY.bodySmall,
+    fontFamily: theme.regularFont,
+    color: 'rgba(255, 255, 255, 0.6)',
+  },
+  cardInfoPriceValue: {
     fontSize: TYPOGRAPHY.bodySmall,
     fontFamily: theme.semiBoldFont,
     color: theme.textColor,
-    marginBottom: SPACING.xs,
+    fontWeight: '600',
   },
   cardInfoText: {
     fontSize: TYPOGRAPHY.bodySmall,
