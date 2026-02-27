@@ -83,7 +83,7 @@ export function ViewProfile() {
     {
       id: 'auction-2',
       title: 'Hidden Fates Elite Trainer Box',
-      description: 'New in box, never opened. Starting bid $120.',
+      description: 'New in box, never opened. Starting bid R120.',
       status: 'starting',
       timeRemaining: 'Starts in 45m',
       currentBid: 120,

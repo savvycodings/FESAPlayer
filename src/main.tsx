@@ -214,13 +214,15 @@ export function Main() {
   )
 }
 
-const getStyles = ({ theme, insets } : { theme: any, insets: any}) => StyleSheet.create({
-  container: {
-    backgroundColor: theme.backgroundColor,
-    flex: 1,
-    paddingTop: insets.top,
-    paddingBottom: insets.bottom,
-    paddingLeft: insets.left,
-    paddingRight: insets.right,
-  },
-})
+// Container: top/left/right insets only. No bottom inset so the tab bar
+// extends to the device bottom; React Navigation handles bottom safe area for the bar.
+const getStyles = ({ theme, insets }: { theme: any; insets: any }) =>
+  StyleSheet.create({
+    container: {
+      backgroundColor: theme.backgroundColor,
+      flex: 1,
+      paddingTop: insets.top,
+      paddingLeft: insets.left,
+      paddingRight: insets.right,
+    },
+  })

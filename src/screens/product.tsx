@@ -84,13 +84,13 @@ export function Product() {
     .join(' ') || 'Product'
 
   // Default price if not provided
-  const displayPrice = price || 29.99
+  const displayPrice = typeof price === 'number' ? price : (typeof price === 'string' ? parseFloat(price) || 0 : 0) || 29.99
 
   // Default description
   const displayDescription = description || 
     'Premium trading card product with authentic cards and exclusive items. Perfect for collectors and players alike.'
 
-  // Bids data
+  // Bids data (used when not a store listing)
   const bidsData = [
     { avatar: require('../../assets/Avatars/guy1.jpg'), name: 'Alex', bid: 145 },
     { avatar: require('../../assets/Avatars/guy2.jpg'), name: 'Michael', bid: 142 },
@@ -99,11 +99,11 @@ export function Product() {
     { avatar: require('../../assets/Avatars/guy5.jpg'), name: 'Sarah', bid: 135 },
   ]
 
-  // Get highest bid
-  const highestBid = Math.max(...bidsData.map(b => b.bid))
-  
-  // Buy now price is R20 more than highest bid
-  const buyNowPrice = highestBid + 20
+  const highestBid = bidsData.length > 0 ? Math.max(...bidsData.map(b => b.bid)) : 0
+  // For store listings, use the listed price for Buy Now and minimum bid. Otherwise use mock bid-based prices.
+  const isListing = category === 'listing'
+  const buyNowPrice = isListing ? displayPrice : highestBid + 20
+  const minBidPrice = isListing ? displayPrice : highestBid + 1
 
   const USD_TO_ZAR = Number(process.env.EXPO_PUBLIC_USD_TO_ZAR) || 16
 
@@ -315,9 +315,9 @@ export function Product() {
                   <Ionicons name="cash-outline" size={20} color={tintColor} />
                 </View>
                 <View style={styles.priceTextContainer}>
-                  <Text style={styles.priceLabel}>Market value</Text>
+                  <Text style={styles.priceLabel}>{isListing ? 'Listed price' : 'Market value'}</Text>
                   <Text style={styles.priceText}>
-                    R{displayPrice.toLocaleString('en-ZA', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                    R{Number(displayPrice).toLocaleString('en-ZA', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
                   </Text>
                 </View>
               </View>
@@ -444,7 +444,7 @@ export function Product() {
           >
             <Ionicons name="hand-left-outline" size={20} color={theme.textColor} style={styles.bidIcon} />
             <Text style={styles.bidNowButtonText}>Bid Now</Text>
-            <Text style={styles.bidNowButtonPrice}>R{highestBid + 1}</Text>
+            <Text style={styles.bidNowButtonPrice}>R{minBidPrice.toLocaleString('en-ZA')}</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.buyNowButton}
@@ -456,7 +456,7 @@ export function Product() {
           >
             <Ionicons name="flash-outline" size={20} color={theme.tintTextColor || '#000000'} style={styles.buyIcon} />
             <Text style={styles.buyNowButtonText}>Buy Now</Text>
-            <Text style={styles.buyNowButtonPrice}>R{buyNowPrice}</Text>
+            <Text style={styles.buyNowButtonPrice}>R{buyNowPrice.toLocaleString('en-ZA')}</Text>
           </TouchableOpacity>
         </View>
       )}
@@ -464,7 +464,7 @@ export function Product() {
       {/* PayFast Payment Modal */}
       <PayFastPayment
         visible={isPaymentModalVisible}
-        amount={paymentType === 'buy' ? buyNowPrice : highestBid + 1}
+        amount={paymentType === 'buy' ? buyNowPrice : minBidPrice}
         itemName={formattedName}
         itemDescription={displayDescription}
         onClose={() => setIsPaymentModalVisible(false)}

@@ -19,7 +19,7 @@ interface SetChartProps {
 
 export function SetChart({
   data,
-  maxHeight = 140,
+  maxHeight = 72,
   barColor = '#FFFFFF',
 }: SetChartProps) {
   const { theme } = useContext(ThemeContext)
@@ -121,25 +121,26 @@ const getStyles = (theme: any, maxHeight: number) => StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-end',
-    height: maxHeight + SPACING['2xl'],
-    paddingBottom: SPACING.md,
+    height: maxHeight + SPACING.xl,
+    paddingBottom: SPACING.sm,
   },
   barWrapper: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'flex-end',
     marginHorizontal: SPACING.xs / 2,
+    minWidth: 0,
   },
   barContainer: {
     width: '100%',
     alignItems: 'center',
     justifyContent: 'flex-end',
-    marginBottom: SPACING.sm,
+    marginBottom: SPACING.xs,
   },
   bar: {
     width: '100%',
     borderRadius: RADIUS.sm,
-    minHeight: 20,
+    minHeight: 12,
     justifyContent: 'flex-end',
     alignItems: 'center',
     paddingBottom: SPACING.xs / 2,

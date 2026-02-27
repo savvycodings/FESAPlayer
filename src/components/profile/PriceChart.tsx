@@ -167,15 +167,17 @@ export function PriceChart({
   const latestValue = hasData ? (data[data.length - 1]?.y ?? 0) : 0
   const previousValue = hasData && data.length > 1 ? (data[data.length - 2]?.y ?? 0) : 0
   const change = latestValue - previousValue
-  const changePercent = previousValue !== 0 ? ((change / previousValue) * 100).toFixed(1) : '—'
+  const changePercent = previousValue !== 0 ? ((change / previousValue) * 100).toFixed(1) : null
+  const trendColor = change >= 0 ? '#10B981' : '#EF4444'
+  const displayColor = hasData && data.length > 1 ? trendColor : (chartColor ?? theme.tintColor ?? '#73EC8B')
 
   return (
     <Card style={styles.card}>
       <CardContent style={styles.cardContent}>
         <View style={styles.header}>
           <View style={styles.headerLeft}>
-            <View style={styles.iconContainer}>
-              <Ionicons name="trending-up-outline" size={20} color={chartColor} />
+            <View style={[styles.iconContainer, { backgroundColor: `${displayColor}20` }]}>
+              <Ionicons name={change >= 0 ? 'trending-up-outline' : 'trending-down-outline'} size={20} color={displayColor} />
             </View>
             <View>
               <Text style={styles.title}>{title}</Text>
@@ -183,16 +185,16 @@ export function PriceChart({
             </View>
           </View>
           <View style={styles.headerRight}>
-            <Text style={styles.value}>
+            <Text style={[styles.value, { color: displayColor }]}>
               {hasData
                 ? `${valuePrefix}${latestValue.toLocaleString('en-ZA', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`
                 : '—'}
             </Text>
-            {hasData && changePercent !== '—' && (
+            {hasData && changePercent !== null && (
               <View style={[styles.changeContainer, change >= 0 ? styles.changePositive : styles.changeNegative]}>
-                <Ionicons name={change >= 0 ? 'arrow-up' : 'arrow-down'} size={12} color={change >= 0 ? '#10B981' : '#EF4444'} />
+                <Ionicons name={change >= 0 ? 'arrow-up' : 'arrow-down'} size={12} color={trendColor} />
                 <Text style={[styles.changeText, change >= 0 ? styles.changeTextPositive : styles.changeTextNegative]}>
-                  {Math.abs(parseFloat(changePercent))}%
+                  {valuePrefix}{change >= 0 ? '+' : ''}{Math.round(change).toLocaleString('en-ZA')} ({Math.abs(parseFloat(changePercent))}%)
                 </Text>
               </View>
             )}
@@ -222,30 +224,32 @@ export function PriceChart({
                   />
                 ))}
                 {normalizedPoints.length > 0 && chartPathData && (
-                  <Path
-                    d={`${chartPathData} L ${normalizedPoints[normalizedPoints.length - 1].x} ${chartHeight - chartPaddingBottom} L ${normalizedPoints[0].x} ${chartHeight - chartPaddingBottom} Z`}
-                    fill={chartColor}
-                    fillOpacity={0.1}
-                  />
+                  <>
+                    <Path
+                      d={`${chartPathData} L ${normalizedPoints[normalizedPoints.length - 1].x} ${chartHeight - chartPaddingBottom} L ${normalizedPoints[0].x} ${chartHeight - chartPaddingBottom} Z`}
+                      fill={displayColor}
+                      fillOpacity={0.15}
+                    />
+                    <Path d={chartPathData} stroke={displayColor} strokeWidth={2.5} fill="none" strokeLinecap="round" strokeLinejoin="round" />
+                  </>
                 )}
-                <Path d={chartPathData} stroke={chartColor} strokeWidth={2.5} fill="none" strokeLinecap="round" strokeLinejoin="round" />
                 {selectedPoint && (
                   <Line
                     x1={selectedPoint.x}
                     y1={chartPaddingTop}
                     x2={selectedPoint.x}
                     y2={chartHeight - chartPaddingBottom}
-                    stroke={chartColor}
+                    stroke={displayColor}
                     strokeWidth={1}
                     strokeOpacity={0.5}
                     strokeDasharray="4,4"
                   />
                 )}
                 {selectedPoint && normalizedPoints[selectedPoint.index] && (
-                  <Circle cx={selectedPoint.x} cy={normalizedPoints[selectedPoint.index].y} r={4} fill={chartColor} stroke="#000" strokeWidth={1} />
+                  <Circle cx={selectedPoint.x} cy={normalizedPoints[selectedPoint.index].y} r={4} fill={displayColor} stroke="#000" strokeWidth={1} />
                 )}
                 {normalizedPoints.length === 1 && normalizedPoints.map((point, i) => (
-                  <Circle key={i} cx={point.x} cy={point.y} r={5} fill={chartColor} stroke="#000" strokeWidth={2} />
+                  <Circle key={i} cx={point.x} cy={point.y} r={5} fill={displayColor} stroke="#000" strokeWidth={2} />
                 ))}
               </Svg>
               {selectedPoint && (
@@ -253,7 +257,7 @@ export function PriceChart({
                   <Text style={styles.tooltipDate}>
                     {formatDisplayDate(dates?.[selectedPoint.index], selectedPoint.index, data.length)}
                   </Text>
-                  <Text style={[styles.tooltipPrice, { color: chartColor }]}>
+                  <Text style={[styles.tooltipPrice, { color: displayColor }]}>
                     {valuePrefix}{selectedPoint.value.toLocaleString('en-ZA', { maximumFractionDigits: 0 })}
                   </Text>
                 </View>

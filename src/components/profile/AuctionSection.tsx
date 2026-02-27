@@ -131,7 +131,7 @@ export function AuctionSection({
                     <View style={styles.bidInfo}>
                       {item.currentBid && (
                         <Text style={styles.currentBid}>
-                          ${item.currentBid.toLocaleString()}
+                          R{Number(item.currentBid).toLocaleString('en-ZA')}
                           {item.bidCount !== undefined && ` • ${item.bidCount} bid${item.bidCount !== 1 ? 's' : ''}`}
                         </Text>
                       )}

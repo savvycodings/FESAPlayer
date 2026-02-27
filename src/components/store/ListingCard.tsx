@@ -85,14 +85,14 @@ export function ListingCard({
             {currentBid ? (
               <View style={styles.bidInfo}>
                 <Text style={styles.bidLabel}>
-                  Bid: ${currentBid}
+                  Bid: R{Number(currentBid).toLocaleString('en-ZA')}
                 </Text>
                 {bidCount > 0 && (
                   <Text style={styles.bidCount}>{bidCount} bids</Text>
                 )}
               </View>
             ) : (
-              <Text style={styles.price}>${price}</Text>
+              <Text style={styles.price}>R{Number(price).toLocaleString('en-ZA')}</Text>
             )}
 
             {/* Action Buttons */}
@@ -126,7 +126,7 @@ export function ListingCard({
                       onPress={onBuyPress}
                       activeOpacity={0.7}
                     >
-                      <Text style={styles.buyButtonText}>Buy Now ${price}</Text>
+                      <Text style={styles.buyButtonText}>Buy Now R{Number(price).toLocaleString('en-ZA')}</Text>
                     </TouchableOpacity>
                   ) : null}
                   <TouchableOpacity

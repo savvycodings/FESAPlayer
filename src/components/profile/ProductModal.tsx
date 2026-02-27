@@ -104,7 +104,7 @@ export function ProductModal({
                   <View style={styles.priceTextContainer}>
                     <Text style={styles.priceLabel}>Price</Text>
                     <Text style={styles.priceText}>
-                      {productPrice || `$${numericPrice.toFixed(2)}`}
+                      {productPrice || `R${numericPrice.toLocaleString('en-ZA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
                     </Text>
                   </View>
                 </View>

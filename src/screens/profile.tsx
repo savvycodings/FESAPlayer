@@ -6,7 +6,7 @@ import { Text } from '../components/ui/text'
 import { ThemeContext } from '../context'
 import { SPACING, TYPOGRAPHY, RADIUS } from '../constants/layout'
 import Ionicons from '@expo/vector-icons/Ionicons'
-import { ProfileHeader, ProductGrid, GoalProgress, SetChart, ListItemModal, AddCardModal, BulkVaultingModal } from '../components/profile'
+import { ProfileHeader, ProductGrid, ListItemModal, AddCardModal, BulkVaultingModal } from '../components/profile'
 import { Section } from '../components/layout/Section'
 import { DOMAIN } from '../../constants'
 import * as ImagePicker from 'expo-image-picker'
@@ -556,9 +556,17 @@ export function Profile() {
         />
 
         <View style={styles.contentWrapper}>
-          {/* Section Header with Add Card Button */}
+          {/* Section Header: title + "See all" subtext on left; Add Card + Vault on right inline with title */}
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Your Products</Text>
+            <View style={styles.sectionHeaderLeft}>
+              <Text style={styles.sectionTitle}>Your Products</Text>
+              <TouchableOpacity
+                onPress={() => Alert.alert('Coming Soon', 'Full products view coming soon!')}
+                activeOpacity={0.6}
+              >
+                <Text style={styles.seeAllSubtext}>See all</Text>
+              </TouchableOpacity>
+            </View>
             <View style={styles.sectionHeaderActions}>
               <TouchableOpacity
                 style={styles.addButton}
@@ -574,23 +582,10 @@ export function Profile() {
                 <Ionicons name="lock-closed-outline" size={18} color={theme.tintColor || '#73EC8B'} />
                 <Text style={styles.vaultButtonText}>Vault</Text>
               </TouchableOpacity>
-              <TouchableOpacity
-                onPress={() => {
-                  Alert.alert('Coming Soon', 'Full products view coming soon!')
-                }}
-                activeOpacity={0.6}
-              >
-                <Text style={styles.seeAllText}>See all</Text>
-              </TouchableOpacity>
             </View>
           </View>
 
-          <Section 
-            title=""
-            showSeeAll={false}
-            style={styles.firstSection}
-          >
-            {/* Stats Grid */}
+          <View style={styles.productsBlock}>
             <View style={styles.statsPillContainer}>
               <View style={styles.statsGrid}>
                 <View style={styles.statItem}>
@@ -659,31 +654,8 @@ export function Profile() {
                 </Text>
               </View>
             )}
-          </Section>
+          </View>
 
-          <Section title="Collection Goal">
-            <GoalProgress
-              current={stats.total}
-              goal={defaultGoal}
-              label="Total Cards"
-            />
-          </Section>
-
-          <Section title="Set Distribution">
-            {setDistribution.length > 0 ? (
-              <SetChart
-                data={setDistribution}
-              />
-            ) : (
-              <View style={styles.emptyContainer}>
-                <Ionicons name="pie-chart-outline" size={48} color="rgba(255, 255, 255, 0.3)" />
-                <Text style={styles.emptyText}>No set data available yet</Text>
-                <Text style={[styles.emptyText, { fontSize: TYPOGRAPHY.caption, marginTop: SPACING.xs }]}>
-                  Add items to your collection to see set distribution
-                </Text>
-              </View>
-            )}
-          </Section>
         </View>
       </ScrollView>
 
@@ -754,8 +726,17 @@ const getStyles = (theme: any) => StyleSheet.create({
     backgroundColor: theme.backgroundColor,
     paddingHorizontal: SPACING.containerPadding,
   },
-  firstSection: {
-    marginTop: SPACING.md,
+  productsBlock: {
+    marginTop: SPACING.sm,
+  },
+  statsPillContainer: {
+    borderWidth: 1.5,
+    borderColor: 'rgba(0, 0, 0, 0.3)',
+    borderRadius: RADIUS.full,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.xs,
+    marginBottom: SPACING.md,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
   },
   placeholderContainer: {
     padding: SPACING['2xl'],
@@ -768,16 +749,6 @@ const getStyles = (theme: any) => StyleSheet.create({
   },
   ordersContainer: {
     width: '100%',
-  },
-  statsPillContainer: {
-    borderWidth: 1.5,
-    borderColor: 'rgba(0, 0, 0, 0.3)',
-    borderRadius: RADIUS.full,
-    paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.xs,
-    marginTop: 4,
-    marginBottom: SPACING.lg,
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
   },
   statsGrid: {
     flexDirection: 'row',
@@ -820,10 +791,15 @@ const getStyles = (theme: any) => StyleSheet.create({
   },
   sectionHeader: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     justifyContent: 'space-between',
-    marginBottom: SPACING.md,
-    marginTop: SPACING.md,
+    marginBottom: SPACING.sm,
+    marginTop: SPACING.sm,
+    gap: SPACING.md,
+  },
+  sectionHeaderLeft: {
+    flex: 1,
+    minWidth: 0,
   },
   sectionTitle: {
     fontSize: TYPOGRAPHY.h2,
@@ -832,10 +808,18 @@ const getStyles = (theme: any) => StyleSheet.create({
     color: theme.textColor,
     letterSpacing: -0.3,
   },
+  seeAllSubtext: {
+    fontSize: TYPOGRAPHY.caption,
+    fontFamily: theme.regularFont,
+    color: theme.mutedForegroundColor || 'rgba(255, 255, 255, 0.5)',
+    marginTop: 2,
+    letterSpacing: 0.1,
+  },
   sectionHeaderActions: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: SPACING.md,
+    gap: SPACING.lg,
+    flexShrink: 0,
   },
   addButton: {
     flexDirection: 'row',
@@ -847,6 +831,7 @@ const getStyles = (theme: any) => StyleSheet.create({
     backgroundColor: 'rgba(115, 236, 139, 0.1)',
     borderWidth: 1,
     borderColor: theme.tintColor || '#73EC8B',
+    flexShrink: 0,
   },
   addButtonText: {
     fontSize: TYPOGRAPHY.bodySmall,
@@ -864,6 +849,7 @@ const getStyles = (theme: any) => StyleSheet.create({
     backgroundColor: 'rgba(115, 236, 139, 0.1)',
     borderWidth: 1,
     borderColor: theme.tintColor || '#73EC8B',
+    flexShrink: 0,
   },
   vaultButtonText: {
     fontSize: TYPOGRAPHY.bodySmall,

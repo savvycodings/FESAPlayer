@@ -203,9 +203,10 @@ export function Grade() {
       const ebayPrice = pricingData.ebayLastSold ?? null
       const tcgPrice = pricingData.marketPrice ?? null
 
+      const USD_TO_ZAR = Number(process.env.EXPO_PUBLIC_USD_TO_ZAR) || 16
       const formatPrice = (value: number | undefined) => {
         if (!value) return 'N/A'
-        return `$${value.toFixed(2)}`
+        return `R${Math.round(value * USD_TO_ZAR).toLocaleString('en-ZA')}`
       }
 
       // Step 4: Get AI grade

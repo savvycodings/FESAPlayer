@@ -28,7 +28,7 @@ export function StoreStats({
       </View>
       <View style={styles.statDivider} />
       <View style={styles.statBlock}>
-        <Text style={styles.revenueValue}>${totalRevenue}</Text>
+        <Text style={styles.revenueValue}>R{Number(totalRevenue).toLocaleString('en-ZA')}</Text>
         <Text style={styles.statLabel}>Revenue</Text>
       </View>
       <View style={styles.statDivider} />

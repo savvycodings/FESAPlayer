@@ -49,10 +49,11 @@ const getStyles = (theme: any) => StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginBottom: SPACING.md,
-    gap: SPACING.sm,
+    gap: SPACING.lg,
   },
   button: {
     flex: 1,
+    minWidth: 0,
     backgroundColor: theme.buttonBackground || 'rgba(0, 0, 0, 0.8)',
     borderRadius: RADIUS.md,
     borderWidth: 1,

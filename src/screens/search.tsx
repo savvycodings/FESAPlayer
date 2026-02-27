@@ -460,7 +460,7 @@ export function Search() {
                       </View>
                       <View style={styles.itemInfoItem}>
                         <Ionicons name="cash-outline" size={12} color="rgba(255, 255, 255, 0.6)" />
-                        <Text style={styles.itemInfoText}>${price}</Text>
+                        <Text style={styles.itemInfoText}>R{Number(price).toLocaleString('en-ZA')}</Text>
                       </View>
                     </>
                   )}
@@ -857,7 +857,7 @@ export function Search() {
                       </View>
                       <View style={styles.itemInfoItem}>
                         <Ionicons name="cash-outline" size={12} color="rgba(255, 255, 255, 0.6)" />
-                        <Text style={styles.itemInfoText}>${price}</Text>
+                        <Text style={styles.itemInfoText}>R{Number(price).toLocaleString('en-ZA')}</Text>
                       </View>
                     </View>
                   </View>
@@ -1143,18 +1143,22 @@ const getStyles = (theme: any) => StyleSheet.create({
   itemInfoContainer: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'flex-end',
     gap: SPACING.md,
     marginLeft: SPACING.sm,
   },
   itemInfoItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: SPACING.xs / 2,
+    justifyContent: 'center',
+    gap: SPACING.xs,
+    minHeight: 20,
   },
   itemInfoText: {
     fontSize: TYPOGRAPHY.caption,
     fontFamily: theme.regularFont,
     color: 'rgba(255, 255, 255, 0.6)',
+    lineHeight: 18,
   },
   expandedGrid: {
     flexDirection: 'row',

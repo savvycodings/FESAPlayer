@@ -526,9 +526,7 @@ export function AddCardModal({
                     <Text style={styles.cardInfoTitle}>Linked: Pokedata ID {cardId}{cardNumber ? ` · #${cardNumber}` : ''}</Text>
                     {cardInfo && (
                       <Text style={styles.cardInfoText}>
-                        API (USD only): Market {cardInfo.marketPrice != null ? `$${cardInfo.marketPrice.toFixed(2)}` : '—'} · eBay: {cardInfo.ebayLastSold != null ? `$${cardInfo.ebayLastSold.toFixed(2)}` : '—'}
-                        {'\n'}
-                        ZAR (×{USD_TO_ZAR}): Market {cardInfo.marketPrice != null ? formatZar(usdToZar(cardInfo.marketPrice)) : '—'} · eBay: {cardInfo.ebayLastSold != null ? formatZar(usdToZar(cardInfo.ebayLastSold)) : '—'}
+                        Market {cardInfo.marketPrice != null ? formatZar(usdToZar(cardInfo.marketPrice)) : '—'} · eBay: {cardInfo.ebayLastSold != null ? formatZar(usdToZar(cardInfo.ebayLastSold)) : '—'}
                       </Text>
                     )}
                   </View>

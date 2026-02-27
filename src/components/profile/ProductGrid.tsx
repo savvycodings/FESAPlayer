@@ -131,7 +131,7 @@ const getStyles = (theme: any, columns: number) => StyleSheet.create({
   container: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    justifyContent: 'flex-start',
+    justifyContent: 'center',
     width: '100%',
     columnGap: SPACING.sm,
     rowGap: SPACING.lg,
