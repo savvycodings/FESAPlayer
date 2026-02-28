@@ -5,8 +5,8 @@ import { ThemeContext } from '../../context'
 import { SPACING, TYPOGRAPHY, RADIUS } from '../../constants/layout'
 import { LinearGradient } from 'expo-linear-gradient'
 import Ionicons from '@expo/vector-icons/Ionicons'
-import { useNavigation } from '@react-navigation/native'
 import { authClient } from '../../lib/auth-client'
+import { useAuth } from '../../context/AuthContext'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { DOMAIN } from '../../../constants'
 
@@ -28,7 +28,7 @@ const getButtonGradientColors = (theme: any): string[] => {
 export function Login() {
   const { theme } = useContext(ThemeContext)
   const styles = getStyles(theme)
-  const navigation = useNavigation()
+  const { setAuthenticated, setHasSeenOnboarding } = useAuth()
   const [isSignUp, setIsSignUp] = useState(false)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -114,13 +114,12 @@ export function Login() {
       try {
         await AsyncStorage.setItem('authToken', 'better-auth-session')
         await AsyncStorage.setItem('hasSeenOnboarding', 'true')
+        setHasSeenOnboarding(true)
+        setAuthenticated(true)
       } catch (storageError) {
         console.warn('Failed to persist auth state:', storageError)
       }
-      
-      // Navigate to main app
-      // @ts-ignore
-      navigation.replace('Main')
+      // RootNavigator will re-render and show Main when isAuthenticated becomes true
     } catch (error: any) {
       console.error('❌ Auth error:', error)
       const message = error?.message || 'Something went wrong. Please check your internet connection and that the backend is reachable.'
