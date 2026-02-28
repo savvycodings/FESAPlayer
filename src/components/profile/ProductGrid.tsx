@@ -98,7 +98,7 @@ export function ProductGrid({ products, columns = 3, onProductPress, onQuickList
                   </View>
                   <View style={styles.infoSection}>
                     <Text style={styles.productPrice}>{product.price}</Text>
-                    <Text style={styles.productName} numberOfLines={2}>
+                    <Text style={styles.productName} numberOfLines={1} ellipsizeMode="tail">
                       {product.name}
                     </Text>
                   </View>

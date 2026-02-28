@@ -70,16 +70,17 @@ export function AddCardModal({
   const [setSearch, setSetSearch] = useState('')
   const lookupRef = useRef<() => Promise<void>>(() => Promise.resolve())
 
-  // Auto-search when user has name + (set or card number). Card number only triggers search when 3+ digits.
+  // Auto-search for market price and image only after name, card number (3+ digits), and condition are set.
   useEffect(() => {
-    if (!visible || !apiBaseUrl) return
+    if (!visible || !apiBaseUrl || type !== 'card') return
     const hasName = name.trim().length >= 2
     const hasSetOrNumber = set.trim().length > 0 || cardNumber.trim().length >= 3
-    if (!hasName || !hasSetOrNumber) return
+    const hasCondition = condition.trim().length > 0
+    if (!hasName || !hasSetOrNumber || !hasCondition) return
     lookupRef.current = handleLookupCard
     const t = setTimeout(() => lookupRef.current(), 600)
     return () => clearTimeout(t)
-  }, [name, set, cardNumber, visible, apiBaseUrl])
+  }, [name, set, cardNumber, condition, type, visible, apiBaseUrl])
 
   const filteredSets = useMemo(() => {
     if (!setSearch.trim()) return TCG_SETS
@@ -393,6 +394,26 @@ export function AddCardModal({
               </View>
             )}
 
+            {/* Condition – required for cards; above image so we only search market/image after name, number, condition */}
+            {type === 'card' && (
+              <View style={styles.inputSection}>
+                <Text style={styles.inputLabel}>Condition *</Text>
+                <View style={styles.conditionRow}>
+                  {CONDITION_OPTIONS.map((opt) => (
+                    <TouchableOpacity
+                      key={opt}
+                      style={[styles.conditionChip, condition === opt && styles.conditionChipActive]}
+                      onPress={() => setCondition(condition === opt ? '' : opt)}
+                    >
+                      <Text style={[styles.conditionChipText, condition === opt && styles.conditionChipTextActive]} numberOfLines={1}>
+                        {opt}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+            )}
+
             {/* Set: dropdown from TCG sets (hidden in UI; set state still used for image search/lookup) */}
             {SHOW_SET_IN_UI && (
               <>
@@ -454,11 +475,19 @@ export function AddCardModal({
               </>
             )}
 
-            {/* Image: built only from set + card number (independent of price lookup). Image in DB is set by the image API only. */}
+            {/* Image: shown only after name, card number and condition (then we search market + image). */}
             <View style={styles.inputSection}>
               <Text style={styles.inputLabel}>Image</Text>
               {type === 'card' ? (
                 (() => {
+                  const canShowImage = condition.trim().length > 0
+                  if (!canShowImage) {
+                    return (
+                      <View style={styles.cardImageBox}>
+                        <Text style={styles.noImageText}>Select condition above to load image</Text>
+                      </View>
+                    )
+                  }
                   const displayUri = getPokemonTcgImageUrlFromSetNumberIfOnCdn(set, cardNumber)
                   if (!displayUri) {
                     return (
@@ -494,10 +523,13 @@ export function AddCardModal({
               )}
             </View>
 
-            {/* Searching market: lookup runs when name + (set or 3+ card number); style aligned with app */}
+            {/* Searching market: runs only after name, card number (3+) and condition are set */}
             {type === 'card' && (
               <View style={styles.inputSection}>
                 <Text style={styles.searchingMarketLabel}>Searching market</Text>
+                {!condition.trim() && (
+                  <Text style={styles.searchingMarketHint}>Select condition above to search market prices</Text>
+                )}
                 {lookupLoading && (
                   <View style={styles.searchingMarketLoading}>
                     <ActivityIndicator size="small" color={theme.tintColor || '#73EC8B'} />
@@ -557,23 +589,25 @@ export function AddCardModal({
               </View>
             )}
 
-            {/* Condition – required for cards */}
-            <View style={styles.inputSection}>
-              <Text style={styles.inputLabel}>Condition {type === 'card' ? '*' : ''}</Text>
-              <View style={styles.conditionRow}>
-                {CONDITION_OPTIONS.map((opt) => (
-                  <TouchableOpacity
-                    key={opt}
-                    style={[styles.conditionChip, condition === opt && styles.conditionChipActive]}
-                    onPress={() => setCondition(condition === opt ? '' : opt)}
-                  >
-                    <Text style={[styles.conditionChipText, condition === opt && styles.conditionChipTextActive]} numberOfLines={1}>
-                      {opt}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
+            {/* Condition for sealed/slab (cards have condition above image) */}
+            {type !== 'card' && (
+              <View style={styles.inputSection}>
+                <Text style={styles.inputLabel}>Condition</Text>
+                <View style={styles.conditionRow}>
+                  {CONDITION_OPTIONS.map((opt) => (
+                    <TouchableOpacity
+                      key={opt}
+                      style={[styles.conditionChip, condition === opt && styles.conditionChipActive]}
+                      onPress={() => setCondition(condition === opt ? '' : opt)}
+                    >
+                      <Text style={[styles.conditionChipText, condition === opt && styles.conditionChipTextActive]} numberOfLines={1}>
+                        {opt}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
               </View>
-            </View>
+            )}
 
             {/* Grade Input (for slabs) */}
             {type === 'slab' && (
@@ -915,6 +949,12 @@ const getStyles = (theme: any) => StyleSheet.create({
     color: theme.textColor,
     marginBottom: SPACING.xs,
     fontWeight: '600',
+  },
+  searchingMarketHint: {
+    fontSize: TYPOGRAPHY.bodySmall,
+    fontFamily: theme.regularFont,
+    color: 'rgba(255, 255, 255, 0.6)',
+    marginBottom: SPACING.sm,
   },
   searchingMarketLoading: {
     flexDirection: 'row',
