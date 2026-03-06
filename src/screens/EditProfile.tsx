@@ -215,9 +215,7 @@ export function EditProfile() {
     }
   }
 
-  const profileImage = user?.avatar
-    ? { uri: user.avatar }
-    : require('../../assets/Avatars/guy1.jpg')
+  const hasAvatar = !!user?.avatar
   const bannerUri = store?.bannerUrl ? { uri: store.bannerUrl } : null
 
   if (loading) {
@@ -252,8 +250,13 @@ export function EditProfile() {
               <View style={[styles.avatar, styles.avatarUploading]}>
                 <ActivityIndicator size="large" color={theme.tintColor || '#73EC8B'} />
               </View>
+            ) : hasAvatar ? (
+              <Image source={{ uri: user.avatar }} style={styles.avatar} resizeMode="cover" />
             ) : (
-              <Image source={profileImage} style={styles.avatar} resizeMode="cover" />
+              <View style={styles.avatarEmpty}>
+                <Ionicons name="person-outline" size={48} color={theme.mutedForegroundColor} />
+                <Text style={styles.avatarEmptyText}>Tap to add photo</Text>
+              </View>
             )}
           </TouchableOpacity>
           <Text style={styles.tapHint}>Tap to change photo</Text>
@@ -388,6 +391,23 @@ const getStyles = (theme: any) =>
     avatarUploading: {
       justifyContent: 'center',
       alignItems: 'center',
+    },
+    avatarEmpty: {
+      width: 120,
+      height: 120,
+      borderRadius: 60,
+      borderWidth: 2,
+      borderColor: theme.borderColor || 'rgba(255, 255, 255, 0.15)',
+      borderStyle: 'dashed',
+      backgroundColor: 'rgba(255, 255, 255, 0.05)',
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    avatarEmptyText: {
+      fontSize: TYPOGRAPHY.caption,
+      fontFamily: theme.regularFont,
+      color: theme.mutedForegroundColor,
+      marginTop: SPACING.xs,
     },
     tapHint: {
       marginTop: SPACING.xs,

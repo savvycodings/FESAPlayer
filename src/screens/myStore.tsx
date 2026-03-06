@@ -891,8 +891,8 @@ export function MyStore() {
         {/* Banner first (Destined Rivals–style layout) */}
         <StoreHeader
           storeName={storeName}
-          bannerUrl={store.bannerUrl ? { uri: store.bannerUrl } : require('../../assets/banners/banner2.jpg')}
-          profileImage={store.user?.avatar ? { uri: store.user.avatar } : require('../../assets/Avatars/guy1.jpg')}
+          bannerUrl={store.bannerUrl ? { uri: store.bannerUrl } : undefined}
+          profileImage={store.user?.avatar ? { uri: store.user.avatar } : undefined}
           profileInitials={store.user?.firstName?.[0] || store.user?.name?.[0] || 'U'}
           level={userLevel}
           currentXP={currentXP}

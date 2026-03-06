@@ -1,5 +1,6 @@
 import { View, StyleSheet, Modal, TouchableOpacity, ActivityIndicator, Linking, Alert, Platform, TextInput, ScrollView } from 'react-native'
 import { useContext, useState, useEffect, useRef } from 'react'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import * as WebBrowser from 'expo-web-browser'
 import Constants from 'expo-constants'
 import { Text } from '../ui/text'
@@ -41,6 +42,9 @@ interface PayFastPaymentProps {
   onSuccess: (paymentData: any) => void
   onCancel: () => void
   onError?: (error: string) => void
+  /** Pre-fill from account so seller knows where to send (listing only) */
+  initialPudoLockerCode?: string
+  initialShippingAddress?: string
 }
 
 export function PayFastPayment({
@@ -61,18 +65,29 @@ export function PayFastPayment({
   onSuccess,
   onCancel,
   onError,
+  initialPudoLockerCode,
+  initialShippingAddress,
 }: PayFastPaymentProps) {
   const { theme } = useContext(ThemeContext)
-  const styles = getStyles(theme)
+  const insets = useSafeAreaInsets()
+  const styles = getStyles(theme, insets)
   const [loading, setLoading] = useState(false)
   const [paymentData, setPaymentData] = useState<any>(null)
-  /** PUDO locker-to-locker: collected before payment for listing purchases */
+  /** PUDO locker-to-locker: collected before payment for listing purchases; pre-filled from account when provided */
   const [pudoLockerCode, setPudoLockerCode] = useState('')
   const [shippingAddress, setShippingAddress] = useState('')
   // Use ref to persist payment ID even if component state resets
   const paymentIdRef = useRef<string | null>(null)
   // Track if status check is already running to prevent multiple polls
   const statusCheckRunningRef = useRef<boolean>(false)
+
+  // Pre-fill PUDO from account when modal opens for a listing
+  useEffect(() => {
+    if (visible && listingId) {
+      if (initialPudoLockerCode != null) setPudoLockerCode(initialPudoLockerCode)
+      if (initialShippingAddress != null) setShippingAddress(initialShippingAddress)
+    }
+  }, [visible, listingId, initialPudoLockerCode, initialShippingAddress])
 
   // For listing purchases: show shipping form first; don't auto-call createPayment. For non-listing, createPayment runs on open.
   useEffect(() => {
@@ -419,9 +434,9 @@ export function PayFastPayment({
       onRequestClose={onClose}
     >
       <View style={styles.container}>
-        {/* Header */}
+        {/* Header with safe area so close (X) is tappable on Expo / notched devices */}
         <View style={styles.header}>
-          <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+          <TouchableOpacity onPress={onClose} style={styles.closeButton} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
             <Ionicons name="close" size={24} color={theme.textColor} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Complete Payment</Text>
@@ -532,7 +547,7 @@ export function PayFastPayment({
   )
 }
 
-const getStyles = (theme: any) => StyleSheet.create({
+const getStyles = (theme: any, insets: { top: number; bottom: number }) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: theme.backgroundColor,
@@ -541,13 +556,17 @@ const getStyles = (theme: any) => StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: SPACING.containerPadding,
-    paddingTop: SPACING.lg,
+    paddingTop: Math.max(insets.top, SPACING.sm),
     paddingBottom: SPACING.md,
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(255, 255, 255, 0.08)',
   },
   closeButton: {
     padding: SPACING.sm,
+    minWidth: 44,
+    minHeight: 44,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   headerTitle: {
     flex: 1,

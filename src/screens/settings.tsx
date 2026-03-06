@@ -7,10 +7,10 @@ import {
   Dimensions,
   Image,
 } from 'react-native'
+import Ionicons from '@expo/vector-icons/Ionicons'
 import { useContext, useState, useCallback } from 'react'
 import { useNavigation, useFocusEffect } from '@react-navigation/native'
 import { ThemeContext } from '../context'
-import Ionicons from '@expo/vector-icons/Ionicons'
 import { SPACING, TYPOGRAPHY, RADIUS } from '../constants/layout'
 import { SkeletonBox } from '../components/layout/SkeletonBox'
 import { authClient } from '../lib/auth-client'
@@ -72,7 +72,7 @@ export function Settings() {
   const fallbackName = user?.name?.trim()
   const userName = [first, last].filter(Boolean).join(' ') || fallbackName || 'User'
   const userLevel = user?.level ?? 0
-  const profileImage = user?.avatar ? { uri: user.avatar } : require('../../assets/Avatars/guy1.jpg')
+  const hasAvatar = !!user?.avatar
 
   return (
     <ScrollView
@@ -94,7 +94,14 @@ export function Settings() {
         ) : (
           <View style={styles.profileRow}>
             <View style={styles.avatarWrapper}>
-              <Image source={profileImage} style={styles.avatar} resizeMode="cover" />
+              {hasAvatar ? (
+                <Image source={{ uri: user.avatar }} style={styles.avatar} resizeMode="cover" />
+              ) : (
+                <View style={styles.avatarEmpty}>
+                  <Ionicons name="person-outline" size={48} color="rgba(255, 255, 255, 0.4)" />
+                  <Text style={styles.avatarEmptyText}>Add photo</Text>
+                </View>
+              )}
               <View style={styles.trustedBadge}>
                 <Ionicons name="shield-checkmark" size={18} color={theme.tintColor || '#73EC8B'} />
                 <Text style={styles.trustedText}>Trusted</Text>
@@ -176,6 +183,23 @@ const getStyles = (theme: any) =>
       borderWidth: 3,
       borderColor: 'rgba(255, 255, 255, 0.2)',
       backgroundColor: theme.textColor,
+    },
+    avatarEmpty: {
+      width: 112,
+      height: 112,
+      borderRadius: RADIUS.full,
+      borderWidth: 2,
+      borderColor: 'rgba(255, 255, 255, 0.15)',
+      borderStyle: 'dashed',
+      backgroundColor: 'rgba(255, 255, 255, 0.05)',
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    avatarEmptyText: {
+      fontSize: TYPOGRAPHY.caption,
+      fontFamily: theme.regularFont,
+      color: 'rgba(255, 255, 255, 0.4)',
+      marginTop: SPACING.xs,
     },
     trustedBadge: {
       position: 'absolute',

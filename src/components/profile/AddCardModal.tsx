@@ -1,5 +1,6 @@
-import { View, StyleSheet, Modal, TouchableOpacity, ScrollView, TextInput, Alert, ActivityIndicator, Image, FlatList } from 'react-native'
+import { View, StyleSheet, Modal, TouchableOpacity, ScrollView, TextInput, Alert, ActivityIndicator, Image, FlatList, KeyboardAvoidingView, Platform } from 'react-native'
 import { useContext, useState, useEffect, useMemo, useRef } from 'react'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Text } from '../ui/text'
 import Ionicons from '@expo/vector-icons/Ionicons'
 import { ThemeContext } from '../../context'
@@ -16,7 +17,7 @@ try {
   TCG_SETS = []
 }
 
-const CONDITION_OPTIONS = ['Mint', 'Near Mint', 'Lightly Played', 'Moderately Played', 'Heavily Played', 'Damaged'] as const
+const CONDITION_OPTIONS = ['Mint', 'Near Mint', 'LP', 'MP', 'HP', 'Damaged'] as const
 /** Hide Set dropdown in UI (set is still used for image search/lookup). Set true to show again. */
 const SHOW_SET_IN_UI = false
 // USD to ZAR for displaying API prices in South African Rand (override via env if needed)
@@ -48,6 +49,7 @@ export function AddCardModal({
   apiBaseUrl,
 }: AddCardModalProps) {
   const { theme } = useContext(ThemeContext)
+  const insets = useSafeAreaInsets()
   const styles = getStyles(theme)
   const [type, setType] = useState<'card' | 'sealed' | 'slab'>('card')
   const [name, setName] = useState('')
@@ -68,6 +70,7 @@ export function AddCardModal({
   const [cardInfo, setCardInfo] = useState<{ marketPrice?: number; ebayLastSold?: number; currency?: string } | null>(null)
   const [setPickerVisible, setSetPickerVisible] = useState(false)
   const [setSearch, setSetSearch] = useState('')
+  const [conditionAccordionOpen, setConditionAccordionOpen] = useState(false)
   const lookupRef = useRef<() => Promise<void>>(() => Promise.resolve())
 
   // Auto-search for market price and image only after name, card number (3+ digits), and condition are set.
@@ -105,6 +108,7 @@ export function AddCardModal({
       setCardId(null)
       setLookupResults([])
       setCardInfo(null)
+      setConditionAccordionOpen(false)
     }
   }, [visible])
 
@@ -114,55 +118,72 @@ export function AddCardModal({
     return true
   }
 
-  const handlePickImage = async () => {
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync()
-    if (status !== 'granted') {
-      Alert.alert('Permission needed', 'Photo library access is required.')
+  const applyPickedAsset = async (asset: { uri: string; fileSize?: number }) => {
+    if (asset.fileSize && asset.fileSize > 5 * 1024 * 1024) {
+      Alert.alert(
+        'Image Too Large',
+        'The image is too large (over 5MB). Please choose a smaller image or compress it.',
+        [{ text: 'OK' }]
+      )
       return
     }
-    const result = await ImagePicker.launchImageLibraryAsync({
+    try {
+      if (asset.uri && !asset.uri.startsWith('blob:')) {
+        const fileInfo = await FileSystem.getInfoAsync(asset.uri)
+        if (fileInfo.exists && fileInfo.size && fileInfo.size > 5 * 1024 * 1024) {
+          Alert.alert(
+            'Image Too Large',
+            'The image is too large (over 5MB). Please choose a smaller image.',
+            [{ text: 'OK' }]
+          )
+          return
+        }
+      }
+    } catch (error) {
+      console.log('Could not check file size:', error)
+    }
+    setImage(asset.uri)
+    setUploadError(null)
+  }
+
+  const handlePickImage = () => {
+    const options: ImagePicker.ImagePickerOptions = {
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
-      quality: 0.7, // Lower quality for smaller file size
+      quality: 0.7,
       aspect: [1, 1],
-    })
-    if (!result.canceled && result.assets[0]) {
-      const asset = result.assets[0]
-      
-      // Check file size (if available)
-      if (asset.fileSize && asset.fileSize > 5 * 1024 * 1024) { // 5MB limit
-        Alert.alert(
-          'Image Too Large',
-          'The selected image is too large (over 5MB). Please choose a smaller image or compress it.',
-          [
-            { text: 'OK', onPress: () => {} }
-          ]
-        )
-        return
-      }
-      
-      // Check file size by reading file info
-      try {
-        if (asset.uri && !asset.uri.startsWith('blob:')) {
-          const fileInfo = await FileSystem.getInfoAsync(asset.uri)
-          if (fileInfo.exists && fileInfo.size && fileInfo.size > 5 * 1024 * 1024) {
-            Alert.alert(
-              'Image Too Large',
-              'The selected image is too large (over 5MB). Please choose a smaller image.',
-              [
-                { text: 'OK', onPress: () => {} }
-              ]
-            )
-            return
-          }
-        }
-      } catch (error) {
-        console.log('Could not check file size:', error)
-      }
-      
-      setImage(asset.uri)
-      setUploadError(null)
     }
+    Alert.alert(
+      'Add photo',
+      'Take a new photo or choose from your library.',
+      [
+        {
+          text: 'Take photo',
+          onPress: async () => {
+            const { status } = await ImagePicker.requestCameraPermissionsAsync()
+            if (status !== 'granted') {
+              Alert.alert('Permission needed', 'Camera access is required to take a photo.')
+              return
+            }
+            const result = await ImagePicker.launchCameraAsync(options)
+            if (!result.canceled && result.assets[0]) await applyPickedAsset(result.assets[0])
+          },
+        },
+        {
+          text: 'Choose from library',
+          onPress: async () => {
+            const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync()
+            if (status !== 'granted') {
+              Alert.alert('Permission needed', 'Photo library access is required.')
+              return
+            }
+            const result = await ImagePicker.launchImageLibraryAsync(options)
+            if (!result.canceled && result.assets[0]) await applyPickedAsset(result.assets[0])
+          },
+        },
+        { text: 'Cancel', style: 'cancel' },
+      ]
+    )
   }
 
   const handleAdd = async () => {
@@ -322,28 +343,36 @@ export function AddCardModal({
       transparent
       animationType="fade"
       onRequestClose={handleClose}
+      statusBarTranslucent
     >
-      <View style={styles.overlay}>
-        <TouchableOpacity 
-          style={styles.overlayTouchable}
-          activeOpacity={1}
-          onPress={handleClose}
-        />
-        <View style={styles.modalContainer}>
-          {/* Header */}
-          <View style={styles.header}>
-            <Text style={styles.title}>Add to Collection</Text>
-            <TouchableOpacity onPress={handleClose} style={styles.closeButton}>
-              <Ionicons name="close" size={24} color={theme.textColor} />
-            </TouchableOpacity>
-          </View>
+      <KeyboardAvoidingView
+        style={styles.keyboardAvoid}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+      >
+        <View style={styles.overlay}>
+          <TouchableOpacity 
+            style={styles.overlayTouchable}
+            activeOpacity={1}
+            onPress={handleClose}
+          />
+          <View style={styles.modalContainer}>
+            {/* Header */}
+            <View style={[styles.header, { paddingTop: Math.max(insets.top, SPACING.sm) + SPACING.lg }]}>
+              <Text style={styles.title}>Add to Collection</Text>
+              <TouchableOpacity onPress={handleClose} style={styles.closeButton} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
+                <Ionicons name="close" size={24} color={theme.textColor} />
+              </TouchableOpacity>
+            </View>
 
-          <ScrollView
-            showsVerticalScrollIndicator={false}
-            contentContainerStyle={styles.scrollContent}
-            nestedScrollEnabled={true}
-            bounces={false}
-          >
+            <ScrollView
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={styles.scrollContent}
+              nestedScrollEnabled={true}
+              bounces={false}
+              keyboardShouldPersistTaps="handled"
+              keyboardDismissMode="on-drag"
+            >
             {/* Type Selection */}
             <View style={styles.inputSection}>
               <Text style={styles.inputLabel}>Type</Text>
@@ -370,7 +399,7 @@ export function AddCardModal({
 
             {/* Card info: Name, Card number, Set, then Image */}
             <View style={styles.inputSection}>
-              <Text style={styles.inputLabel}>Name *</Text>
+              <Text style={styles.inputLabel}>Name</Text>
               <TextInput
                 style={styles.textInput}
                 value={name}
@@ -387,30 +416,60 @@ export function AddCardModal({
                   style={styles.textInput}
                   value={cardNumber}
                   onChangeText={setCardNumber}
-                  placeholder="e.g., 284 (set number on the card)"
+                  placeholder="e.g., 284"
                   placeholderTextColor="rgba(255, 255, 255, 0.3)"
                   keyboardType="default"
                 />
               </View>
             )}
 
-            {/* Condition – required for cards; above image so we only search market/image after name, number, condition */}
+            {/* Condition accordion for cards */}
             {type === 'card' && (
               <View style={styles.inputSection}>
-                <Text style={styles.inputLabel}>Condition *</Text>
-                <View style={styles.conditionRow}>
-                  {CONDITION_OPTIONS.map((opt) => (
-                    <TouchableOpacity
-                      key={opt}
-                      style={[styles.conditionChip, condition === opt && styles.conditionChipActive]}
-                      onPress={() => setCondition(condition === opt ? '' : opt)}
-                    >
-                      <Text style={[styles.conditionChipText, condition === opt && styles.conditionChipTextActive]} numberOfLines={1}>
-                        {opt}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
+                <Text style={styles.inputLabel}>Condition</Text>
+                <TouchableOpacity
+                  style={[
+                    styles.textInput,
+                    styles.setSelectorButton,
+                    conditionAccordionOpen && styles.accordionTriggerOpen,
+                  ]}
+                  onPress={() => setConditionAccordionOpen(!conditionAccordionOpen)}
+                  activeOpacity={0.7}
+                >
+                  <Text style={condition ? styles.setSelectorText : styles.setSelectorPlaceholder} numberOfLines={1}>
+                    {condition || 'Select condition...'}
+                  </Text>
+                  <Ionicons
+                    name={conditionAccordionOpen ? 'chevron-up' : 'chevron-down'}
+                    size={20}
+                    color="rgba(255, 255, 255, 0.5)"
+                  />
+                </TouchableOpacity>
+                {conditionAccordionOpen && (
+                  <View style={styles.accordionBody}>
+                    {CONDITION_OPTIONS.map((opt) => {
+                      const isSelected = condition === opt
+                      return (
+                        <TouchableOpacity
+                          key={opt}
+                          style={[styles.accordionItem, isSelected && styles.accordionItemActive]}
+                          onPress={() => {
+                            setCondition(opt)
+                            setConditionAccordionOpen(false)
+                          }}
+                          activeOpacity={0.7}
+                        >
+                          <Text style={[styles.accordionItemText, isSelected && styles.accordionItemTextActive]}>
+                            {opt}
+                          </Text>
+                          {isSelected && (
+                            <Ionicons name="checkmark-circle" size={20} color={theme.tintColor || '#73EC8B'} />
+                          )}
+                        </TouchableOpacity>
+                      )
+                    })}
+                  </View>
+                )}
               </View>
             )}
 
@@ -491,8 +550,29 @@ export function AddCardModal({
                   const displayUri = getPokemonTcgImageUrlFromSetNumberIfOnCdn(set, cardNumber)
                   if (!displayUri) {
                     return (
-                      <View style={styles.cardImageBox}>
-                        <Text style={styles.noImageText}>No img found</Text>
+                      <View style={[styles.cardImageBox, styles.cardImageBoxInfo]}>
+                        {cardInfo && (
+                          <View style={styles.cardInfoPrices}>
+                            <View style={styles.cardInfoPriceRow}>
+                              <View style={styles.cardInfoPriceLabelRow}>
+                                <Ionicons name="trending-up-outline" size={18} color={theme.tintColor || '#73EC8B'} style={styles.cardInfoPriceIcon} />
+                                <Text style={styles.cardInfoPriceLabel}>Market</Text>
+                              </View>
+                              <Text style={styles.cardInfoPriceValue}>
+                                {cardInfo.marketPrice != null ? formatZar(usdToZar(cardInfo.marketPrice)) : '—'}
+                              </Text>
+                            </View>
+                            <View style={[styles.cardInfoPriceRow, styles.cardInfoPriceRowLast]}>
+                              <View style={styles.cardInfoPriceLabelRow}>
+                                <Ionicons name="pricetag-outline" size={18} color={theme.tintColor || '#73EC8B'} style={styles.cardInfoPriceIcon} />
+                                <Text style={styles.cardInfoPriceLabel}>eBay last sold</Text>
+                              </View>
+                              <Text style={styles.cardInfoPriceValue}>
+                                {cardInfo.ebayLastSold != null ? formatZar(usdToZar(cardInfo.ebayLastSold)) : '—'}
+                              </Text>
+                            </View>
+                          </View>
+                        )}
                       </View>
                     )
                   }
@@ -525,8 +605,8 @@ export function AddCardModal({
 
             {/* Searching market: runs only after name, card number (3+) and condition are set */}
             {type === 'card' && (
-              <View style={styles.inputSection}>
-                <Text style={styles.searchingMarketLabel}>Searching market</Text>
+              <View style={[styles.inputSection, styles.searchingMarketSection]}>
+                <Text style={styles.searchingMarketLabel}>{cardId ? 'Matched' : 'Searching market'}</Text>
                 {!condition.trim() && (
                   <Text style={styles.searchingMarketHint}>Select condition above to search market prices</Text>
                 )}
@@ -559,53 +639,80 @@ export function AddCardModal({
                     ))}
                   </View>
                 )}
-                {cardId && (
+                {cardId && cardInfo && (
                   <View style={styles.cardInfoBox}>
-                    <View style={styles.cardInfoHeader}>
-                      <Ionicons name="checkmark-circle" size={18} color={theme.tintColor || '#73EC8B'} />
-                      <Text style={styles.cardInfoTitle}>Matched</Text>
-                    </View>
-                    {cardNumber ? (
-                      <Text style={styles.cardInfoSubtitle}>Card #{cardNumber}</Text>
-                    ) : null}
-                    {cardInfo && (
-                      <View style={styles.cardInfoPrices}>
+                    <View style={styles.cardInfoPrices}>
                         <View style={styles.cardInfoPriceRow}>
-                          <Text style={styles.cardInfoPriceLabel}>Market</Text>
+                          <View style={styles.cardInfoPriceLabelRow}>
+                            <Ionicons name="trending-up-outline" size={18} color={theme.tintColor || '#73EC8B'} style={styles.cardInfoPriceIcon} />
+                            <Text style={styles.cardInfoPriceLabel}>Market</Text>
+                          </View>
                           <Text style={styles.cardInfoPriceValue}>
                             {cardInfo.marketPrice != null ? formatZar(usdToZar(cardInfo.marketPrice)) : '—'}
                           </Text>
                         </View>
-                        <View style={styles.cardInfoPriceRow}>
-                          <Text style={styles.cardInfoPriceLabel}>eBay last sold</Text>
+                        <View style={[styles.cardInfoPriceRow, styles.cardInfoPriceRowLast]}>
+                          <View style={styles.cardInfoPriceLabelRow}>
+                            <Ionicons name="pricetag-outline" size={18} color={theme.tintColor || '#73EC8B'} style={styles.cardInfoPriceIcon} />
+                            <Text style={styles.cardInfoPriceLabel}>eBay last sold</Text>
+                          </View>
                           <Text style={styles.cardInfoPriceValue}>
                             {cardInfo.ebayLastSold != null ? formatZar(usdToZar(cardInfo.ebayLastSold)) : '—'}
                           </Text>
                         </View>
-                      </View>
-                    )}
+                    </View>
                   </View>
                 )}
               </View>
             )}
 
-            {/* Condition for sealed/slab (cards have condition above image) */}
+            {/* Condition accordion for sealed/slab */}
             {type !== 'card' && (
               <View style={styles.inputSection}>
                 <Text style={styles.inputLabel}>Condition</Text>
-                <View style={styles.conditionRow}>
-                  {CONDITION_OPTIONS.map((opt) => (
-                    <TouchableOpacity
-                      key={opt}
-                      style={[styles.conditionChip, condition === opt && styles.conditionChipActive]}
-                      onPress={() => setCondition(condition === opt ? '' : opt)}
-                    >
-                      <Text style={[styles.conditionChipText, condition === opt && styles.conditionChipTextActive]} numberOfLines={1}>
-                        {opt}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
+                <TouchableOpacity
+                  style={[
+                    styles.textInput,
+                    styles.setSelectorButton,
+                    conditionAccordionOpen && styles.accordionTriggerOpen,
+                  ]}
+                  onPress={() => setConditionAccordionOpen(!conditionAccordionOpen)}
+                  activeOpacity={0.7}
+                >
+                  <Text style={condition ? styles.setSelectorText : styles.setSelectorPlaceholder} numberOfLines={1}>
+                    {condition || 'Select condition...'}
+                  </Text>
+                  <Ionicons
+                    name={conditionAccordionOpen ? 'chevron-up' : 'chevron-down'}
+                    size={20}
+                    color="rgba(255, 255, 255, 0.5)"
+                  />
+                </TouchableOpacity>
+                {conditionAccordionOpen && (
+                  <View style={styles.accordionBody}>
+                    {CONDITION_OPTIONS.map((opt) => {
+                      const isSelected = condition === opt
+                      return (
+                        <TouchableOpacity
+                          key={opt}
+                          style={[styles.accordionItem, isSelected && styles.accordionItemActive]}
+                          onPress={() => {
+                            setCondition(opt)
+                            setConditionAccordionOpen(false)
+                          }}
+                          activeOpacity={0.7}
+                        >
+                          <Text style={[styles.accordionItemText, isSelected && styles.accordionItemTextActive]}>
+                            {opt}
+                          </Text>
+                          {isSelected && (
+                            <Ionicons name="checkmark-circle" size={20} color={theme.tintColor || '#73EC8B'} />
+                          )}
+                        </TouchableOpacity>
+                      )
+                    })}
+                  </View>
+                )}
               </View>
             )}
 
@@ -624,21 +731,7 @@ export function AddCardModal({
               </View>
             )}
 
-            {/* Description */}
-            <View style={styles.inputSection}>
-              <Text style={styles.inputLabel}>Description</Text>
-              <TextInput
-                style={[styles.textInput, styles.textArea]}
-                value={description}
-                onChangeText={setDescription}
-                placeholder="Additional details..."
-                placeholderTextColor="rgba(255, 255, 255, 0.3)"
-                multiline
-                numberOfLines={3}
-              />
-            </View>
-
-            {/* Request Vaulting Option */}
+            {/* Request Verification Option */}
             <View style={styles.inputSection}>
               <TouchableOpacity
                 style={styles.vaultingOption}
@@ -651,9 +744,9 @@ export function AddCardModal({
                   )}
                 </View>
                 <View style={styles.vaultingTextContainer}>
-                  <Text style={styles.vaultingLabel}>Request Vaulting</Text>
+                  <Text style={styles.vaultingLabel}>Request Verification</Text>
                   <Text style={styles.vaultingDescription}>
-                    Send this card to our vault for safe storage and verification before selling
+                    Send your card in so we can verify you have it. Buyers get protection on high-value cards.
                   </Text>
                 </View>
               </TouchableOpacity>
@@ -702,11 +795,15 @@ export function AddCardModal({
           </View>
         </View>
       </View>
+      </KeyboardAvoidingView>
     </Modal>
   )
 }
 
 const getStyles = (theme: any) => StyleSheet.create({
+  keyboardAvoid: {
+    flex: 1,
+  },
   overlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.7)',
@@ -869,32 +966,47 @@ const getStyles = (theme: any) => StyleSheet.create({
   typeOptionTextActive: {
     color: '#000',
   },
-  conditionRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+  accordionTriggerOpen: {
+    borderBottomLeftRadius: 0,
+    borderBottomRightRadius: 0,
+    borderBottomWidth: 0,
+  },
+  accordionBody: {
+    marginTop: -1,
+    paddingVertical: SPACING.sm,
+    paddingHorizontal: SPACING.xs,
+    borderWidth: 1,
+    borderTopWidth: 0,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+    borderBottomLeftRadius: RADIUS.md,
+    borderBottomRightRadius: RADIUS.md,
+    backgroundColor: 'rgba(255, 255, 255, 0.03)',
     gap: SPACING.xs,
   },
-  conditionChip: {
-    paddingVertical: SPACING.sm,
+  accordionItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: SPACING.md,
     paddingHorizontal: SPACING.md,
-    borderRadius: RADIUS.md,
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderRadius: RADIUS.sm,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
   },
-  conditionChipActive: {
-    backgroundColor: theme.tintColor || '#73EC8B',
-    borderColor: theme.tintColor || '#73EC8B',
+  accordionItemActive: {
+    backgroundColor: 'rgba(115, 236, 139, 0.12)',
+    borderColor: 'rgba(115, 236, 139, 0.4)',
   },
-  conditionChipText: {
-    fontSize: TYPOGRAPHY.bodySmall,
+  accordionItemText: {
+    fontSize: TYPOGRAPHY.body,
     fontFamily: theme.regularFont,
-    color: 'rgba(255, 255, 255, 0.8)',
-    maxWidth: 120,
+    color: theme.textColor,
   },
-  conditionChipTextActive: {
-    color: '#000',
+  accordionItemTextActive: {
     fontFamily: theme.semiBoldFont,
+    color: theme.tintColor || '#73EC8B',
+    fontWeight: '600',
   },
   lookupResults: {
     marginTop: SPACING.sm,
@@ -943,79 +1055,91 @@ const getStyles = (theme: any) => StyleSheet.create({
     fontFamily: theme.regularFont,
     color: 'rgba(255, 255, 255, 0.5)',
   },
+  searchingMarketSection: {
+    padding: SPACING.lg,
+    borderRadius: RADIUS.lg,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.12)',
+    backgroundColor: 'rgba(255, 255, 255, 0.04)',
+  },
   searchingMarketLabel: {
-    fontSize: TYPOGRAPHY.body,
+    fontSize: TYPOGRAPHY.h2,
     fontFamily: theme.semiBoldFont,
     color: theme.textColor,
-    marginBottom: SPACING.xs,
+    marginBottom: SPACING.sm,
     fontWeight: '600',
   },
   searchingMarketHint: {
-    fontSize: TYPOGRAPHY.bodySmall,
+    fontSize: TYPOGRAPHY.body,
     fontFamily: theme.regularFont,
-    color: 'rgba(255, 255, 255, 0.6)',
-    marginBottom: SPACING.sm,
+    color: 'rgba(255, 255, 255, 0.7)',
+    marginBottom: SPACING.md,
   },
   searchingMarketLoading: {
     flexDirection: 'row',
     alignItems: 'center',
+    paddingVertical: SPACING.md,
     marginBottom: SPACING.xs,
   },
   searchingMarketLoadingText: {
-    marginLeft: SPACING.sm,
-    fontSize: TYPOGRAPHY.bodySmall,
-    fontFamily: theme.regularFont,
-    color: 'rgba(255, 255, 255, 0.8)',
-  },
-  lookupResultsHint: {
-    fontSize: TYPOGRAPHY.bodySmall,
-    fontFamily: theme.regularFont,
-    color: 'rgba(255, 255, 255, 0.6)',
-    marginBottom: SPACING.xs,
-  },
-  cardInfoBox: {
-    marginTop: SPACING.sm,
-    padding: SPACING.md,
-    borderRadius: RADIUS.md,
-    borderWidth: 1,
-    borderColor: theme.tintColor || '#73EC8B',
-    backgroundColor: 'rgba(115, 236, 139, 0.06)',
-  },
-  cardInfoHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: SPACING.xs,
-    marginBottom: SPACING.xs,
-  },
-  cardInfoTitle: {
+    marginLeft: SPACING.md,
     fontSize: TYPOGRAPHY.body,
     fontFamily: theme.semiBoldFont,
     color: theme.textColor,
     fontWeight: '600',
   },
-  cardInfoSubtitle: {
-    fontSize: TYPOGRAPHY.bodySmall,
+  lookupResultsHint: {
+    fontSize: TYPOGRAPHY.body,
     fontFamily: theme.regularFont,
     color: 'rgba(255, 255, 255, 0.7)',
     marginBottom: SPACING.sm,
   },
+  cardInfoBox: {
+    marginTop: SPACING.md,
+    padding: SPACING.lg,
+    borderRadius: RADIUS.lg,
+    borderWidth: 1.5,
+    borderColor: theme.tintColor || '#73EC8B',
+    backgroundColor: 'transparent',
+  },
+  cardInfoTitle: {
+    fontSize: TYPOGRAPHY.h3,
+    fontFamily: theme.semiBoldFont,
+    color: theme.textColor,
+    fontWeight: '600',
+    marginBottom: SPACING.sm,
+  },
   cardInfoPrices: {
-    gap: SPACING.xs,
+    gap: 0,
   },
   cardInfoPriceRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    paddingVertical: SPACING.sm,
+    paddingHorizontal: 0,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255, 255, 255, 0.06)',
+  },
+  cardInfoPriceRowLast: {
+    borderBottomWidth: 0,
+  },
+  cardInfoPriceLabelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  cardInfoPriceIcon: {
+    marginRight: SPACING.sm,
   },
   cardInfoPriceLabel: {
-    fontSize: TYPOGRAPHY.bodySmall,
+    fontSize: TYPOGRAPHY.body,
     fontFamily: theme.regularFont,
-    color: 'rgba(255, 255, 255, 0.6)',
+    color: 'rgba(255, 255, 255, 0.85)',
   },
   cardInfoPriceValue: {
-    fontSize: TYPOGRAPHY.bodySmall,
+    fontSize: TYPOGRAPHY.h3,
     fontFamily: theme.semiBoldFont,
-    color: theme.textColor,
+    color: theme.tintColor || '#73EC8B',
     fontWeight: '600',
   },
   cardInfoText: {
@@ -1032,6 +1156,11 @@ const getStyles = (theme: any) => StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     minHeight: 140,
+  },
+  cardImageBoxInfo: {
+    justifyContent: 'flex-start',
+    alignItems: 'stretch',
+    padding: SPACING.lg,
   },
   cardImage: {
     width: '100%',

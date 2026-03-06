@@ -36,6 +36,7 @@ type ShopStackParamList = {
     listingId?: number
     storeId?: number
     sellerId?: string
+    storeName?: string
   }
 }
 
@@ -82,6 +83,7 @@ export function RecentListings({ listings }: RecentListingsProps) {
                 listingId: item.listingId ?? item.id,
                 storeId: item.storeId,
                 sellerId: item.sellerId,
+                storeName: item.storeName || item.sellerName || undefined,
               })
             }}
             activeOpacity={0.8}

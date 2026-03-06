@@ -142,17 +142,16 @@ export function Login() {
       >
           <View style={styles.content}>
             <View style={styles.header}>
-              <View style={styles.logoContainer}>
-                <Text style={styles.logoEmoji}>🎴</Text>
-              </View>
+              <Text style={styles.headerEyebrow}>
+                {isSignUp ? 'Create account' : 'Sign in'}
+              </Text>
               <Text style={styles.title}>
-                {isSignUp ? 'Create Account' : 'Welcome Back'}
+                {isSignUp ? 'Welcome to GradeIt' : 'Welcome Back'}
               </Text>
               <Text style={styles.subtitle}>
-                {isSignUp 
-                  ? 'Join GradeIt and start your collecting journey'
-                  : 'Sign in to continue to GradeIt'
-                }
+                {isSignUp
+                  ? 'Create your profile, track your portfolio and list cards to sell.'
+                  : 'Sign in to manage your collection, portfolio and store.'}
               </Text>
             </View>
 
@@ -315,22 +314,12 @@ const getStyles = (theme: any) => StyleSheet.create({
     paddingVertical: SPACING['4xl'],
   },
   header: {
-    alignItems: 'center',
     marginBottom: SPACING['4xl'],
+    alignItems: 'flex-start',
   },
   logoContainer: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: theme.cardBackground || 'rgba(255, 255, 255, 0.1)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: SPACING.xl,
-    borderWidth: 2,
-    borderColor: theme.borderColor || 'rgba(255, 255, 255, 0.2)',
-  },
-  logoEmoji: {
-    fontSize: 40,
+    width: 0,
+    height: 0,
   },
   title: {
     fontSize: TYPOGRAPHY.h1 + 4,
@@ -343,7 +332,15 @@ const getStyles = (theme: any) => StyleSheet.create({
     fontSize: TYPOGRAPHY.body,
     fontFamily: theme.regularFont,
     color: theme.mutedForegroundColor,
-    textAlign: 'center',
+    textAlign: 'left',
+  },
+  headerEyebrow: {
+    fontSize: TYPOGRAPHY.bodySmall,
+    fontFamily: theme.semiBoldFont,
+    color: theme.tintColor || '#73EC8B',
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+    marginBottom: SPACING.xs,
   },
   form: {
     width: '100%',

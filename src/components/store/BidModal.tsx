@@ -1,5 +1,6 @@
 import { View, StyleSheet, Modal, TouchableOpacity, ScrollView } from 'react-native'
 import { useContext, useState } from 'react'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Text } from '../ui/text'
 import { Button } from '../ui/button'
 import { Input } from '../ui/input'
@@ -34,6 +35,7 @@ export function BidModal({
   onPlaceBid,
 }: BidModalProps) {
   const { theme } = useContext(ThemeContext)
+  const insets = useSafeAreaInsets()
   const styles = getStyles(theme)
   const [bidAmount, setBidAmount] = useState('')
 
@@ -56,9 +58,9 @@ export function BidModal({
     >
       <View style={styles.overlay}>
         <View style={styles.modalContainer}>
-          <View style={styles.header}>
+          <View style={[styles.header, { paddingTop: Math.max(insets.top, SPACING.sm) + SPACING.md }]}>
             <Text style={styles.title}>Place a Bid</Text>
-            <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+            <TouchableOpacity onPress={onClose} style={styles.closeButton} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
               <Ionicons name="close" size={24} color={theme.textColor} />
             </TouchableOpacity>
           </View>

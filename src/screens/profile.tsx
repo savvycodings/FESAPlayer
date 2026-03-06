@@ -352,7 +352,7 @@ export function Profile() {
     }
   }
 
-  // Request vaulting for multiple cards
+  // Request verification for multiple cards
   const requestBulkVaulting = async (collectionIds: number[]) => {
     try {
       // Check session
@@ -381,15 +381,15 @@ export function Profile() {
       const data = await response.json()
 
       if (response.ok) {
-        Alert.alert('Success', `Vaulting request created for ${collectionIds.length} ${collectionIds.length === 1 ? 'card' : 'cards'}!`)
+        Alert.alert('Success', `Verification request created for ${collectionIds.length} ${collectionIds.length === 1 ? 'card' : 'cards'}!`)
         // Refresh collections
         await fetchCollections()
       } else {
-        Alert.alert('Error', data.message || 'Failed to create vaulting request')
+        Alert.alert('Error', data.message || 'Failed to create verification request')
       }
     } catch (error: any) {
-      console.error('Error requesting bulk vaulting:', error)
-      Alert.alert('Error', 'Failed to create vaulting request')
+      console.error('Error requesting bulk verification:', error)
+      Alert.alert('Error', 'Failed to create verification request')
     }
   }
 
@@ -539,7 +539,7 @@ export function Profile() {
           level={userLevel}
           currentXP={currentXP}
           xpToNextLevel={xpToNextLevel}
-          profileImage={user?.avatar ? { uri: user.avatar } : require('../../assets/Avatars/guy1.jpg')}
+          profileImage={user?.avatar ? { uri: user.avatar } : undefined}
           productsCount={user?.productsCount ?? 0}
           followersCount={user?.followersCount ?? 0}
           salesCount={user?.salesCount ?? 0}
@@ -570,7 +570,7 @@ export function Profile() {
         />
 
         <View style={styles.contentWrapper}>
-          {/* Section Header: title + "See all" subtext on left; Add Card + Vault on right inline with title */}
+          {/* Section Header: title + "See all" subtext on left; Add Card + Verify on right inline with title */}
           <View style={styles.sectionHeader}>
             <View style={styles.sectionHeaderLeft}>
               <Text style={styles.sectionTitle}>Your Products</Text>
@@ -594,7 +594,7 @@ export function Profile() {
                 onPress={() => setIsBulkVaultingModalVisible(true)}
               >
                 <Ionicons name="lock-closed-outline" size={18} color={theme.tintColor || '#73EC8B'} />
-                <Text style={styles.vaultButtonText}>Vault</Text>
+                <Text style={styles.vaultButtonText}>Verify</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -740,7 +740,7 @@ export function Profile() {
         apiBaseUrl={DOMAIN}
       />
 
-      {/* Bulk Vaulting Modal */}
+      {/* Bulk Verification Modal */}
       <BulkVaultingModal
         visible={isBulkVaultingModalVisible}
         collections={collections.map(c => ({

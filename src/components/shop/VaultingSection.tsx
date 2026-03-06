@@ -1,7 +1,6 @@
-import { View, StyleSheet, TouchableOpacity, Image } from 'react-native'
+import { View, StyleSheet, Image } from 'react-native'
 import { useContext } from 'react'
 import { Text } from '../ui/text'
-import Ionicons from '@expo/vector-icons/Ionicons'
 import { ThemeContext } from '../../context'
 import { SPACING, TYPOGRAPHY, RADIUS } from '../../constants/layout'
 
@@ -13,9 +12,9 @@ export function VaultingSection() {
     <View style={styles.vaultingCard}>
       {/* Title */}
       <View style={styles.vaultingTopContent}>
-        <Text style={styles.vaultingLabel}>VAULTING</Text>
-        <Text style={styles.vaultingTitle}>Get Your Cards Vaulted</Text>
-        <Text style={styles.vaultingTitle}>and Professionally Graded</Text>
+        <Text style={styles.vaultingLabel}>VERIFICATION</Text>
+        <Text style={styles.vaultingTitle}>Get Your Cards Verified</Text>
+        <Text style={styles.vaultingTitle}>Buyer protection on high value cards</Text>
       </View>
 
       {/* Image */}
@@ -29,22 +28,8 @@ export function VaultingSection() {
 
       {/* Description */}
       <Text style={styles.vaultingDescription}>
-        Secure storage for your valuable cards in a climate controlled facility. Get your cards professionally graded and authenticated by industry experts before vaulting. We can sell them for you when you're ready.
+        Send your cards in so we can verify you have them. We don't store your cards. We verify and return them. Buyers get protection on high value listings when you're ready to sell.
       </Text>
-
-      {/* Button */}
-      <TouchableOpacity
-        style={styles.vaultingButton}
-        activeOpacity={0.7}
-      >
-        <Ionicons
-          name="shield-checkmark-outline"
-          size={18}
-          color="#000000"
-          style={styles.shieldIcon}
-        />
-        <Text style={styles.vaultingButtonText}>Apply to Vault Today</Text>
-      </TouchableOpacity>
     </View>
   )
 }
@@ -95,28 +80,5 @@ const getStyles = (theme: any) => StyleSheet.create({
     fontFamily: theme.regularFont,
     color: theme.mutedForegroundColor || 'rgba(255, 255, 255, 0.8)',
     lineHeight: 22,
-    marginBottom: SPACING.lg,
-  },
-  vaultingButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    alignSelf: 'flex-start',
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: RADIUS.lg,
-    backgroundColor: theme.tintColor || '#73EC8B',
-    borderWidth: 1,
-    borderColor: theme.tintColor || '#73EC8B',
-  },
-  shieldIcon: {
-    marginRight: 8,
-  },
-  vaultingButtonText: {
-    fontSize: TYPOGRAPHY.body,
-    fontFamily: theme.semiBoldFont,
-    color: '#000000',
-    fontWeight: '600',
-    letterSpacing: 0.3,
   },
 })

@@ -328,7 +328,10 @@ export function ProfileHeader({
                     resizeMode="cover"
                   />
                 ) : (
-                  <Text style={styles.profileInitials}>{initials}</Text>
+                  <View style={styles.profileImageEmpty}>
+                    <Ionicons name="person-outline" size={44} color="rgba(255, 255, 255, 0.35)" />
+                    <Text style={styles.profileImageEmptyText}>Add photo</Text>
+                  </View>
                 )}
                 {isHovering && (
                   <View style={styles.editIconContainer}>
@@ -765,6 +768,19 @@ const getStyles = (theme: any) => StyleSheet.create({
     fontFamily: theme.boldFont,
     fontSize: TYPOGRAPHY.h2,
     fontWeight: '600',
+  },
+  profileImageEmpty: {
+    width: '100%',
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+  },
+  profileImageEmptyText: {
+    fontSize: 10,
+    fontFamily: theme.regularFont,
+    color: 'rgba(255, 255, 255, 0.35)',
+    marginTop: 2,
   },
   trustedBadge: {
     position: 'absolute',

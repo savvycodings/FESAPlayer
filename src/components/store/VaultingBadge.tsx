@@ -26,7 +26,7 @@ export function VaultingBadge({ status, size = 'md', muted, textOnly }: Vaulting
         return {
           icon: 'shield-checkmark' as const,
           color: '#FFFFFF',
-          label: 'Vaulted',
+          label: 'Verified',
           bgColor: STORE_COLORS.vaulted,
           borderColor: STORE_COLORS.vaulted,
         }
@@ -50,7 +50,7 @@ export function VaultingBadge({ status, size = 'md', muted, textOnly }: Vaulting
         return {
           icon: 'hourglass-outline' as const,
           color: '#EF4444', // Red text and icon
-          label: 'Busy Vaulting',
+          label: 'Verification in progress',
           bgColor: '#FFFFFF', // White background
           borderColor: '#EF4444', // Red border
         }

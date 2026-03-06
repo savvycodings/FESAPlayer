@@ -1,5 +1,6 @@
 import { View, StyleSheet, Modal, TouchableOpacity, ScrollView, TextInput, Image, Alert, ActivityIndicator } from 'react-native'
 import { useContext, useState, useEffect } from 'react'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import * as ImagePicker from 'expo-image-picker'
 import { Text } from '../ui/text'
 import Ionicons from '@expo/vector-icons/Ionicons'
@@ -36,6 +37,7 @@ export function ListItemModal({
   minPriceFromMarketUsd,
 }: ListItemModalProps) {
   const { theme } = useContext(ThemeContext)
+  const insets = useSafeAreaInsets()
   const styles = getStyles(theme)
   const [price, setPrice] = useState('')
   const [description, setDescription] = useState('')
@@ -76,23 +78,51 @@ export function ListItemModal({
     return true
   }
 
-  const pickImage = (slot: 'front' | 'back' | 'close') => async () => {
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync()
-    if (status !== 'granted') {
-      Alert.alert('Permission needed', 'Photo library access is required to add listing photos.')
-      return
-    }
-    const result = await ImagePicker.launchImageLibraryAsync({
+  const setSlotFromUri = (slot: 'front' | 'back' | 'close', uri: string) => {
+    if (slot === 'front') setFrontUri(uri)
+    else if (slot === 'back') setBackUri(uri)
+    else setCloseUri(uri)
+  }
+
+  const pickImage = (slot: 'front' | 'back' | 'close') => () => {
+    const aspect: [number, number] = slot === 'close' ? [1, 1] : [3, 4]
+    const options: ImagePicker.ImagePickerOptions = {
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
       quality: 0.7,
-      aspect: slot === 'close' ? [1, 1] : [3, 4], // card-like for front/back
-    })
-    if (!result.canceled && result.assets[0]) {
-      if (slot === 'front') setFrontUri(result.assets[0].uri)
-      else if (slot === 'back') setBackUri(result.assets[0].uri)
-      else setCloseUri(result.assets[0].uri)
+      aspect,
     }
+    Alert.alert(
+      'Add photo',
+      'Take a new photo or choose from your library.',
+      [
+        {
+          text: 'Take photo',
+          onPress: async () => {
+            const { status } = await ImagePicker.requestCameraPermissionsAsync()
+            if (status !== 'granted') {
+              Alert.alert('Permission needed', 'Camera access is required to take listing photos.')
+              return
+            }
+            const result = await ImagePicker.launchCameraAsync(options)
+            if (!result.canceled && result.assets[0]) setSlotFromUri(slot, result.assets[0].uri)
+          },
+        },
+        {
+          text: 'Choose from library',
+          onPress: async () => {
+            const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync()
+            if (status !== 'granted') {
+              Alert.alert('Permission needed', 'Photo library access is required to add listing photos.')
+              return
+            }
+            const result = await ImagePicker.launchImageLibraryAsync(options)
+            if (!result.canceled && result.assets[0]) setSlotFromUri(slot, result.assets[0].uri)
+          },
+        },
+        { text: 'Cancel', style: 'cancel' },
+      ]
+    )
   }
 
   const handleList = async () => {
@@ -169,9 +199,9 @@ export function ListItemModal({
         />
         <View style={styles.modalContainer}>
           {/* Header */}
-          <View style={styles.header}>
+          <View style={[styles.header, { paddingTop: Math.max(insets.top, SPACING.sm) + SPACING.lg }]}>
             <Text style={styles.title}>{isEditing ? 'Edit Listing' : 'List Your Item'}</Text>
-            <TouchableOpacity onPress={handleClose} style={styles.closeButton}>
+            <TouchableOpacity onPress={handleClose} style={styles.closeButton} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
               <Ionicons name="close" size={24} color={theme.textColor} />
             </TouchableOpacity>
           </View>

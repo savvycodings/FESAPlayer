@@ -1,5 +1,6 @@
 import { View, StyleSheet, Modal, TouchableOpacity, ScrollView, Alert, ActivityIndicator } from 'react-native'
 import { useContext, useState, useEffect } from 'react'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Text } from '../ui/text'
 import Ionicons from '@expo/vector-icons/Ionicons'
 import { ThemeContext } from '../../context'
@@ -28,6 +29,7 @@ export function BulkVaultingModal({
   onRequestVaulting,
 }: BulkVaultingModalProps) {
   const { theme } = useContext(ThemeContext)
+  const insets = useSafeAreaInsets()
   const styles = getStyles(theme)
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set())
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -58,7 +60,7 @@ export function BulkVaultingModal({
 
   const handleSubmit = async () => {
     if (selectedIds.size === 0) {
-      Alert.alert('No Selection', 'Please select at least one card to request vaulting.')
+      Alert.alert('No Selection', 'Please select at least one card to request verification.')
       return
     }
 
@@ -68,7 +70,7 @@ export function BulkVaultingModal({
       setSelectedIds(new Set())
       onClose()
     } catch (error) {
-      console.error('Error requesting vaulting:', error)
+      console.error('Error requesting verification:', error)
     } finally {
       setIsSubmitting(false)
     }
@@ -94,14 +96,14 @@ export function BulkVaultingModal({
         />
         <View style={styles.modalContainer}>
           {/* Header */}
-          <View style={styles.header}>
+          <View style={[styles.header, { paddingTop: Math.max(insets.top, SPACING.sm) + SPACING.lg }]}>
             <View style={styles.headerLeft}>
-              <Text style={styles.title}>Request Vaulting</Text>
+              <Text style={styles.title}>Request Verification</Text>
               <Text style={styles.subtitle}>
-                Select cards to send to our vault for safe storage
+                Send your cards in so we can verify you have them. Buyers get protection on high-value cards.
               </Text>
             </View>
-            <TouchableOpacity onPress={handleClose} style={styles.closeButton}>
+            <TouchableOpacity onPress={handleClose} style={styles.closeButton} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
               <Ionicons name="close" size={24} color={theme.textColor} />
             </TouchableOpacity>
           </View>
@@ -210,7 +212,7 @@ export function BulkVaultingModal({
                 <ActivityIndicator size="small" color="#000" />
               ) : (
                 <Text style={styles.buttonTextPrimary}>
-                  Request Vaulting ({selectedIds.size})
+                  Request Verification ({selectedIds.size})
                 </Text>
               )}
             </TouchableOpacity>

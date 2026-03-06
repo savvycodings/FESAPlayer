@@ -74,6 +74,9 @@ export function Product() {
   const [paymentType, setPaymentType] = useState<'buy' | 'bid'>('buy')
   /** Set when opening payment for a listing so PayFastPayment has buyerId and user details */
   const [paymentBuyer, setPaymentBuyer] = useState<{ id: string; email: string; firstName: string; lastName: string } | null>(null)
+  /** PUDO from account, passed to PayFastPayment so shipping form is pre-filled */
+  const [initialPudoLockerCode, setInitialPudoLockerCode] = useState('')
+  const [initialShippingAddress, setInitialShippingAddress] = useState('')
   const [removing, setRemoving] = useState(false)
   const [chartData, setChartData] = useState<{ x: number; y: number }[]>([])
   const [chartDates, setChartDates] = useState<string[]>([])
@@ -93,20 +96,12 @@ export function Product() {
   const displayDescription = description || 
     'Premium trading card product with authentic cards and exclusive items. Perfect for collectors and players alike.'
 
-  // Bids data (used when not a store listing)
-  const bidsData = [
-    { avatar: require('../../assets/Avatars/guy1.jpg'), name: 'Alex', bid: 145 },
-    { avatar: require('../../assets/Avatars/guy2.jpg'), name: 'Michael', bid: 142 },
-    { avatar: require('../../assets/Avatars/guy3.jpg'), name: 'David', bid: 140 },
-    { avatar: require('../../assets/Avatars/guy4.jpg'), name: 'Emily', bid: 138 },
-    { avatar: require('../../assets/Avatars/guy5.jpg'), name: 'Sarah', bid: 135 },
-  ]
-
+  // Bids: empty by default so we show actual count (0 until you have a bids API)
+  const bidsData: { avatar?: any; name: string; bid: number }[] = []
   const highestBid = bidsData.length > 0 ? Math.max(...bidsData.map(b => b.bid)) : 0
-  // For store listings, use the listed price for Buy Now and minimum bid. Otherwise use mock bid-based prices.
   const isListing = category === 'listing'
-  const buyNowPrice = isListing ? displayPrice : highestBid + 20
-  const minBidPrice = isListing ? displayPrice : highestBid + 1
+  const buyNowPrice = isListing ? displayPrice : (highestBid > 0 ? highestBid + 20 : displayPrice)
+  const minBidPrice = isListing ? displayPrice : (highestBid > 0 ? highestBid + 1 : displayPrice)
 
   const USD_TO_ZAR = Number(process.env.EXPO_PUBLIC_USD_TO_ZAR) || 16
 
@@ -177,6 +172,26 @@ export function Product() {
           firstName: user.firstName ?? nameParts[0] ?? 'User',
           lastName: user.lastName ?? nameParts.slice(1).join(' ') ?? '',
         })
+        // Pre-fill PUDO from account so seller knows where to send
+        const token = (session?.data as any)?.session?.token
+        const baseUrl = DOMAIN?.endsWith('/') ? DOMAIN.slice(0, -1) : DOMAIN
+        if (token && baseUrl) {
+          try {
+            const res = await fetch(`${baseUrl}/api/profile/user`, {
+              headers: { Authorization: `Bearer ${token}` },
+            })
+            const data = res.ok ? await res.json() : {}
+            const profile = data.user ?? data
+            setInitialPudoLockerCode(profile.pudoLockerCode ?? '')
+            setInitialShippingAddress(profile.pudoAddress ?? '')
+          } catch {
+            setInitialPudoLockerCode('')
+            setInitialShippingAddress('')
+          }
+        } else {
+          setInitialPudoLockerCode('')
+          setInitialShippingAddress('')
+        }
       } catch (e) {
         console.error('Error getting session for payment:', e)
         Alert.alert('Error', 'Please log in to purchase.')
@@ -184,6 +199,8 @@ export function Product() {
       }
     } else {
       setPaymentBuyer(null)
+      setInitialPudoLockerCode('')
+      setInitialShippingAddress('')
     }
     setIsPaymentModalVisible(true)
   }
@@ -329,7 +346,7 @@ export function Product() {
                   <View style={styles.sellerIconContainer}>
                     <Ionicons name="storefront-outline" size={16} color={theme.textColor} />
                   </View>
-                  <Text style={styles.sellerName}>{storeName || "Kyle's Card Shop"}</Text>
+                  <Text style={styles.sellerName}>{storeName || 'Store'}</Text>
                 </View>
                 <View style={styles.ratingContainer}>
                   <View style={styles.starsContainer}>
@@ -400,35 +417,41 @@ export function Product() {
           />
         ) : null}
 
-        {/* Bids Section - only on non-profile product page */}
+        {/* Bids Section - only on non-profile product page; shows actual bid count */}
         {!fromProfile && (
           <Card style={styles.bidsCard}>
             <CardContent style={styles.bidsContent}>
-              <Text style={styles.bidsTitle}>Bids</Text>
-              <View style={styles.bidsList}>
-                {bidsData.map((bidder, index) => (
-                  <View key={index} style={styles.bidItem}>
-                    <TouchableOpacity
-                      onPress={() => {
-                        navigation.navigate('ViewProfile', {
-                          userId: `user-${bidder.name.toLowerCase().replace(/\s+/g, '-')}`,
-                          userName: bidder.name,
-                          userImage: bidder.avatar,
-                          userInitials: bidder.name.split(' ').map(n => n[0]).join('').toUpperCase(),
-                          verified: false,
-                        })
-                      }}
-                      activeOpacity={0.7}
-                    >
-                      <Image source={bidder.avatar} style={styles.bidAvatar} />
-                    </TouchableOpacity>
-                    <View style={styles.bidInfo}>
-                      <Text style={styles.bidderName}>{bidder.name}</Text>
-                      <Text style={styles.bidAmount}>R{bidder.bid}</Text>
+              <Text style={styles.bidsTitle}>Bids{bidsData.length > 0 ? ` (${bidsData.length})` : ''}</Text>
+              {bidsData.length === 0 ? (
+                <Text style={[styles.bidsEmpty, { color: theme.mutedForegroundColor || 'rgba(255,255,255,0.5)' }]}>
+                  No bids yet
+                </Text>
+              ) : (
+                <View style={styles.bidsList}>
+                  {bidsData.map((bidder, index) => (
+                    <View key={index} style={styles.bidItem}>
+                      <TouchableOpacity
+                        onPress={() => {
+                          navigation.navigate('ViewProfile', {
+                            userId: `user-${bidder.name.toLowerCase().replace(/\s+/g, '-')}`,
+                            userName: bidder.name,
+                            userImage: bidder.avatar,
+                            userInitials: bidder.name.split(' ').map(n => n[0]).join('').toUpperCase(),
+                            verified: false,
+                          })
+                        }}
+                        activeOpacity={0.7}
+                      >
+                        <Image source={bidder.avatar} style={styles.bidAvatar} />
+                      </TouchableOpacity>
+                      <View style={styles.bidInfo}>
+                        <Text style={styles.bidderName}>{bidder.name}</Text>
+                        <Text style={styles.bidAmount}>R{bidder.bid}</Text>
+                      </View>
                     </View>
-                  </View>
-                ))}
-              </View>
+                  ))}
+                </View>
+              )}
             </CardContent>
           </Card>
         )}
@@ -509,23 +532,33 @@ export function Product() {
         listingId={isListing && listingId != null ? String(listingId) : undefined}
         buyerId={isListing ? paymentBuyer?.id : undefined}
         sellerId={isListing && sellerId != null ? String(sellerId) : undefined}
+        initialPudoLockerCode={isListing ? initialPudoLockerCode : undefined}
+        initialShippingAddress={isListing ? initialShippingAddress : undefined}
         onClose={() => {
           setIsPaymentModalVisible(false)
           setPaymentBuyer(null)
+          setInitialPudoLockerCode('')
+          setInitialShippingAddress('')
         }}
         onSuccess={(paymentData) => {
           console.log('Payment successful:', paymentData)
           setIsPaymentModalVisible(false)
           setPaymentBuyer(null)
+          setInitialPudoLockerCode('')
+          setInitialShippingAddress('')
         }}
         onCancel={() => {
           setIsPaymentModalVisible(false)
           setPaymentBuyer(null)
+          setInitialPudoLockerCode('')
+          setInitialShippingAddress('')
         }}
         onError={(error) => {
           console.error('Payment error:', error)
           setIsPaymentModalVisible(false)
           setPaymentBuyer(null)
+          setInitialPudoLockerCode('')
+          setInitialShippingAddress('')
         }}
       />
     </View>
@@ -781,6 +814,11 @@ const getStyles = (theme: any, tintColor: string) => StyleSheet.create({
     color: theme.textColor,
     fontWeight: '600',
     marginBottom: SPACING.md,
+  },
+  bidsEmpty: {
+    fontSize: TYPOGRAPHY.body,
+    fontFamily: theme.regularFont,
+    marginVertical: SPACING.sm,
   },
   bidsList: {
     gap: SPACING.sm,

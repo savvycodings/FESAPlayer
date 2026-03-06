@@ -21,7 +21,7 @@ export function SafetyFilter({ enabled, onToggle, compact }: SafetyFilterProps) 
         style={[styles.switch, enabled && styles.switchActive]}
         onPress={() => onToggle(!enabled)}
         activeOpacity={0.8}
-        accessibilityLabel={enabled ? 'Vaulting on' : 'Vaulting off'}
+        accessibilityLabel={enabled ? 'Verified only on' : 'Verified only off'}
       >
         <View style={[styles.switchThumb, enabled && styles.switchThumbActive]}>
           <Ionicons
