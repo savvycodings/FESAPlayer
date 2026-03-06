@@ -9,10 +9,10 @@ import { OnboardingScreen2 } from './OnboardingScreen2'
 import { OnboardingScreen3 } from './OnboardingScreen3'
 import { OnboardingScreen4 } from './OnboardingScreen4'
 import { OnboardingScreen5 } from './OnboardingScreen5'
-import { useNavigation } from '@react-navigation/native'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import Ionicons from '@expo/vector-icons/Ionicons'
 import { LinearGradient } from 'expo-linear-gradient'
+import { useAuth } from '../../context/AuthContext'
 
 // Helper function to get gradient colors based on theme
 const getButtonGradientColors = (theme: any): string[] => {
@@ -40,7 +40,7 @@ const screens = [
 
 export function Onboarding() {
   const { theme } = useContext(ThemeContext)
-  const navigation = useNavigation()
+  const { setHasSeenOnboarding } = useAuth()
   const [currentIndex, setCurrentIndex] = useState(0)
   const flatListRef = useRef<FlatList>(null)
   const styles = getStyles(theme)
@@ -82,9 +82,8 @@ export function Onboarding() {
   const handleFinish = async () => {
     try {
       await AsyncStorage.setItem('hasSeenOnboarding', 'true')
-      // Use navigate instead of replace - the navigator will handle the transition
-      // @ts-ignore
-      navigation.navigate('Auth')
+      setHasSeenOnboarding(true)
+      // RootNavigator will re-render and show Login (Auth) stack
     } catch (error) {
       console.error('Error saving onboarding status:', error)
     }

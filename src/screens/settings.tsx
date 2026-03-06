@@ -6,6 +6,9 @@ import {
   ScrollView,
   Dimensions,
   Image,
+  Alert,
+  TouchableOpacity,
+  Platform,
 } from 'react-native'
 import Ionicons from '@expo/vector-icons/Ionicons'
 import { useContext, useState, useCallback } from 'react'
@@ -14,6 +17,7 @@ import { ThemeContext } from '../context'
 import { SPACING, TYPOGRAPHY, RADIUS } from '../constants/layout'
 import { SkeletonBox } from '../components/layout/SkeletonBox'
 import { authClient } from '../lib/auth-client'
+import { useAuth } from '../context/AuthContext'
 import { DOMAIN } from '../../constants'
 
 const { width } = Dimensions.get('window')
@@ -29,8 +33,10 @@ const SETTINGS_ITEMS = [
 export function Settings() {
   const { theme } = useContext(ThemeContext)
   const navigation = useNavigation()
+  const { logout } = useAuth()
   const [user, setUser] = useState<any>(null)
   const [loading, setLoading] = useState(true)
+  const [loggingOut, setLoggingOut] = useState(false)
   const styles = getStyles(theme)
 
   const fetchUser = useCallback(async () => {
@@ -144,6 +150,47 @@ export function Settings() {
           </View>
         </TouchableHighlight>
       ))}
+
+      <TouchableOpacity
+        style={styles.logoutButton}
+        onPress={() => {
+          console.log('[Settings] Log out button pressed')
+          const message = 'Are you sure you want to log out?'
+          const doLogout = () => {
+            console.log('[Settings] Confirmed, calling logout()')
+            setLoggingOut(true)
+            logout()
+              .then(() => console.log('[Settings] logout() resolved'))
+              .catch((e) => console.log('[Settings] logout() rejected', e))
+              .finally(() => {
+                console.log('[Settings] logout() finally')
+                setLoggingOut(false)
+              })
+          }
+          if (Platform.OS === 'web') {
+            if (typeof window !== 'undefined' && window.confirm(message)) {
+              doLogout()
+            }
+          } else {
+            Alert.alert('Log out', message, [
+              { text: 'Cancel', style: 'cancel', onPress: () => console.log('[Settings] Alert: Cancel pressed') },
+              { text: 'Log out', style: 'destructive', onPress: doLogout },
+            ])
+          }
+        }}
+        disabled={loggingOut}
+        activeOpacity={0.7}
+      >
+        <Ionicons
+          name="log-out-outline"
+          size={22}
+          color="#ef4444"
+          style={styles.rowIcon}
+        />
+        <Text style={styles.logoutButtonText}>
+          {loggingOut ? 'Logging out…' : 'Log out'}
+        </Text>
+      </TouchableOpacity>
     </ScrollView>
   )
 }
@@ -267,5 +314,22 @@ const getStyles = (theme: any) =>
       fontFamily: theme.semiBoldFont,
       fontSize: 16,
       color: theme.textColor,
+    },
+    logoutButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      padding: 15,
+      borderRadius: 8,
+      marginTop: SPACING.xl,
+      marginBottom: 40,
+      borderWidth: 1,
+      borderColor: 'rgba(239, 68, 68, 0.3)',
+      backgroundColor: 'rgba(239, 68, 68, 0.08)',
+      gap: SPACING.md,
+    },
+    logoutButtonText: {
+      fontFamily: theme.semiBoldFont,
+      fontSize: 16,
+      color: '#ef4444',
     },
   })
