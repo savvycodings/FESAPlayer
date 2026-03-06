@@ -203,7 +203,7 @@ export function Grade() {
       const ebayPrice = pricingData.ebayLastSold ?? null
       const tcgPrice = pricingData.marketPrice ?? null
 
-      const USD_TO_ZAR = Number(process.env.EXPO_PUBLIC_USD_TO_ZAR) || 16
+      const USD_TO_ZAR = Number(process.env.EXPO_PUBLIC_USD_TO_ZAR) || 17
       const formatPrice = (value: number | undefined) => {
         if (!value) return 'N/A'
         return `R${Math.round(value * USD_TO_ZAR).toLocaleString('en-ZA')}`

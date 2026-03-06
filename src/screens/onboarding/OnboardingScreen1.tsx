@@ -37,7 +37,7 @@ export function OnboardingScreen1({ onNext, onSkip }: OnboardingScreenProps) {
       >
         {/* Title */}
         <Text style={styles.title}>
-          Welcome{'\n'}to <Text style={styles.titleGreen}>SAPLAYER</Text>
+          Welcome{'\n'}to <Text style={styles.titleGreen}>SA Player</Text>
         </Text>
 
         {/* Subtitle */}

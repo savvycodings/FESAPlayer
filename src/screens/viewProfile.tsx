@@ -40,6 +40,9 @@ type ViewProfileStackParamList = {
     listingId?: string
     sellerId?: string
     storeName?: string
+    cardId?: string
+    purchaseType?: 'instant' | 'auction' | 'bid' | 'both'
+    currentBid?: number
   }
 }
 
@@ -446,6 +449,9 @@ export function ViewProfile() {
                   listingId: listingId != null ? String(listingId) : undefined,
                   sellerId: sellerId ?? undefined,
                   storeName: storeData?.storeName ?? storeData?.name ?? undefined,
+                  cardId: listing.cardId ?? undefined,
+                  purchaseType: listing.purchaseType ?? undefined,
+                  currentBid: listing.currentBid != null ? Number(listing.currentBid) : undefined,
                 })
               }
             }}
@@ -578,7 +584,7 @@ export function ViewProfile() {
                         || getPokemonTcgImageUrlFromSetNumberIfOnCdn(isoItem.set, isoItem.cardNumber)
                         || null
                       const formatIsoPrice = (usd: number) => {
-                        const rate = Number(process.env.EXPO_PUBLIC_USD_TO_ZAR) || 16
+                        const rate = Number(process.env.EXPO_PUBLIC_USD_TO_ZAR) || 17
                         return `R${Math.round(usd * rate).toLocaleString('en-ZA')}`
                       }
                       return (

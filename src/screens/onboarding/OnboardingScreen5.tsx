@@ -58,7 +58,7 @@ export function OnboardingScreen5({ onNext, onSkip }: OnboardingScreenProps) {
         
         {/* Subtitle */}
         <Text style={styles.subtitle}>
-          Start your trading card collecting journey today. Join thousands of collectors already using SAplayer
+          Start your trading card collecting journey today. Join thousands of collectors already using SA Player.
         </Text>
         
         {/* Benefits */}

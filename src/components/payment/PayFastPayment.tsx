@@ -45,6 +45,9 @@ interface PayFastPaymentProps {
   /** Pre-fill from account so seller knows where to send (listing only) */
   initialPudoLockerCode?: string
   initialShippingAddress?: string
+  /** Verification (R100) payment: no listing; includes vaulted request ids */
+  paymentType?: 'listing' | 'verify'
+  vaultedRequestIds?: number[]
 }
 
 export function PayFastPayment({
@@ -67,7 +70,11 @@ export function PayFastPayment({
   onError,
   initialPudoLockerCode,
   initialShippingAddress,
+  paymentType = 'listing',
+  vaultedRequestIds,
 }: PayFastPaymentProps) {
+  const isVerifyPayment = paymentType === 'verify'
+  const showShippingFormFirst = !!(listingId || isVerifyPayment)
   const { theme } = useContext(ThemeContext)
   const insets = useSafeAreaInsets()
   const styles = getStyles(theme, insets)
@@ -81,22 +88,27 @@ export function PayFastPayment({
   // Track if status check is already running to prevent multiple polls
   const statusCheckRunningRef = useRef<boolean>(false)
 
-  // Pre-fill PUDO from account when modal opens for a listing
+  // Pre-fill PUDO from account when modal opens for listing or verify
   useEffect(() => {
-    if (visible && listingId) {
+    if (visible && (listingId || isVerifyPayment)) {
       if (initialPudoLockerCode != null) setPudoLockerCode(initialPudoLockerCode)
       if (initialShippingAddress != null) setShippingAddress(initialShippingAddress)
     }
-  }, [visible, listingId, initialPudoLockerCode, initialShippingAddress])
+  }, [visible, listingId, isVerifyPayment, initialPudoLockerCode, initialShippingAddress])
 
-  // For listing purchases: show shipping form first; don't auto-call createPayment. For non-listing, createPayment runs on open.
+  // For listing/verify: show shipping form first. For other flows, createPayment runs on open.
   useEffect(() => {
-    if (visible && !listingId) {
+    if (visible && !showShippingFormFirst) {
       createPayment()
     }
-    if (visible && listingId) {
-      // Validate required data (form will be shown; createPayment called when user taps Proceed)
-      if (!buyerId || !sellerId) {
+    if (visible && showShippingFormFirst) {
+      if (isVerifyPayment) {
+        if (!buyerId || !vaultedRequestIds?.length) {
+          onError?.('Missing verification details. Please try again.')
+          onClose()
+          return
+        }
+      } else if (!buyerId || !sellerId) {
         onError?.('Missing payment information. Please try again.')
         onClose()
         return
@@ -169,16 +181,20 @@ export function PayFastPayment({
           
           if (data.status === 'complete') {
             console.log('✅ Payment verified as complete via status check!')
-            // Show success alert
             statusCheckRunningRef.current = false
+            const vo = data.verificationOrder
+            const message = vo?.dropoffCode
+              ? `Your payment of R${isVerifyPayment ? '100.00' : amount.toFixed(2)} for ${itemName} has been processed.\n\nYou have 24 hours to drop off your package at your PUDO. Your drop-off code: ${vo.dropoffCode}`
+              : `Your payment of R${isVerifyPayment ? '100.00' : amount.toFixed(2)} for ${itemName} has been processed successfully.`
             Alert.alert(
               'Payment Successful! 🎉',
-              `Your payment of R${amount.toFixed(2)} for ${itemName} has been processed successfully.`,
+              message,
               [{ text: 'OK', onPress: () => {
                 onSuccess({
-                  amount,
+                  amount: isVerifyPayment ? 100 : amount,
                   itemName,
                   paymentId: paymentId,
+                  verificationOrder: vo,
                 })
                 onClose()
               }}]
@@ -265,9 +281,16 @@ export function PayFastPayment({
         hasShipping: !!(shippingPayload?.pudoLockerCode || shippingPayload?.shippingAddress),
       })
       
-      // Validate IDs and email are present (listingId required for listing flow)
-      if (!buyerId || !sellerId || !listingId) {
-        const missing = []
+      // Validate IDs and email are present (listingId required for listing flow; vaultedRequestIds for verify)
+      if (isVerifyPayment) {
+        if (!buyerId || !vaultedRequestIds?.length) {
+          const missing: string[] = []
+          if (!buyerId) missing.push('buyerId')
+          if (!vaultedRequestIds?.length) missing.push('vaultedRequestIds')
+          throw new Error(`Missing verification info: ${missing.join(', ')}. Please try again.`)
+        }
+      } else if (!buyerId || !sellerId || !listingId) {
+        const missing: string[] = []
         if (!buyerId) missing.push('buyerId')
         if (!sellerId) missing.push('sellerId')
         if (!listingId) missing.push('listingId')
@@ -287,19 +310,20 @@ export function PayFastPayment({
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          amount,
+          amount: isVerifyPayment ? 100 : amount,
           itemName,
           itemDescription: itemDescription || itemName,
           userEmail: userEmail || 'user@example.com',
           userNameFirst: userNameFirst || 'User',
           userNameLast: userNameLast || '',
           cellNumber: cellNumber || '',
-          listingId,
+          listingId: isVerifyPayment ? undefined : listingId,
           buyerId,
-          sellerId,
+          sellerId: isVerifyPayment ? undefined : sellerId,
           backendUrl: backendUrl,
           pudoLockerCode: shippingPayload?.pudoLockerCode || undefined,
           shippingAddress: shippingPayload?.shippingAddress || undefined,
+          ...(isVerifyPayment && { paymentType: 'verify', vaultedRequestIds }),
         }),
       })
 
@@ -451,14 +475,18 @@ export function PayFastPayment({
           </View>
         )}
 
-        {/* Shipping form (PUDO locker-to-locker) – for listing purchases before opening PayFast */}
-        {!loading && listingId && !paymentData && (
+        {/* Shipping form (PUDO locker-to-locker) – for listing or verify, before opening PayFast */}
+        {!loading && showShippingFormFirst && !paymentData && (
           <ScrollView style={styles.contentContainer} contentContainerStyle={styles.shippingFormContent}>
             <View style={styles.infoCard}>
               <Ionicons name="cube-outline" size={40} color={theme.tintColor || '#73EC8B'} />
-              <Text style={styles.shippingFormTitle}>Shipping (PUDO locker-to-locker)</Text>
+              <Text style={styles.shippingFormTitle}>
+                {isVerifyPayment ? 'Verification fee (R100)' : 'Shipping (PUDO locker-to-locker)'}
+              </Text>
               <Text style={styles.infoText}>
-                Enter your PUDO locker code and address so the seller can send your order.
+                {isVerifyPayment
+                  ? 'Enter your PUDO locker code and address. After payment you’ll get a drop-off code and 24 hours to submit your package at the PUDO.'
+                  : 'Enter your PUDO locker code and address so the seller can send your order.'}
               </Text>
               <Text style={styles.shippingLabel}>PUDO Locker Code</Text>
               <TextInput
@@ -483,7 +511,7 @@ export function PayFastPayment({
               <View style={styles.paymentDetails}>
                 <View style={styles.detailRow}>
                   <Text style={styles.detailLabel}>Amount to pay:</Text>
-                  <Text style={styles.detailValue}>R{amount.toFixed(2)}</Text>
+                  <Text style={styles.detailValue}>R{isVerifyPayment ? '100.00' : amount.toFixed(2)}</Text>
                 </View>
               </View>
             </View>
@@ -498,8 +526,8 @@ export function PayFastPayment({
           </ScrollView>
         )}
 
-        {/* Payment Info (after payment created or non-listing / retry) */}
-        {!loading && (paymentData || !listingId) && (
+        {/* Payment Info (after payment created or non-listing/non-verify flow) */}
+        {!loading && (paymentData || !showShippingFormFirst) && (
           <View style={styles.contentContainer}>
             <View style={styles.infoCard}>
               <Ionicons name="card-outline" size={48} color={theme.tintColor || '#73EC8B'} />

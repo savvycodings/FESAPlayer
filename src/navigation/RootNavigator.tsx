@@ -5,6 +5,7 @@ import { Main } from '../main'
 import { View } from 'react-native'
 import { useAuth } from '../context/AuthContext'
 import { authClient } from '../lib/auth-client'
+import { registerPushTokenAndSaveToBackend } from '../lib/pushNotifications'
 
 const Stack = createNativeStackNavigator()
 
@@ -22,6 +23,12 @@ function MainWithAuthCheck() {
       setSessionChecked(true)
     })
   }, [setAuthenticated])
+
+  // When user is authenticated, register Expo push token so we can notify them (e.g. when dropoff code is set)
+  useEffect(() => {
+    if (!sessionChecked) return
+    registerPushTokenAndSaveToBackend().catch(() => {})
+  }, [sessionChecked])
 
   // Don't render Main until we've verified session; if no session we already called setAuthenticated(false) above
   if (!sessionChecked) {

@@ -21,7 +21,7 @@ const CONDITION_OPTIONS = ['Mint', 'Near Mint', 'LP', 'MP', 'HP', 'Damaged'] as 
 /** Hide Set dropdown in UI (set is still used for image search/lookup). Set true to show again. */
 const SHOW_SET_IN_UI = false
 // USD to ZAR for displaying API prices in South African Rand (override via env if needed)
-const USD_TO_ZAR = Number(process.env.EXPO_PUBLIC_USD_TO_ZAR) || 16
+const USD_TO_ZAR = Number(process.env.EXPO_PUBLIC_USD_TO_ZAR) || 17
 
 interface AddCardModalProps {
   visible: boolean

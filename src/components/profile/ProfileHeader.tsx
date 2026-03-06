@@ -7,6 +7,7 @@ import { ThemeContext } from '../../context'
 import { SPACING, TYPOGRAPHY, RADIUS, STORE_COLORS } from '../../constants/layout'
 import { ProgressBars } from '../store'
 import { LevelRewardModal } from '../store/LevelRewardModal'
+import { EditBadge } from '../ui/EditBadge'
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window')
 
@@ -343,6 +344,7 @@ export function ProfileHeader({
                   </View>
                 )}
               </TouchableOpacity>
+              {onEditPress ? <EditBadge onPress={onEditPress} size={30} iconSize={14} /> : null}
               {/* Level Ring - Silver for Level 3 */}
               {ringColor && (
                 <>

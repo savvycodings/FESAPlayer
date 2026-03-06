@@ -7,6 +7,7 @@ import { ThemeContext } from '../context'
 import { SPACING, TYPOGRAPHY, RADIUS } from '../constants/layout'
 import Ionicons from '@expo/vector-icons/Ionicons'
 import { ProfileHeader, ProductGrid, ListItemModal, AddCardModal, BulkVaultingModal } from '../components/profile'
+import { PayFastPayment } from '../components/payment'
 import { SkeletonBox } from '../components/layout/SkeletonBox'
 import { Section } from '../components/layout/Section'
 import { DOMAIN } from '../../constants'
@@ -50,6 +51,12 @@ export function Profile() {
   const [setDistribution, setSetDistribution] = useState<{ label: string; value: number }[]>([])
   const [isAddCardModalVisible, setIsAddCardModalVisible] = useState(false)
   const [isBulkVaultingModalVisible, setIsBulkVaultingModalVisible] = useState(false)
+  // Verify (R100) payment modal after bulk vault or add-card with request verification
+  const [isVerifyPaymentVisible, setIsVerifyPaymentVisible] = useState(false)
+  const [verifyVaultedRequestIds, setVerifyVaultedRequestIds] = useState<number[]>([])
+  const [verifyBuyer, setVerifyBuyer] = useState<{ id: string; email: string; firstName: string; lastName: string } | null>(null)
+  const [verifyPudoLocker, setVerifyPudoLocker] = useState('')
+  const [verifyPudoAddress, setVerifyPudoAddress] = useState('')
 
   // Fetch user profile data using Better Auth session
   const fetchUserProfile = async () => {
@@ -244,18 +251,14 @@ export function Profile() {
       })
 
       if (response.ok) {
-        // Refresh collections and user data without showing full-screen loader (keeps modal from unmounting/remounting)
         await fetchCollections({ silent: true })
         await fetchUserProfile()
-        // Don't show alert here - let the modal handle success and close
-        // The modal will show success message and close itself
+        return responseData as { success: boolean; collection?: { id: number }; vaultedRequestId?: number }
       } else {
-        // Throw error so modal can handle it
         throw new Error(responseData.message || 'Failed to add card')
       }
     } catch (error: any) {
       console.error('Error adding card:', error)
-      // Re-throw error so modal can handle it and show error message
       throw error
     }
   }
@@ -381,8 +384,31 @@ export function Profile() {
       const data = await response.json()
 
       if (response.ok) {
-        Alert.alert('Success', `Verification request created for ${collectionIds.length} ${collectionIds.length === 1 ? 'card' : 'cards'}!`)
-        // Refresh collections
+        setIsBulkVaultingModalVisible(false)
+        const requests = data.requests || []
+        const ids = requests.map((r: { id: number }) => r.id).filter((id: number) => id != null)
+        if (ids.length === 0) {
+          Alert.alert('Success', `Verification request created for ${collectionIds.length} ${collectionIds.length === 1 ? 'card' : 'cards'}!`)
+          await fetchCollections()
+          return
+        }
+        const u = (session?.data as any)?.user
+        if (!u?.id || !u?.email) {
+          Alert.alert('Error', 'Please ensure your profile has an email set to complete verification payment.')
+          await fetchCollections()
+          return
+        }
+        const nameParts = (u.name || 'User').trim().split(' ')
+        setVerifyBuyer({
+          id: u.id,
+          email: u.email,
+          firstName: u.firstName ?? nameParts[0] ?? 'User',
+          lastName: u.lastName ?? nameParts.slice(1).join(' ') ?? '',
+        })
+        setVerifyPudoLocker(user?.pudoLockerCode ?? '')
+        setVerifyPudoAddress(user?.pudoAddress ?? '')
+        setVerifyVaultedRequestIds(ids)
+        setIsVerifyPaymentVisible(true)
         await fetchCollections()
       } else {
         Alert.alert('Error', data.message || 'Failed to create verification request')
@@ -463,7 +489,7 @@ export function Profile() {
   }, [])
 
   // Price from API/cache (marketPrice USD → ZAR) when cardId set; else legacy or R0. Only hit API every 48h; data lives in DB.
-  const USD_TO_ZAR = Number(process.env.EXPO_PUBLIC_USD_TO_ZAR) || 16
+  const USD_TO_ZAR = Number(process.env.EXPO_PUBLIC_USD_TO_ZAR) || 17
   const products = collections.map((collection: any) => {
     const marketPriceUsd = collection.marketPrice ?? collection.market_price
     const ebayLastSoldUsd = collection.ebayLastSold ?? collection.ebay_last_sold
@@ -710,7 +736,7 @@ export function Profile() {
           productImage={selectedProduct.image}
           minPriceFromMarketZar={
             selectedProduct.marketPriceUsd != null && selectedProduct.marketPriceUsd > 0
-              ? Math.round(0.2 * selectedProduct.marketPriceUsd * USD_TO_ZAR)
+              ? Math.round(0.8 * selectedProduct.marketPriceUsd * USD_TO_ZAR)
               : undefined
           }
           onClose={() => {
@@ -734,8 +760,21 @@ export function Profile() {
         visible={isAddCardModalVisible}
         onClose={() => setIsAddCardModalVisible(false)}
         onAdd={async (data) => {
-          await addCardToCollection(data)
-          // Modal will close itself on success
+          const res = await addCardToCollection(data)
+          if (res?.vaultedRequestId != null && user) {
+            const nameParts = (user.name || 'User').trim().split(' ')
+            setVerifyBuyer({
+              id: user.id,
+              email: user.email || '',
+              firstName: user.firstName ?? nameParts[0] ?? 'User',
+              lastName: user.lastName ?? nameParts.slice(1).join(' ') ?? '',
+            })
+            setVerifyPudoLocker(user.pudoLockerCode ?? '')
+            setVerifyPudoAddress(user.pudoAddress ?? '')
+            setVerifyVaultedRequestIds([res.vaultedRequestId])
+            setIsAddCardModalVisible(false)
+            setIsVerifyPaymentVisible(true)
+          }
         }}
         apiBaseUrl={DOMAIN}
       />
@@ -752,6 +791,44 @@ export function Profile() {
         }))}
         onClose={() => setIsBulkVaultingModalVisible(false)}
         onRequestVaulting={requestBulkVaulting}
+      />
+
+      {/* Verify (R100) payment – after bulk vault or add card with request verification */}
+      <PayFastPayment
+        visible={isVerifyPaymentVisible}
+        amount={100}
+        itemName={verifyVaultedRequestIds.length > 1 ? `Verification fee (${verifyVaultedRequestIds.length} cards)` : 'Verification fee (1 card)'}
+        paymentType="verify"
+        vaultedRequestIds={verifyVaultedRequestIds}
+        userEmail={verifyBuyer?.email}
+        userNameFirst={verifyBuyer?.firstName}
+        userNameLast={verifyBuyer?.lastName}
+        buyerId={verifyBuyer?.id}
+        initialPudoLockerCode={verifyPudoLocker}
+        initialShippingAddress={verifyPudoAddress}
+        onClose={() => {
+          setIsVerifyPaymentVisible(false)
+          setVerifyVaultedRequestIds([])
+          setVerifyBuyer(null)
+          setVerifyPudoLocker('')
+          setVerifyPudoAddress('')
+        }}
+        onSuccess={() => {
+          setIsVerifyPaymentVisible(false)
+          setVerifyVaultedRequestIds([])
+          setVerifyBuyer(null)
+          setVerifyPudoLocker('')
+          setVerifyPudoAddress('')
+          fetchCollections()
+        }}
+        onCancel={() => {
+          setIsVerifyPaymentVisible(false)
+          setVerifyVaultedRequestIds([])
+          setVerifyBuyer(null)
+        }}
+        onError={(err) => {
+          console.error('Verify payment error:', err)
+        }}
       />
     </View>
   )

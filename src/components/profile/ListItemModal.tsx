@@ -18,7 +18,7 @@ interface ListItemModalProps {
   initialDescription?: string
   /** When set, shows a "Remove listing" button at the bottom (for your store edit only). */
   onRemoveListing?: () => void | Promise<void>
-  /** Minimum listing price (ZAR) = 20% of market price (from Pokedata, converted to ZAR). When set, user cannot list below this. */
+  /** Minimum listing price (ZAR) = 80% of market price (from Pokedata/card_prices, converted to ZAR). When set, user cannot list below this. */
   minPriceFromMarketZar?: number
   /** @deprecated Use minPriceFromMarketZar. When set without minPriceFromMarketZar, used for validation (assumes price in USD). */
   minPriceFromMarketUsd?: number
@@ -69,7 +69,7 @@ export function ListItemModal({
     }
   }, [visible, initialPrice, initialDescription, isEditing])
 
-  const minZar = minPriceFromMarketZar ?? (minPriceFromMarketUsd != null && minPriceFromMarketUsd > 0 ? minPriceFromMarketUsd * (Number(process.env.EXPO_PUBLIC_USD_TO_ZAR) || 16) : undefined)
+  const minZar = minPriceFromMarketZar ?? (minPriceFromMarketUsd != null && minPriceFromMarketUsd > 0 ? minPriceFromMarketUsd * (Number(process.env.EXPO_PUBLIC_USD_TO_ZAR) || 17) : undefined)
   const hasRequiredImages = isEditing || (!!frontUri && !!backUri && !!closeUri)
   const isValid = () => {
     const numericPrice = parseFloat(price.replace(/[^0-9.]/g, ''))
@@ -131,7 +131,7 @@ export function ListItemModal({
     if (minZar != null && minZar > 0 && numericPrice < minZar) {
       Alert.alert(
         'Price too low',
-        `Listing price cannot be below 20% of market value. Minimum: R${minZar.toFixed(2)}`
+        `Listing price cannot be below 80% of market value. Minimum: R${minZar.toFixed(2)}`
       )
       return
     }
@@ -276,7 +276,7 @@ export function ListItemModal({
               <Text style={styles.inputLabel}>Set Your Price</Text>
               {minZar != null && minZar > 0 && (
                 <Text style={styles.inputHint}>
-                  Minimum 20% of market: R{minZar.toFixed(2)}
+                  Minimum 80% of market: R{minZar.toFixed(2)}
                 </Text>
               )}
               <View style={styles.priceInputContainer}>

@@ -1,4 +1,4 @@
-import { View, StyleSheet, ScrollView } from 'react-native'
+import { View, StyleSheet, ScrollView, RefreshControl } from 'react-native'
 import { useContext, useCallback, useEffect, useState } from 'react'
 import { useNavigation, useFocusEffect } from '@react-navigation/native'
 import { NativeStackNavigationProp } from '@react-navigation/native-stack'
@@ -59,6 +59,7 @@ export function Shop() {
     vaultingStatus?: string
   }>>([])
   const [recentListingsLoading, setRecentListingsLoading] = useState(true)
+  const [refreshing, setRefreshing] = useState(false)
   
   // Display name from profile API (updates when user edits name in Edit Profile)
   const [userName, setUserName] = useState<string>('User')
@@ -88,23 +89,34 @@ export function Shop() {
   useFocusEffect(useCallback(() => { fetchProfileName() }, [fetchProfileName]))
 
   // Fetch recent store listings from API
-  useEffect(() => {
-    const fetchRecentListings = async () => {
-      try {
-        setRecentListingsLoading(true)
-        const res = await fetch(`${DOMAIN}/api/listings/recent?limit=24`)
-        if (!res.ok) throw new Error('Failed to fetch recent listings')
-        const data = await res.json()
-        setRecentListings(data.listings || [])
-      } catch (error) {
-        console.error('Error fetching recent listings:', error)
-        setRecentListings([])
-      } finally {
-        setRecentListingsLoading(false)
-      }
+  const fetchRecentListings = useCallback(async () => {
+    try {
+      setRecentListingsLoading(true)
+      const baseUrl = DOMAIN?.endsWith('/') ? DOMAIN.slice(0, -1) : DOMAIN
+      const res = await fetch(`${baseUrl}/api/listings/recent?limit=24`)
+      if (!res.ok) throw new Error('Failed to fetch recent listings')
+      const data = await res.json()
+      setRecentListings(data.listings || [])
+    } catch (error) {
+      console.error('Error fetching recent listings:', error)
+      setRecentListings([])
+    } finally {
+      setRecentListingsLoading(false)
     }
-    fetchRecentListings()
   }, [])
+
+  useEffect(() => {
+    fetchRecentListings()
+  }, [fetchRecentListings])
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true)
+    try {
+      await Promise.all([fetchProfileName(), fetchRecentListings()])
+    } finally {
+      setRefreshing(false)
+    }
+  }, [fetchProfileName, fetchRecentListings])
   
   // Promotional carousel data
   const promoItems = [
@@ -222,6 +234,13 @@ export function Shop() {
         showsVerticalScrollIndicator={false}
         scrollEventThrottle={16}
         nestedScrollEnabled={true}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={theme.tintColor || '#73EC8B'}
+          />
+        }
       >
         <PromoCarousel items={promoItems} />
 

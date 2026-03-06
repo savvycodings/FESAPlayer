@@ -35,6 +35,10 @@ type MyStoreStackParamList = {
     price?: number
     description?: string
     storeName?: string
+    listingId?: string
+    cardId?: string
+    purchaseType?: 'instant' | 'auction' | 'bid' | 'both'
+    currentBid?: number
   }
 }
 
@@ -96,12 +100,14 @@ export function MyStore() {
   const [newYoutubeUrl, setNewYoutubeUrl] = useState('')
   const [creatingStore, setCreatingStore] = useState(false)
 
-  // Edit store details modal (store name + optional Twitch/YouTube URLs)
+  // Edit store details modal (store name + banner + optional Twitch/YouTube URLs)
   const [isEditStoreModalVisible, setIsEditStoreModalVisible] = useState(false)
   const [editStoreName, setEditStoreName] = useState('')
+  const [editBannerUrl, setEditBannerUrl] = useState<string | null>(null)
   const [editTwitchUrl, setEditTwitchUrl] = useState('')
   const [editYoutubeUrl, setEditYoutubeUrl] = useState('')
   const [updatingStore, setUpdatingStore] = useState(false)
+  const [bannerUploading, setBannerUploading] = useState(false)
 
   // Get Better Auth session token for API calls
   const getSessionToken = async () => {
@@ -206,9 +212,54 @@ export function MyStore() {
   const openEditStoreModal = () => {
     if (!store) return
     setEditStoreName(store.storeName || '')
+    setEditBannerUrl(store.bannerUrl || null)
     setEditTwitchUrl(store.twitchUrl || '')
     setEditYoutubeUrl(store.youtubeUrl || '')
     setIsEditStoreModalVisible(true)
+  }
+
+  const handleChangeBanner = async () => {
+    if (!store) return
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync()
+    if (status !== 'granted') {
+      Alert.alert('Permission needed', 'Photo library access is required to change your store banner.')
+      return
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      quality: 0.8,
+      aspect: [3, 1],
+    })
+    if (result.canceled || !result.assets[0]) return
+    setBannerUploading(true)
+    try {
+      const imageUrl = await uploadImage(result.assets[0].uri, 'gradeit/banners')
+      const token = await getSessionToken()
+      if (!token) {
+        Alert.alert('Error', 'Please log in')
+        return
+      }
+      const baseUrl = DOMAIN?.endsWith('/') ? DOMAIN.slice(0, -1) : DOMAIN
+      const response = await fetch(`${baseUrl}/api/store`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        credentials: 'include',
+        body: JSON.stringify({ bannerUrl: imageUrl }),
+      })
+      const data = await response.json()
+      if (response.ok && data.store) {
+        setStore(data.store)
+        setEditBannerUrl(data.store.bannerUrl || imageUrl)
+        Alert.alert('Saved', 'Store banner updated.')
+      } else {
+        Alert.alert('Error', data.message || 'Failed to update banner')
+      }
+    } catch (e: any) {
+      Alert.alert('Error', e?.message || 'Failed to upload banner')
+    } finally {
+      setBannerUploading(false)
+    }
   }
 
   const updateStoreDetails = async () => {
@@ -229,6 +280,7 @@ export function MyStore() {
         credentials: 'include',
         body: JSON.stringify({
           storeName: editStoreName.trim() || undefined,
+          bannerUrl: store?.bannerUrl ?? editBannerUrl ?? undefined,
           twitchUrl: editTwitchUrl.trim() === '' ? null : editTwitchUrl.trim() || undefined,
           youtubeUrl: editYoutubeUrl.trim() === '' ? null : editYoutubeUrl.trim() || undefined,
         }),
@@ -278,6 +330,7 @@ export function MyStore() {
           id: listing.id.toString(),
           cardName: listing.cardName,
           cardImage: listing.cardImage ? { uri: listing.cardImage } : require('../../assets/singles/Shining_Charizard_Secret.jpg'),
+          cardId: listing.cardId || undefined,
           price: parseFloat(listing.price || '0'),
           vaultingStatus: listing.vaultingStatus || 'seller-has',
           purchaseType: listing.purchaseType || 'both',
@@ -684,14 +737,17 @@ export function MyStore() {
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true)
-    await fetchStore({ silent: true })
-    if (store) {
-      if (activeTab === 'MY STORE') await fetchListings()
-      else if (activeTab === 'ORDERS') await fetchOrders()
-      else if (activeTab === 'AUCTIONS') await fetchAuctions()
-      else if (activeTab === 'ISO') await fetchISOItems()
+    try {
+      await fetchStore({ silent: true })
+      if (store) {
+        if (activeTab === 'MY STORE') await fetchListings()
+        else if (activeTab === 'ORDERS') await fetchOrders()
+        else if (activeTab === 'AUCTIONS') await fetchAuctions()
+        else if (activeTab === 'ISO') await fetchISOItems()
+      }
+    } finally {
+      setRefreshing(false)
     }
-    setRefreshing(false)
   }, [store, activeTab])
 
   // Load data when store is available and tab changes
@@ -730,7 +786,7 @@ export function MyStore() {
 
   const tabs = ['AUCTIONS', 'MY STORE', 'ISO', 'ORDERS']
 
-  const USD_TO_ZAR = Number(process.env.EXPO_PUBLIC_USD_TO_ZAR) || 16
+  const USD_TO_ZAR = Number(process.env.EXPO_PUBLIC_USD_TO_ZAR) || 17
   const formatIsoPrice = (usd: number) => `R${Math.round(usd * USD_TO_ZAR).toLocaleString('en-ZA')}`
 
   // Get user info from Better Auth for default values
@@ -899,7 +955,10 @@ export function MyStore() {
           xpToNextLevel={xpToNextLevel}
           salesCount={salesCount}
           shareableLink={shareableLink}
+          onEditPress={() => (navigation.getParent() as any)?.navigate('Settings', { screen: 'EditProfile' })}
           onEditStorePress={openEditStoreModal}
+          showBannerEdit={true}
+          onBannerEditPress={openEditStoreModal}
           twitchUrl={store.twitchUrl ?? undefined}
           youtubeUrl={store.youtubeUrl ?? undefined}
         />
@@ -1110,6 +1169,9 @@ export function MyStore() {
                           storeName,
                           fromMyStore: true,
                           listingId: String(listing.id),
+                          cardId: listing.cardId,
+                          purchaseType: listing.purchaseType,
+                          currentBid: listing.currentBid,
                         })
                       }
                     }}
@@ -1266,8 +1328,36 @@ export function MyStore() {
             <CardContent style={styles.modalContent}>
               <Text style={styles.modalTitle}>Edit store details</Text>
               <Text style={styles.modalSubtitle}>
-                Store name and social links (Twitch & YouTube are optional).
+                Store name, banner and social links (Twitch & YouTube are optional).
               </Text>
+              {/* Store banner */}
+              <View style={styles.modalBannerSection}>
+                <Text style={styles.modalBannerLabel}>Store banner</Text>
+                <TouchableOpacity
+                  onPress={handleChangeBanner}
+                  disabled={bannerUploading}
+                  activeOpacity={0.8}
+                  style={styles.modalBannerTouch}
+                >
+                  {bannerUploading ? (
+                    <View style={[styles.modalBannerPlaceholder, styles.modalBannerUploading]}>
+                      <ActivityIndicator size="small" color={theme.tintColor || '#73EC8B'} />
+                      <Text style={styles.modalBannerPlaceholderText}>Uploading…</Text>
+                    </View>
+                  ) : (editBannerUrl || store?.bannerUrl) ? (
+                    <Image
+                      source={{ uri: editBannerUrl || store?.bannerUrl }}
+                      style={styles.modalBannerImage}
+                      resizeMode="cover"
+                    />
+                  ) : (
+                    <View style={styles.modalBannerPlaceholder}>
+                      <Ionicons name="image-outline" size={32} color="rgba(255, 255, 255, 0.4)" />
+                      <Text style={styles.modalBannerPlaceholderText}>Tap to add banner</Text>
+                    </View>
+                  )}
+                </TouchableOpacity>
+              </View>
               <TextInput
                 style={styles.modalInput}
                 placeholder="Store name (required)"
@@ -1596,6 +1686,45 @@ const getStyles = (theme: any) => StyleSheet.create({
     color: theme.mutedForegroundColor || 'rgba(255, 255, 255, 0.6)',
     marginBottom: SPACING.xl,
     textAlign: 'center',
+  },
+  modalBannerSection: {
+    marginBottom: SPACING.lg,
+  },
+  modalBannerLabel: {
+    fontSize: TYPOGRAPHY.caption,
+    fontFamily: theme.semiBoldFont,
+    color: theme.textColor,
+    marginBottom: SPACING.xs,
+    fontWeight: '600',
+  },
+  modalBannerTouch: {
+    width: '100%',
+    borderRadius: RADIUS.md,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: theme.borderColor || 'rgba(255, 255, 255, 0.12)',
+  },
+  modalBannerImage: {
+    width: '100%',
+    height: 80,
+    backgroundColor: theme.cardBackground || '#000',
+  },
+  modalBannerPlaceholder: {
+    width: '100%',
+    height: 80,
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalBannerUploading: {
+    flexDirection: 'row',
+    gap: SPACING.sm,
+  },
+  modalBannerPlaceholderText: {
+    fontSize: TYPOGRAPHY.caption,
+    fontFamily: theme.regularFont,
+    color: 'rgba(255, 255, 255, 0.4)',
+    marginTop: SPACING.xs,
   },
   modalInput: {
     backgroundColor: theme.backgroundColor || '#000',

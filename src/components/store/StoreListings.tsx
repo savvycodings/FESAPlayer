@@ -8,6 +8,7 @@ export interface StoreListing {
   id: string
   cardImage?: any
   cardName: string
+  cardId?: string
   price: number
   vaultingStatus: VaultingStatus
   purchaseType: PurchaseType

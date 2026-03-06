@@ -6,6 +6,7 @@ import { SPACING, TYPOGRAPHY, RADIUS } from '../../constants/layout'
 import { VerificationRings } from './VerificationRings'
 import { ProgressBars } from './ProgressBars'
 import { LevelRewardModal } from './LevelRewardModal'
+import { EditBadge } from '../ui/EditBadge'
 import Ionicons from '@expo/vector-icons/Ionicons'
 import { Iconify } from 'react-native-iconify/native'
 
@@ -124,6 +125,7 @@ export function StoreHeader({
                     )}
                   </View>
                 )}
+                {onEditPress ? <EditBadge onPress={onEditPress} size={32} iconSize={16} /> : null}
                 <VerificationRings salesCount={salesCount} size={108} />
                 <View style={styles.trustedBadge}>
                   <View style={styles.shieldIconContainer}>
@@ -138,16 +140,6 @@ export function StoreHeader({
             <View style={styles.bannerInfoSection}>
               <View style={styles.storeNameRow}>
                 <Text style={styles.storeName}>{storeName}</Text>
-                {onEditStorePress ? (
-                  <TouchableOpacity
-                    onPress={onEditStorePress}
-                    style={styles.storeNameEditIcon}
-                    activeOpacity={0.7}
-                    accessibilityLabel="Edit store details"
-                  >
-                    <Ionicons name="pencil-outline" size={18} color={theme.textColor} />
-                  </TouchableOpacity>
-                ) : null}
                 <View style={styles.storeNameBadges}>
                   {(twitchUrl || youtubeUrl) && (
                     <View style={styles.socialIconsRow}>
@@ -376,12 +368,6 @@ const getStyles = (theme: any) => StyleSheet.create({
     textShadowColor: 'rgba(0, 0, 0, 0.8)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 4,
-  },
-  storeNameEditIcon: {
-    padding: SPACING.xs,
-    marginRight: SPACING.xs,
-    justifyContent: 'center',
-    alignItems: 'center',
   },
   storeNameBadges: {
     flexDirection: 'row',

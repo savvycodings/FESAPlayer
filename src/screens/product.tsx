@@ -24,7 +24,7 @@ import { DOMAIN } from '../../constants'
 type ProductRouteParams = {
   Product: {
     id?: string
-    /** Pokedata card ID for fetching price history (chart) */
+    /** Pokedata card ID for fetching price history (chart) and 80% min bid floor */
     cardId?: string
     name: string
     image: any
@@ -34,11 +34,14 @@ type ProductRouteParams = {
     description?: string
     set?: string
     fromProfile?: boolean
-    /** When true, opened from My Store (listingId may be set for context) */
     fromMyStore?: boolean
     listingId?: string
     sellerId?: string
     storeName?: string
+    /** When 'auction', 'bid', or 'both', show Bid button and use 80% market floor when cardId present */
+    purchaseType?: 'instant' | 'auction' | 'bid' | 'both'
+    /** Current highest bid (ZAR) for listings that allow bids */
+    currentBid?: number
   }
   ViewProfile: {
     userId?: string
@@ -66,7 +69,7 @@ export function Product() {
   const { theme } = useContext(ThemeContext)
   const navigation = useNavigation<ProductScreenNavigationProp>()
   const route = useRoute<ProductScreenRouteProp>()
-  const { id, name, image, category, price, ebayPrice, description, fromProfile, fromMyStore, listingId, sellerId, storeName, cardId } = route.params || {}
+  const { id, name, image, category, price, ebayPrice, description, fromProfile, fromMyStore, listingId, sellerId, storeName, cardId, purchaseType, currentBid: routeCurrentBid } = route.params || {}
   const tintColor = theme.tintColor || '#73EC8B'
   const styles = getStyles(theme, tintColor)
   const [isFavorited, setIsFavorited] = useState(false)
@@ -81,6 +84,8 @@ export function Product() {
   const [chartData, setChartData] = useState<{ x: number; y: number }[]>([])
   const [chartDates, setChartDates] = useState<string[]>([])
   const [chartLoading, setChartLoading] = useState(false)
+  /** Market price USD from card_prices (for 80% min bid floor). Set when cardId is present. */
+  const [marketPriceUsd, setMarketPriceUsd] = useState<number | null>(null)
   // Format product name
   const formattedName = name
     ?.replace(/Pokémon[-_]TCG[-_]/g, '')
@@ -96,14 +101,16 @@ export function Product() {
   const displayDescription = description || 
     'Premium trading card product with authentic cards and exclusive items. Perfect for collectors and players alike.'
 
-  // Bids: empty by default so we show actual count (0 until you have a bids API)
-  const bidsData: { avatar?: any; name: string; bid: number }[] = []
-  const highestBid = bidsData.length > 0 ? Math.max(...bidsData.map(b => b.bid)) : 0
   const isListing = category === 'listing'
+  // Bids: use route currentBid for listings; empty array until you have a bids API
+  const bidsData: { avatar?: any; name: string; bid: number }[] = []
+  const highestBid = isListing && routeCurrentBid != null ? routeCurrentBid : (bidsData.length > 0 ? Math.max(...bidsData.map(b => b.bid)) : 0)
+  const USD_TO_ZAR = Number(process.env.EXPO_PUBLIC_USD_TO_ZAR) || 17
+  const eightyPercentMarketZar = marketPriceUsd != null && marketPriceUsd > 0 ? Math.round(0.8 * marketPriceUsd * USD_TO_ZAR) : null
   const buyNowPrice = isListing ? displayPrice : (highestBid > 0 ? highestBid + 20 : displayPrice)
-  const minBidPrice = isListing ? displayPrice : (highestBid > 0 ? highestBid + 1 : displayPrice)
-
-  const USD_TO_ZAR = Number(process.env.EXPO_PUBLIC_USD_TO_ZAR) || 16
+  const minBidPriceRaw = isListing ? (highestBid > 0 ? highestBid + 1 : displayPrice) : (highestBid > 0 ? highestBid + 1 : displayPrice)
+  const minBidPrice = eightyPercentMarketZar != null && eightyPercentMarketZar > 0 ? Math.max(minBidPriceRaw, eightyPercentMarketZar) : minBidPriceRaw
+  const allowsBid = isListing && (purchaseType === 'auction' || purchaseType === 'both' || purchaseType === 'bid')
 
   // Remove from collection (only when opened from Profile with a collection id)
   const performRemove = async () => {
@@ -261,6 +268,26 @@ export function Product() {
       .finally(() => { if (!cancelled) setChartLoading(false) })
     return () => { cancelled = true }
   }, [cardId, displayPrice, USD_TO_ZAR])
+
+  // Fetch current market price from card_prices for 80% min bid floor (when cardId present)
+  useEffect(() => {
+    if (!cardId?.trim()) {
+      setMarketPriceUsd(null)
+      return
+    }
+    let cancelled = false
+    const baseUrl = DOMAIN?.endsWith('/') ? DOMAIN.slice(0, -1) : DOMAIN
+    fetch(`${baseUrl}/pokedata/card/${encodeURIComponent(cardId.trim())}`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (cancelled) return
+        const mp = data?.marketPrice ?? data?.market_price
+        const num = mp != null && mp !== '' ? parseFloat(String(mp)) : null
+        setMarketPriceUsd(Number.isFinite(num) ? num! : null)
+      })
+      .catch(() => { if (!cancelled) setMarketPriceUsd(null) })
+    return () => { cancelled = true }
+  }, [cardId])
 
   const currentValueData = chartData.length > 0 ? chartData : (displayPrice > 0 ? [{ x: 0, y: displayPrice }, { x: 1, y: displayPrice }] : [])
 
@@ -497,15 +524,17 @@ export function Product() {
       {/* Bottom Action Bar - only on non-profile product page */}
       {!fromProfile && (
         <View style={styles.bottomActionBar}>
-          <TouchableOpacity
-            style={styles.bidNowButton}
-            onPress={() => openPaymentModal('bid')}
-            activeOpacity={0.8}
-          >
-            <Ionicons name="hand-left-outline" size={20} color={theme.textColor} style={styles.bidIcon} />
-            <Text style={styles.bidNowButtonText}>Bid Now</Text>
-            <Text style={styles.bidNowButtonPrice}>R{minBidPrice.toLocaleString('en-ZA')}</Text>
-          </TouchableOpacity>
+          {allowsBid && (
+            <TouchableOpacity
+              style={styles.bidNowButton}
+              onPress={() => openPaymentModal('bid')}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="hand-left-outline" size={20} color={theme.textColor} style={styles.bidIcon} />
+              <Text style={styles.bidNowButtonText}>Bid at</Text>
+              <Text style={styles.bidNowButtonPrice}>R{minBidPrice.toLocaleString('en-ZA')}</Text>
+            </TouchableOpacity>
+          )}
           <TouchableOpacity
             style={styles.buyNowButton}
             onPress={() => openPaymentModal('buy')}

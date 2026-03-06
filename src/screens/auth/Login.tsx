@@ -1,5 +1,5 @@
 import { useState, useContext } from 'react'
-import { View, StyleSheet, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, ScrollView, Alert } from 'react-native'
+import { View, StyleSheet, TextInput, TouchableOpacity, Pressable, KeyboardAvoidingView, Platform, ScrollView, Alert } from 'react-native'
 import { Text } from '../../components/ui/text'
 import { ThemeContext } from '../../context'
 import { SPACING, TYPOGRAPHY, RADIUS } from '../../constants/layout'
@@ -55,78 +55,98 @@ export function Login() {
         return
       }
       if (!pudoAddress.trim()) {
-        Alert.alert('Error', 'Please enter your Pudo address')
+        Alert.alert('Error', 'Please enter your PUDO address')
         return
       }
+      Alert.alert(
+        'Confirm PUDO address',
+        'Did you enter your PUDO address (parcel drop-off location), not your home address? Packages will be sent to this address.',
+        [
+          { text: 'Back', style: 'cancel', onPress: () => {} },
+          { text: 'Continue', onPress: () => doSignUp() },
+        ]
+      )
+      return
     }
 
     setLoading(true)
     setAuthError(null)
-
     try {
-      let result
-
-      // Wrap auth call in a timeout so web doesn't hang forever
-      const authPromise = isSignUp
-        ? authClient.signUp.email({ email, password, name })
-        : authClient.signIn.email({ email, password })
-
-      const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => {
-          reject(new Error('Request timed out. Please check that your backend is running and try again.'))
-        }, 15000)
-      })
-
-      result = await Promise.race([authPromise, timeoutPromise]) as any
-
+      const result = await Promise.race([
+        authClient.signIn.email({ email, password }),
+        new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('Request timed out. Please check that your backend is running and try again.')), 15000)
+        ),
+      ]) as any
       if (result?.error) {
-        console.log('❌ Auth error result:', result.error)
-        const message = result.error.message || (isSignUp ? 'Sign up failed' : 'Sign in failed')
+        const message = result.error.message || 'Sign in failed'
         setAuthError(message)
         Alert.alert('Error', message)
         return
       }
-      
-      console.log(isSignUp ? '✅ Sign up successful:' : '✅ Sign in successful:', result?.data?.user?.email)
-      
-      // If sign up, save phone and Pudo address to profile
-      if (isSignUp && (phone.trim() || pudoAddress.trim())) {
-        try {
-          const session = await authClient.getSession()
-          const token = session?.data?.session?.token
-          if (token) {
-            const baseUrl = DOMAIN?.endsWith('/') ? DOMAIN.slice(0, -1) : DOMAIN
-            await fetch(`${baseUrl}/api/profile/user`, {
-              method: 'PUT',
-              headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-              body: JSON.stringify({
-                phone: phone.trim() || undefined,
-                pudoAddress: pudoAddress.trim() || undefined,
-              }),
-            })
-          }
-        } catch (e) {
-          console.warn('Failed to save phone / Pudo address:', e)
-        }
-      }
-      
-      // Mark user as authenticated for RootNavigator (used on all platforms)
-      try {
-        await AsyncStorage.setItem('authToken', 'better-auth-session')
-        await AsyncStorage.setItem('hasSeenOnboarding', 'true')
-        setHasSeenOnboarding(true)
-        setAuthenticated(true)
-      } catch (storageError) {
-        console.warn('Failed to persist auth state:', storageError)
-      }
-      // RootNavigator will re-render and show Main when isAuthenticated becomes true
+      await finishAuth(isSignUp, result)
     } catch (error: any) {
-      console.error('❌ Auth error:', error)
       const message = error?.message || 'Something went wrong. Please check your internet connection and that the backend is reachable.'
       setAuthError(message)
       Alert.alert('Error', message)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const doSignUp = async () => {
+    setLoading(true)
+    setAuthError(null)
+    try {
+      const result = await Promise.race([
+        authClient.signUp.email({ email, password, name }),
+        new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('Request timed out. Please check that your backend is running and try again.')), 15000)
+        ),
+      ]) as any
+      if (result?.error) {
+        const message = result.error.message || 'Sign up failed'
+        setAuthError(message)
+        Alert.alert('Error', message)
+        return
+      }
+      await finishAuth(true, result)
+    } catch (error: any) {
+      const message = error?.message || 'Something went wrong. Please check your internet connection and that the backend is reachable.'
+      setAuthError(message)
+      Alert.alert('Error', message)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const finishAuth = async (wasSignUp: boolean, result: any) => {
+    if (wasSignUp && (phone.trim() || pudoAddress.trim())) {
+      try {
+        const session = await authClient.getSession()
+        const token = session?.data?.session?.token
+        if (token) {
+          const baseUrl = DOMAIN?.endsWith('/') ? DOMAIN.slice(0, -1) : DOMAIN
+          await fetch(`${baseUrl}/api/profile/user`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+            body: JSON.stringify({
+              phone: phone.trim() || undefined,
+              pudoAddress: pudoAddress.trim() || undefined,
+            }),
+          })
+        }
+      } catch (e) {
+        console.warn('Failed to save phone / Pudo address:', e)
+      }
+    }
+    try {
+      await AsyncStorage.setItem('authToken', 'better-auth-session')
+      await AsyncStorage.setItem('hasSeenOnboarding', 'true')
+      setHasSeenOnboarding(true)
+      setAuthenticated(true)
+    } catch (storageError) {
+      console.warn('Failed to persist auth state:', storageError)
     }
   }
 
@@ -141,12 +161,14 @@ export function Login() {
       >
           <View style={styles.content}>
             <View style={styles.header}>
-              <Text style={styles.headerEyebrow}>
-                {isSignUp ? 'Create account' : 'Sign in'}
-              </Text>
-              <Text style={styles.title}>
-                {isSignUp ? 'Welcome to GradeIt' : 'Welcome Back'}
-              </Text>
+              <View style={styles.headerTextBlock}>
+                <Text style={styles.headerEyebrow}>
+                  {isSignUp ? 'Create account' : 'Sign in'}
+                </Text>
+                <Text style={styles.title}>
+                  {isSignUp ? 'Welcome to SA Player' : 'Welcome Back'}
+                </Text>
+              </View>
               <Text style={styles.subtitle}>
                 {isSignUp
                   ? 'Create your profile, track your portfolio and list cards to sell.'
@@ -190,7 +212,7 @@ export function Login() {
                   <Ionicons name="location-outline" size={20} color={theme.mutedForegroundColor} style={styles.inputIcon} />
                   <TextInput
                     style={styles.input}
-                    placeholder="Pudo address"
+                    placeholder="PUDO address (parcel drop-off, not home)"
                     placeholderTextColor={theme.mutedForegroundColor}
                     value={pudoAddress}
                     onChangeText={setPudoAddress}
@@ -198,6 +220,11 @@ export function Login() {
                     autoComplete="street-address"
                   />
                 </View>
+              )}
+              {isSignUp && (
+                <Text style={styles.pudoHint}>
+                  Use your PUDO parcel drop-off location address. Do not use your home address.
+                </Text>
               )}
 
               <View style={styles.inputContainer}>
@@ -239,16 +266,15 @@ export function Login() {
               </View>
 
               {!isSignUp && (
-                <TouchableOpacity style={styles.forgotPassword}>
+                <Pressable style={({ pressed }) => [styles.forgotPassword, pressed && { opacity: 0.8 }]}>
                   <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
-                </TouchableOpacity>
+                </Pressable>
               )}
 
-              <TouchableOpacity
-                style={styles.authButton}
+              <Pressable
+                style={({ pressed }) => [styles.authButton, pressed && styles.authButtonPressed]}
                 onPress={handleAuth}
                 disabled={loading}
-                activeOpacity={0.8}
               >
                 <LinearGradient
                   colors={getButtonGradientColors(theme)}
@@ -260,7 +286,7 @@ export function Login() {
                     {loading ? 'Please wait...' : (isSignUp ? 'Sign Up' : 'Sign In')}
                   </Text>
                 </LinearGradient>
-              </TouchableOpacity>
+              </Pressable>
 
               {authError && (
                 <Text style={styles.errorText}>
@@ -268,29 +294,15 @@ export function Login() {
                 </Text>
               )}
 
-              <View style={styles.divider}>
-                <View style={styles.dividerLine} />
-                <Text style={styles.dividerText}>OR</Text>
-                <View style={styles.dividerLine} />
-              </View>
-
-              <TouchableOpacity
-                style={styles.socialButton}
-                activeOpacity={0.8}
-              >
-                <Ionicons name="logo-google" size={20} color={theme.textColor} />
-                <Text style={styles.socialButtonText}>Continue with Google</Text>
-              </TouchableOpacity>
-
               <View style={styles.switchAuth}>
                 <Text style={styles.switchAuthText}>
                   {isSignUp ? 'Already have an account? ' : "Don't have an account? "}
                 </Text>
-                <TouchableOpacity onPress={() => setIsSignUp(!isSignUp)}>
+                <Pressable onPress={() => setIsSignUp(!isSignUp)} style={({ pressed }) => pressed && styles.switchAuthLinkPressed}>
                   <Text style={styles.switchAuthLink}>
                     {isSignUp ? 'Sign In' : 'Sign Up'}
                   </Text>
-                </TouchableOpacity>
+                </Pressable>
               </View>
             </View>
           </View>
@@ -315,6 +327,10 @@ const getStyles = (theme: any) => StyleSheet.create({
   header: {
     marginBottom: SPACING['4xl'],
     alignItems: 'flex-start',
+  },
+  headerTextBlock: {
+    flex: 1,
+    marginBottom: SPACING.sm,
   },
   logoContainer: {
     width: 0,
@@ -358,6 +374,13 @@ const getStyles = (theme: any) => StyleSheet.create({
   inputIcon: {
     marginRight: SPACING.sm,
   },
+  pudoHint: {
+    fontSize: TYPOGRAPHY.caption,
+    fontFamily: theme.regularFont,
+    color: theme.mutedForegroundColor || 'rgba(255, 255, 255, 0.5)',
+    marginBottom: SPACING.lg,
+    marginTop: -SPACING.sm,
+  },
   input: {
     flex: 1,
     fontSize: TYPOGRAPHY.body,
@@ -371,6 +394,7 @@ const getStyles = (theme: any) => StyleSheet.create({
   forgotPassword: {
     alignSelf: 'flex-end',
     marginBottom: SPACING.xl,
+    cursor: 'pointer',
   },
   forgotPasswordText: {
     fontSize: TYPOGRAPHY.bodySmall,
@@ -382,6 +406,10 @@ const getStyles = (theme: any) => StyleSheet.create({
     borderRadius: RADIUS.full,
     overflow: 'hidden',
     marginBottom: SPACING.lg,
+    cursor: 'pointer',
+  },
+  authButtonPressed: {
+    opacity: 0.9,
   },
   buttonGradient: {
     paddingVertical: SPACING.lg,
@@ -393,38 +421,8 @@ const getStyles = (theme: any) => StyleSheet.create({
     fontFamily: theme.boldFont,
     color: theme.tintTextColor || '#fff',
   },
-  divider: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginVertical: SPACING.xl,
-  },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: theme.borderColor || 'rgba(255, 255, 255, 0.1)',
-  },
-  dividerText: {
-    marginHorizontal: SPACING.md,
-    fontSize: TYPOGRAPHY.caption,
-    fontFamily: theme.regularFont,
-    color: theme.mutedForegroundColor,
-  },
-  socialButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: theme.cardBackground || 'rgba(255, 255, 255, 0.05)',
-    borderRadius: RADIUS.md,
-    borderWidth: 1,
-    borderColor: theme.borderColor || 'rgba(255, 255, 255, 0.1)',
-    paddingVertical: SPACING.md,
-    marginBottom: SPACING.xl,
-  },
-  socialButtonText: {
-    fontSize: TYPOGRAPHY.body,
-    fontFamily: theme.mediumFont,
-    color: theme.textColor,
-    marginLeft: SPACING.sm,
+  switchAuthLinkPressed: {
+    opacity: 0.8,
   },
   switchAuth: {
     flexDirection: 'row',
@@ -441,6 +439,7 @@ const getStyles = (theme: any) => StyleSheet.create({
     fontSize: TYPOGRAPHY.body,
     fontFamily: theme.boldFont,
     color: theme.tintColor || '#0281ff',
+    cursor: 'pointer',
   },
   errorText: {
     marginTop: SPACING.sm,
