@@ -2,6 +2,7 @@ import 'react-native-gesture-handler'
 import { useState, useEffect, useRef } from 'react'
 import { NavigationContainer } from '@react-navigation/native'
 import { RootNavigator } from './src/navigation/RootNavigator'
+import { useAuth } from './src/context/AuthContext'
 import { useFonts } from 'expo-font'
 import {
   GoogleSans_400Regular,
@@ -14,6 +15,7 @@ import {
   GoogleSans_700Bold_Italic,
 } from '@expo-google-fonts/google-sans'
 import { ThemeContext, AppContext } from './src/context'
+import { AuthProvider } from './src/context/AuthContext'
 import * as themes from './src/theme'
 import { IMAGE_MODELS, MODELS, ILLUSION_DIFFUSION_IMAGES } from './constants'
 import { GestureHandlerRootView } from 'react-native-gesture-handler'
@@ -29,6 +31,17 @@ import {
 } from '@gorhom/bottom-sheet'
 import { StyleSheet, LogBox } from 'react-native'
 import { PortalHost } from '@rn-primitives/portal'
+
+function AuthNavigationGate() {
+  const { isAuthenticated, hasSeenOnboarding } = useAuth()
+  const navKey = `nav-${String(hasSeenOnboarding)}-${String(isAuthenticated)}`
+  console.log('[AuthNavigationGate] render', { isAuthenticated, hasSeenOnboarding, navKey })
+  return (
+    <NavigationContainer key={navKey}>
+      <RootNavigator />
+    </NavigationContainer>
+  )
+}
 
 LogBox.ignoreLogs([
   'Key "cancelled" in the image picker result is deprecated and will be removed in SDK 48, use "canceled" instead',
@@ -148,9 +161,9 @@ export default function App() {
           setTheme: _setTheme
           }}>
           <ActionSheetProvider>
-            <NavigationContainer>
-              <RootNavigator />
-            </NavigationContainer>
+            <AuthProvider>
+              <AuthNavigationGate />
+            </AuthProvider>
           </ActionSheetProvider>
           <BottomSheetModalProvider>
             <BottomSheetModal

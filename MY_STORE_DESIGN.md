@@ -4,7 +4,7 @@
 Transform the "Settings" tab into a comprehensive "My Store" feature that allows users to create, customize, and manage their own card store with advanced features like bidding, vaulting status, user levels, and trust indicators.
 
 ---
-
+.
 ## Core Features
 
 ### 1. Store Customization
