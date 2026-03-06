@@ -1,7 +1,7 @@
 # Design System Documentation
 
 This document outlines the design system used throughout the SA Player app to maintain consistency in spacing, typography, and component usage.
-
+.
 ## Table of Contents
 - [Layout Constants](#layout-constants)
 - [Section Component](#section-component)
