@@ -1,0 +1,15 @@
+diff --git a/build/src/start/server/middleware/ManifestMiddleware.js b/build/src/start/server/middleware/ManifestMiddleware.js
+index 0000000..1111111 100644
+--- a/build/src/start/server/middleware/ManifestMiddleware.js
++++ b/build/src/start/server/middleware/ManifestMiddleware.js
+@@ -269,8 +269,8 @@ class ManifestMiddleware extends _ExpoMiddleware.ExpoMiddleware {
+             minify: this.options.minify,
+             lazy: !_env.env.EXPO_NO_METRO_LAZY,
+             mode: this.options.mode ?? 'development',
+-            // Hermes doesn't support more modern JS features than most, if not all, modern browser.
+-            engine: 'hermes',
++            // Web must not use Hermes transform - causes "Cannot access globalThis before initialization" in browser
++            engine: undefined,
+             isExporting: false,
+             bytecode: false
+         });

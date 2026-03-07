@@ -4,6 +4,11 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
+patchedDependencies:
+  '@expo/cli':
+    hash: b5dcf71d9fc53248f11a055cf0d93cda5b8ce74023f7ac153e573df867c5a6bf
+    path: patches/@expo__cli.patch
+
 importers:
 
   .:
@@ -5752,7 +5757,7 @@ snapshots:
 
   '@expo-google-fonts/google-sans@0.4.0': {}
 
-  '@expo/cli@54.0.21(expo@54.0.31)(graphql@15.8.0)(react-native@0.81.5(@babel/core@7.28.5)(@react-native-community/cli@13.6.9)(@types/react@19.1.17)(react@19.1.0))':
+  '@expo/cli@54.0.21(patch_hash=b5dcf71d9fc53248f11a055cf0d93cda5b8ce74023f7ac153e573df867c5a6bf)(expo@54.0.31)(graphql@15.8.0)(react-native@0.81.5(@babel/core@7.28.5)(@react-native-community/cli@13.6.9)(@types/react@19.1.17)(react@19.1.0))':
     dependencies:
       '@0no-co/graphql.web': 1.2.0(graphql@15.8.0)
       '@expo/code-signing-certificates': 0.0.6
@@ -8279,7 +8284,7 @@ snapshots:
   expo@54.0.31(@babel/core@7.28.5)(@expo/metro-runtime@6.1.2)(graphql@15.8.0)(react-native-webview@13.16.0(react-native@0.81.5(@babel/core@7.28.5)(@react-native-community/cli@13.6.9)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0))(react-native@0.81.5(@babel/core@7.28.5)(@react-native-community/cli@13.6.9)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0):
     dependencies:
       '@babel/runtime': 7.28.4
-      '@expo/cli': 54.0.21(expo@54.0.31)(graphql@15.8.0)(react-native@0.81.5(@babel/core@7.28.5)(@react-native-community/cli@13.6.9)(@types/react@19.1.17)(react@19.1.0))
+      '@expo/cli': 54.0.21(patch_hash=b5dcf71d9fc53248f11a055cf0d93cda5b8ce74023f7ac153e573df867c5a6bf)(expo@54.0.31)(graphql@15.8.0)(react-native@0.81.5(@babel/core@7.28.5)(@react-native-community/cli@13.6.9)(@types/react@19.1.17)(react@19.1.0))
       '@expo/config': 12.0.13
       '@expo/config-plugins': 54.0.4
       '@expo/devtools': 0.1.8(react-native@0.81.5(@babel/core@7.28.5)(@react-native-community/cli@13.6.9)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)

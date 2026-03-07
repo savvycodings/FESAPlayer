@@ -1,0 +1,22 @@
+diff --git a/index.js b/index.js
+index 0000000..1111111 100644
+--- a/index.js
++++ b/index.js
+@@ -10,7 +10,7 @@ const defineProperty = (object, name, value) => Object.defineProperty(object, n
+ 	configurable: true
+ });
+ 
+-const globalThis = this;
++const globalObj = this;
+ const defaultMergeOptions = {
+ 	concatArrays: false,
+ 	ignoreUndefined: false
+@@ -150,7 +150,7 @@ function merge(merged, source, config) {
+ }
+ 
+ module.exports = function (...options) {
+-	const config = merge(clone(defaultMergeOptions), (this !== globalThis && this) || {}, defaultMergeOptions);
++	const config = merge(clone(defaultMergeOptions), (this !== globalObj && this) || {}, defaultMergeOptions);
+ 	let merged = {_: {}};
+ 
+ 	for (const option of options) {

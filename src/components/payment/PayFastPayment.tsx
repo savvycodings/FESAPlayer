@@ -1,4 +1,4 @@
-import { View, StyleSheet, Modal, TouchableOpacity, ActivityIndicator, Linking, Alert, Platform, TextInput, ScrollView } from 'react-native'
+import { View, StyleSheet, Modal, TouchableOpacity, ActivityIndicator, Linking, Alert, TextInput, ScrollView } from 'react-native'
 import { useContext, useState, useEffect, useRef } from 'react'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import * as WebBrowser from 'expo-web-browser'
@@ -8,19 +8,19 @@ import Ionicons from '@expo/vector-icons/Ionicons'
 import { ThemeContext } from '../../context'
 import { SPACING, TYPOGRAPHY, RADIUS } from '../../constants/layout'
 
-// Backend API URL - Same logic as auth-client and constants: local dev uses EXPO_PUBLIC_DEV_API_URL when ENV=DEVELOPMENT
+// Backend API URL - Same logic as auth-client: prefer env vars, then Constants/backendIp, then localhost fallback (no web-only branch).
 const getBackendUrl = () => {
   const devUrl = process.env.EXPO_PUBLIC_DEV_API_URL?.replace(/\/$/, '')
   const prodUrl = process.env.EXPO_PUBLIC_BACKEND_URL?.replace(/\/$/, '')
   if (process.env.EXPO_PUBLIC_ENV === 'DEVELOPMENT' && devUrl) return devUrl
   if (prodUrl) return prodUrl
-  if (Platform.OS === 'web') return devUrl || 'http://localhost:3050'
+  if (devUrl) return devUrl
   try {
     const devIp = Constants.expoConfig?.extra?.backendIp || '192.168.1.9'
     return `http://${devIp}:3050`
   } catch (error) {
     console.warn('Could not get backend IP from Constants, using default:', error)
-    return 'http://192.168.1.9:3050'
+    return 'http://localhost:3050'
   }
 }
 
@@ -628,10 +628,10 @@ const getStyles = (theme: any, insets: { top: number; bottom: number }) => Style
   contentContainer: {
     flex: 1,
     padding: SPACING.containerPadding,
-    justifyContent: 'center',
   },
   shippingFormContent: {
     paddingBottom: SPACING['2xl'],
+    justifyContent: 'center',
   },
   shippingFormTitle: {
     fontSize: TYPOGRAPHY.h4,
