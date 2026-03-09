@@ -5,18 +5,26 @@ import { Carousel } from '../Carousel'
 import { ThemeContext } from '../../context'
 import { SPACING, TYPOGRAPHY, RADIUS } from '../../constants/layout'
 
-interface PromoItem {
+export type PromoAction =
+  | { type: 'category'; categoryId: string }
+  | { type: 'product'; name: string; image: any; category?: 'product' | 'set' | 'single' | 'featured' | 'listing' }
+  | { type: 'set'; setName: string; setImage: any }
+
+export interface PromoItem {
   title: string
   description: string
   buttonText: string
   image: any
+  /** When set, the button will trigger this action (category filter or product page) */
+  action?: PromoAction
 }
 
 interface PromoCarouselProps {
   items: PromoItem[]
+  onButtonPress?: (item: PromoItem) => void
 }
 
-export function PromoCarousel({ items }: PromoCarouselProps) {
+export function PromoCarousel({ items, onButtonPress }: PromoCarouselProps) {
   const { theme } = useContext(ThemeContext)
   const styles = getStyles(theme)
 
@@ -35,6 +43,7 @@ export function PromoCarousel({ items }: PromoCarouselProps) {
               <TouchableOpacity
                 style={styles.promoButton}
                 activeOpacity={0.7}
+                onPress={() => onButtonPress?.(item)}
               >
                 <Text style={styles.promoButtonText}>{item.buttonText}</Text>
               </TouchableOpacity>

@@ -1,5 +1,5 @@
-import { View, StyleSheet, ScrollView, RefreshControl } from 'react-native'
-import { useContext, useCallback, useEffect, useState } from 'react'
+import { View, StyleSheet, ScrollView, RefreshControl, TouchableOpacity } from 'react-native'
+import { useContext, useCallback, useEffect, useState, useRef } from 'react'
 import { useNavigation, useFocusEffect } from '@react-navigation/native'
 import { NativeStackNavigationProp } from '@react-navigation/native-stack'
 import { ThemeContext } from '../context'
@@ -15,6 +15,7 @@ import {
   VaultingSection,
   BlogCarousel,
 } from '../components/shop'
+import type { PromoItem } from '../components/shop/PromoCarousel'
 import { Text } from '../components/ui/text'
 import { authClient } from '../lib/auth-client'
 import { DOMAIN } from '../../constants'
@@ -60,7 +61,26 @@ export function Shop() {
   }>>([])
   const [recentListingsLoading, setRecentListingsLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
-  
+  const [verifiedStores, setVerifiedStores] = useState<Array<{
+    id: number
+    userId: string
+    storeName?: string | null
+    profileImage?: string | null
+    verificationLevel?: string | null
+    owner?: { firstName?: string | null; lastName?: string | null; name?: string | null; avatar?: string | null }
+  }>>([])
+  const [verifiedStoresLoading, setVerifiedStoresLoading] = useState(true)
+  const scrollViewRef = useRef<ScrollView>(null)
+  const recentListingsSectionRef = useRef<View>(null)
+  const recentListingsSectionY = useRef(0)
+
+  const captureRecentListingsY = useCallback(() => {
+    recentListingsSectionRef.current?.measureLayout(
+      scrollViewRef.current as any,
+      (_x: number, y: number) => { recentListingsSectionY.current = y }
+    )
+  }, [])
+
   // Display name from profile API (updates when user edits name in Edit Profile)
   const [userName, setUserName] = useState<string>('User')
 
@@ -105,40 +125,84 @@ export function Shop() {
     }
   }, [])
 
+  const fetchVerifiedStores = useCallback(async () => {
+    try {
+      setVerifiedStoresLoading(true)
+      const baseUrl = DOMAIN?.endsWith('/') ? DOMAIN.slice(0, -1) : DOMAIN
+      const res = await fetch(`${baseUrl}/api/stores/verified?limit=12`)
+      if (!res.ok) throw new Error('Failed to fetch verified stores')
+      const data = await res.json()
+      setVerifiedStores(data.stores || [])
+    } catch (error) {
+      console.error('Error fetching verified stores:', error)
+      setVerifiedStores([])
+    } finally {
+      setVerifiedStoresLoading(false)
+    }
+  }, [])
+
   useEffect(() => {
     fetchRecentListings()
   }, [fetchRecentListings])
 
+  useEffect(() => {
+    fetchVerifiedStores()
+  }, [fetchVerifiedStores])
+
   const onRefresh = useCallback(async () => {
     setRefreshing(true)
     try {
-      await Promise.all([fetchProfileName(), fetchRecentListings()])
+      await Promise.all([fetchProfileName(), fetchRecentListings(), fetchVerifiedStores()])
     } finally {
       setRefreshing(false)
     }
-  }, [fetchProfileName, fetchRecentListings])
+  }, [fetchProfileName, fetchRecentListings, fetchVerifiedStores])
   
-  // Promotional carousel data
-  const promoItems = [
+  // Promotional carousel data – each promo links to a product or set page
+  const promoItems: PromoItem[] = [
     {
       title: 'Special Promotions in Stock',
       description: 'Limited time offers to help you build your collection.',
       buttonText: 'Shop Now',
       image: require('../../assets/products/pokevault/Pokmon_TCG_Hidden_Fates_Elite_Trainer_Box.jpg'),
+      action: { type: 'product', name: 'Pokmon_TCG_Hidden_Fates_Elite_Trainer_Box', image: require('../../assets/products/pokevault/Pokmon_TCG_Hidden_Fates_Elite_Trainer_Box.jpg'), category: 'product' },
     },
     {
       title: 'Flash Sale: Premium Singles',
       description: 'Perfect condition guaranteed with our authentication process.',
       buttonText: 'View Deals',
       image: require('../../assets/products/pokevault/Pokmon_TCG_Scarlet_Violet_Destined_Rivals_Pokmon_Center_Elite_Trainer_Box.jpg'),
+      action: { type: 'set', setName: 'destined-rivals', setImage: require('../../assets/sets/pokimonlogo/destined-rivals.png') },
     },
     {
       title: 'New Arrivals: Sealed Products',
       description: 'Secure your favorite sets before they sell out.',
       buttonText: 'Explore',
       image: require('../../assets/products/pokevault/Pokmon_TCG_Mega_Evolution_Phantasmal_Flames_Booster_Bundle.jpg'),
+      action: { type: 'product', name: 'Pokmon_TCG_Mega_Evolution_Phantasmal_Flames_Booster_Bundle', image: require('../../assets/products/pokevault/Pokmon_TCG_Mega_Evolution_Phantasmal_Flames_Booster_Bundle.jpg'), category: 'product' },
     },
   ]
+
+  const handlePromoButtonPress = useCallback((item: PromoItem) => {
+    const action = item.action
+    if (!action) return
+    if (action.type === 'category') {
+      setSelectedCategory(action.categoryId)
+      const y = recentListingsSectionY.current
+      scrollViewRef.current?.scrollTo({ y: Math.max(0, y - 40), animated: true })
+    } else if (action.type === 'product') {
+      navigation.navigate('Product', {
+        name: action.name,
+        image: action.image,
+        category: action.category ?? 'product',
+      })
+    } else if (action.type === 'set') {
+      navigation.navigate('SetProducts', {
+        setName: action.setName,
+        setImage: action.setImage,
+      })
+    }
+  }, [navigation])
   
   // Blog carousel data
   const blogItems = [
@@ -172,14 +236,24 @@ export function Shop() {
     { id: 'slabbed', label: 'Slabbed' },
   ]
 
-  // Verified stores data - these are verified sellers users can buy from
-  const verifiedStoresData = [
-    { first: 'Alex', last: 'Johnson', image: require('../../assets/Avatars/guy1.jpg'), verified: true },
-    { first: 'Sarah', last: 'Martinez', image: require('../../assets/Avatars/guy5.jpg'), verified: true },
-    { first: 'Michael', last: 'Chen', image: require('../../assets/Avatars/guy2.jpg'), verified: true },
-    { first: 'Emily', last: 'Rodriguez', image: require('../../assets/Avatars/guy4.jpg'), verified: true },
-    { first: 'David', last: 'Thompson', image: require('../../assets/Avatars/guy3.jpg'), verified: true },
-  ]
+  // Map API verified stores to carousel items (real stores); fallback to placeholder if none
+  const defaultStoreAvatar = require('../../assets/Avatars/guy1.jpg')
+  const verifiedStoresData = verifiedStoresLoading
+    ? []
+    : verifiedStores.length > 0
+      ? verifiedStores.map((store) => {
+          const storeName = store.storeName?.trim() || [store.owner?.firstName, store.owner?.lastName].filter(Boolean).join(' ') || store.owner?.name?.trim() || 'Store'
+          return {
+            first: storeName,
+            last: '',
+            image: store.profileImage ? { uri: store.profileImage } : defaultStoreAvatar,
+            verified: true,
+            userId: store.userId,
+            storeId: store.id,
+            verificationLevel: store.verificationLevel ?? 'bronze',
+          }
+        })
+      : []
   
   // Filter recent listings by category (vaulted = slabbed, else singles for now; schema has no category)
   const filteredRecentListings = selectedCategory === 'all'
@@ -230,6 +304,7 @@ export function Shop() {
       <ShopHeader userName={userName} />
 
       <ScrollView
+        ref={scrollViewRef}
         contentContainerStyle={styles.scrollContentContainer}
         showsVerticalScrollIndicator={false}
         scrollEventThrottle={16}
@@ -242,13 +317,35 @@ export function Shop() {
           />
         }
       >
-        <PromoCarousel items={promoItems} />
+        <PromoCarousel items={promoItems} onButtonPress={handlePromoButtonPress} />
 
         <Section title="Verified User Stores">
-          <VerifiedStoresCarousel 
-            items={verifiedStoresData}
-            onApplyPress={() => setIsVerifiedStoreModalVisible(true)}
-          />
+          {verifiedStoresLoading ? (
+            <View style={[styles.recentListingsPlaceholder, { paddingVertical: SPACING.lg }]}>
+              <Text style={[styles.recentListingsPlaceholderText, { color: theme.mutedForegroundColor }]}>
+                Loading verified stores...
+              </Text>
+            </View>
+          ) : verifiedStoresData.length === 0 ? (
+            <View style={[styles.recentListingsPlaceholder, { paddingVertical: SPACING.lg }]}>
+              <Text style={[styles.recentListingsPlaceholderText, { color: theme.mutedForegroundColor }]}>
+                No verified stores yet.
+              </Text>
+              <TouchableOpacity
+                style={[styles.applyLink, { marginTop: SPACING.sm }]}
+                onPress={() => setIsVerifiedStoreModalVisible(true)}
+              >
+                <Text style={[styles.applyLinkText, { color: theme.tintColor || '#0281ff' }]}>
+                  Apply to become a verified store
+                </Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <VerifiedStoresCarousel 
+              items={verifiedStoresData}
+              onApplyPress={() => setIsVerifiedStoreModalVisible(true)}
+            />
+          )}
         </Section>
 
         <Section 
@@ -263,17 +360,19 @@ export function Shop() {
           />
         </Section>
 
-        <Section title="Recent Listings">
-          {recentListingsLoading ? (
-            <View style={[styles.recentListingsPlaceholder, { paddingVertical: SPACING['2xl'] }]}>
-              <Text style={[styles.recentListingsPlaceholderText, { color: theme.mutedForegroundColor }]}>
-                Loading listings...
-              </Text>
-            </View>
-          ) : (
-            <RecentListings listings={filteredRecentListings} />
-          )}
-        </Section>
+        <View ref={recentListingsSectionRef} onLayout={captureRecentListingsY}>
+          <Section title="Recent Listings">
+            {recentListingsLoading ? (
+              <View style={[styles.recentListingsPlaceholder, { paddingVertical: SPACING['2xl'] }]}>
+                <Text style={[styles.recentListingsPlaceholderText, { color: theme.mutedForegroundColor }]}>
+                  Loading listings...
+                </Text>
+              </View>
+            ) : (
+              <RecentListings listings={filteredRecentListings} />
+            )}
+          </Section>
+        </View>
 
         <VaultingSection />
 
@@ -312,5 +411,12 @@ const getStyles = (theme: any) => StyleSheet.create({
   recentListingsPlaceholderText: {
     fontSize: TYPOGRAPHY.body,
     fontFamily: theme.regularFont,
+  },
+  applyLink: {
+    paddingVertical: SPACING.xs,
+  },
+  applyLinkText: {
+    fontSize: TYPOGRAPHY.bodySmall,
+    fontFamily: theme.semiBoldFont,
   },
 })

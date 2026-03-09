@@ -10,6 +10,15 @@ import { useAuth } from '../../context/AuthContext'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { DOMAIN } from '../../../constants'
 
+const isWeb = Platform.OS === 'web'
+function showAlert(title: string, message?: string) {
+  if (isWeb && typeof window !== 'undefined') {
+    window.alert(message ? `${title}\n\n${message}` : title)
+    return
+  }
+  Alert.alert(title, message ?? undefined)
+}
+
 // Helper function to get gradient colors based on theme
 const getButtonGradientColors = (theme: any): string[] => {
   const tintColor = theme.tintColor || '#0281ff'
@@ -41,26 +50,34 @@ export function Login() {
 
   const handleAuth = async () => {
     if (!email || !password) {
-      Alert.alert('Error', 'Please fill in all fields')
+      showAlert('Error', 'Please fill in all fields')
       return
     }
 
     if (isSignUp) {
       if (!name.trim()) {
-        Alert.alert('Error', 'Please enter your name')
+        showAlert('Error', 'Please enter your name')
         return
       }
       if (!phone.trim()) {
-        Alert.alert('Error', 'Please enter your phone number')
+        showAlert('Error', 'Please enter your phone number')
         return
       }
       if (!pudoAddress.trim()) {
-        Alert.alert('Error', 'Please enter your PUDO address')
+        showAlert('Error', 'Please enter your PUDO address')
+        return
+      }
+      // On web, Alert.alert() with multiple buttons is not supported — use confirm so sign up works
+      const pudoMessage = 'Did you enter your PUDO address (parcel drop-off location), not your home address? Packages will be sent to this address.'
+      if (isWeb && typeof window !== 'undefined') {
+        if (window.confirm(pudoMessage)) {
+          doSignUp()
+        }
         return
       }
       Alert.alert(
         'Confirm PUDO address',
-        'Did you enter your PUDO address (parcel drop-off location), not your home address? Packages will be sent to this address.',
+        pudoMessage,
         [
           { text: 'Back', style: 'cancel', onPress: () => {} },
           { text: 'Continue', onPress: () => doSignUp() },
@@ -81,14 +98,14 @@ export function Login() {
       if (result?.error) {
         const message = result.error.message || 'Sign in failed'
         setAuthError(message)
-        Alert.alert('Error', message)
+        showAlert('Error', message)
         return
       }
       await finishAuth(isSignUp, result)
     } catch (error: any) {
       const message = error?.message || 'Something went wrong. Please check your internet connection and that the backend is reachable.'
       setAuthError(message)
-      Alert.alert('Error', message)
+      showAlert('Error', message)
     } finally {
       setLoading(false)
     }
@@ -107,14 +124,14 @@ export function Login() {
       if (result?.error) {
         const message = result.error.message || 'Sign up failed'
         setAuthError(message)
-        Alert.alert('Error', message)
+        showAlert('Error', message)
         return
       }
       await finishAuth(true, result)
     } catch (error: any) {
       const message = error?.message || 'Something went wrong. Please check your internet connection and that the backend is reachable.'
       setAuthError(message)
-      Alert.alert('Error', message)
+      showAlert('Error', message)
     } finally {
       setLoading(false)
     }

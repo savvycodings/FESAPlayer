@@ -8,6 +8,9 @@ patchedDependencies:
   '@expo/cli':
     hash: b5dcf71d9fc53248f11a055cf0d93cda5b8ce74023f7ac153e573df867c5a6bf
     path: patches/@expo__cli.patch
+  merge-options:
+    hash: bb0719918cda0833707da1f0ce4b38f4935233adfe5536414f9d3c0c1a03441f
+    path: patches/merge-options.patch
 
 importers:
 
@@ -6694,7 +6697,7 @@ snapshots:
 
   '@react-native-async-storage/async-storage@2.2.0(react-native@0.81.5(@babel/core@7.28.5)(@react-native-community/cli@13.6.9)(@types/react@19.1.17)(react@19.1.0))':
     dependencies:
-      merge-options: 3.0.4
+      merge-options: 3.0.4(patch_hash=bb0719918cda0833707da1f0ce4b38f4935233adfe5536414f9d3c0c1a03441f)
       react-native: 0.81.5(@babel/core@7.28.5)(@react-native-community/cli@13.6.9)(@types/react@19.1.17)(react@19.1.0)
 
   '@react-native-community/cli-clean@13.6.9':
@@ -9067,7 +9070,7 @@ snapshots:
 
   memoize-one@6.0.0: {}
 
-  merge-options@3.0.4:
+  merge-options@3.0.4(patch_hash=bb0719918cda0833707da1f0ce4b38f4935233adfe5536414f9d3c0c1a03441f):
     dependencies:
       is-plain-obj: 2.1.0
 

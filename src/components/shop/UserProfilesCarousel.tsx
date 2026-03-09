@@ -8,11 +8,16 @@ import Ionicons from '@expo/vector-icons/Ionicons'
 import { ThemeContext } from '../../context'
 import { SPACING, TYPOGRAPHY, RADIUS, STORE_COLORS } from '../../constants/layout'
 
-interface VerifiedStore {
+export interface VerifiedStore {
   first: string
   last: string
   image: any
   verified: boolean
+  /** Real user/store from API; when set, navigation uses these instead of first/last */
+  userId?: string
+  storeId?: number
+  /** Store verification level from API: bronze | silver | gold | platinum | diamond – used for shield color */
+  verificationLevel?: string
 }
 
 interface VerifiedStoresCarouselProps {
@@ -28,43 +33,22 @@ type ShopStackParamList = {
     userImage?: any
     userInitials?: string
     verified?: boolean
+    storeId?: number
   }
 }
 
 type VerifiedStoresCarouselNavigationProp = NativeStackNavigationProp<ShopStackParamList, 'ShopMain'>
 
-// Get level-based shield color for user (assigns consistent level based on name)
-const getShieldColorForUser = (firstName: string, lastName: string): string => {
-  // Special case: Emily gets level 9 (red)
-  if (firstName.toLowerCase() === 'emily') {
-    return '#E74C3C' // Red (Level 9)
-  }
-  
-  // Use name to get consistent level for same user (levels 1-9)
-  const fullName = firstName + lastName
-  const hash = fullName.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0)
-  const level = 1 + (hash % 9) // Levels 1-9
-  
-  // Level to color mapping
-  if (level === 9) {
-    return '#E74C3C' // Red (Level 9)
-  } else if (level === 8) {
-    return '#FF4500' // Deep Orange (Level 8)
-  } else if (level === 7) {
-    return '#9B59B6' // Purple (Level 7)
-  } else if (level === 6) {
-    return STORE_COLORS.diamond // Light Blue (Level 6)
-  } else if (level === 5) {
-    return STORE_COLORS.platinum // Very Light Blue (Level 5)
-  } else if (level === 4) {
-    return STORE_COLORS.gold // Gold (Level 4)
-  } else if (level === 3) {
-    return STORE_COLORS.silver // Silver (Level 3)
-  } else if (level === 2) {
-    return STORE_COLORS.bronze // Bronze (Level 2)
-  } else {
-    return '#808080' // Grey (Level 1)
-  }
+// Shield color from store verification level (bronze → silver → gold → platinum → diamond)
+const getShieldColorForLevel = (verificationLevel: string | undefined): string => {
+  if (!verificationLevel) return STORE_COLORS.bronze
+  const level = verificationLevel.toLowerCase()
+  if (level === 'diamond') return STORE_COLORS.diamond
+  if (level === 'platinum') return STORE_COLORS.platinum
+  if (level === 'gold') return STORE_COLORS.gold
+  if (level === 'silver') return STORE_COLORS.silver
+  if (level === 'bronze') return STORE_COLORS.bronze
+  return STORE_COLORS.bronze
 }
 
 export function VerifiedStoresCarousel({ items, onApplyPress }: VerifiedStoresCarouselProps) {
@@ -80,12 +64,14 @@ export function VerifiedStoresCarousel({ items, onApplyPress }: VerifiedStoresCa
           <TouchableOpacity
             style={styles.storeWrapper}
             onPress={() => {
+              const displayName = [item.first, item.last].filter(Boolean).join(' ') || item.first
               navigation.navigate('ViewProfile', {
-                userId: `${item.first.toLowerCase()}-${item.last.toLowerCase()}`,
-                userName: item.first,
+                userId: item.userId ?? `${item.first.toLowerCase()}-${item.last.toLowerCase()}`,
+                userName: displayName,
                 userImage: item.image,
-                userInitials: `${item.first[0]}${item.last[0]}`,
+                userInitials: `${(item.first || '')[0]}${(item.last || '')[0]}`.toUpperCase() || '?',
                 verified: item.verified,
+                ...(item.storeId != null && { storeId: item.storeId }),
               })
             }}
             activeOpacity={0.8}
@@ -98,17 +84,17 @@ export function VerifiedStoresCarousel({ items, onApplyPress }: VerifiedStoresCa
               />
             </View>
             <View style={styles.storeNameContainer}>
-              <Text style={styles.storeNameText}>
-                {item.first}
-              </Text>
               {item.verified && (
                 <Ionicons
                   name="shield-checkmark-outline"
                   size={14}
-                  color={getShieldColorForUser(item.first, item.last)}
-                  style={styles.verifiedIcon}
+                  color={getShieldColorForLevel(item.verificationLevel)}
+                  style={styles.verifiedIconLeft}
                 />
               )}
+              <Text style={styles.storeNameText} numberOfLines={1}>
+                {item.first}
+              </Text>
             </View>
           </TouchableOpacity>
         )}
@@ -161,8 +147,8 @@ const getStyles = (theme: any) => StyleSheet.create({
     marginLeft: '-10%',
     marginTop: '-10%',
   },
-  verifiedIcon: {
-    marginLeft: SPACING.xs,
+  verifiedIconLeft: {
+    marginRight: SPACING.xs,
   },
   storeNameContainer: {
     flexDirection: 'row',

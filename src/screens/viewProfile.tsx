@@ -17,6 +17,7 @@ import {
   StoreListings,
   SafetyFilter,
 } from '../components/store'
+import { LeaveReviewModal } from '../components/store/LeaveReviewModal'
 import { type StoreListing } from '../components/store/StoreListings'
 import { AuctionSection, type Auction } from '../components/profile'
 import { PayFastPayment } from '../components/payment'
@@ -73,6 +74,15 @@ export function ViewProfile() {
   const [selectedListing, setSelectedListing] = useState<StoreListing | null>(null)
   const [isPaymentModalVisible, setIsPaymentModalVisible] = useState(false)
   const [paymentType, setPaymentType] = useState<'buy' | 'bid'>('buy')
+  const [storeReviews, setStoreReviews] = useState<Array<{
+    id: number | string
+    reviewerName: string
+    reviewerAvatar?: any
+    rating: number
+    date: string
+    comment?: string | null
+  }>>([])
+  const [isLeaveReviewVisible, setIsLeaveReviewVisible] = useState(false)
 
   // Sample auctions data for the viewed user
   const userAuctions: Auction[] = [
@@ -97,41 +107,6 @@ export function ViewProfile() {
     },
   ]
 
-  // Sample reviews data
-  const reviews = [
-    {
-      id: '1',
-      reviewerName: 'Alex',
-      reviewerAvatar: require('../../assets/Avatars/guy1.jpg'),
-      rating: 5,
-      date: '2 days ago',
-      comment: 'Great seller! Fast shipping and card was exactly as described. Highly recommend!',
-    },
-    {
-      id: '2',
-      reviewerName: 'Sarah',
-      reviewerAvatar: require('../../assets/Avatars/guy5.jpg'),
-      rating: 5,
-      date: '1 week ago',
-      comment: 'Perfect condition, well packaged. Will definitely buy from again.',
-    },
-    {
-      id: '3',
-      reviewerName: 'Michael',
-      reviewerAvatar: require('../../assets/Avatars/guy2.jpg'),
-      rating: 4,
-      date: '2 weeks ago',
-      comment: 'Good communication and quick response. Card arrived safely.',
-    },
-    {
-      id: '4',
-      reviewerName: 'Emily',
-      reviewerAvatar: require('../../assets/Avatars/guy4.jpg'),
-      rating: 5,
-      date: '3 weeks ago',
-      comment: 'Excellent service! The card was in mint condition as promised.',
-    },
-  ]
 
   // Calculate level based on user name (same logic as UserProfilesCarousel)
   const getUserLevel = () => {
@@ -247,6 +222,39 @@ export function ViewProfile() {
 
   useEffect(() => {
     fetchStoreIso()
+  }, [storeId])
+
+  // Fetch store reviews
+  const fetchStoreReviews = async () => {
+    if (!storeId) return
+    try {
+      const baseUrl = DOMAIN?.endsWith('/') ? DOMAIN.slice(0, -1) : DOMAIN
+      const response = await fetch(`${baseUrl}/api/stores/${storeId}/reviews`)
+      if (!response.ok) return
+      const data = await response.json()
+      const reviews = Array.isArray(data.reviews) ? data.reviews : []
+      const mapped = reviews.map((r: any) => {
+        const name = r.buyerFirstName || r.buyerLastName
+          ? [r.buyerFirstName, r.buyerLastName].filter(Boolean).join(' ')
+          : (r.buyerName || 'Buyer')
+        const avatarSource = r.buyerAvatar ? { uri: r.buyerAvatar } : undefined
+        return {
+          id: r.id,
+          reviewerName: name,
+          reviewerAvatar: avatarSource,
+          rating: Number(r.rating) || 0,
+          date: new Date(r.createdAt).toLocaleDateString(),
+          comment: r.comment,
+        }
+      })
+      setStoreReviews(mapped)
+    } catch (e) {
+      console.error('Error fetching store reviews:', e)
+    }
+  }
+
+  useEffect(() => {
+    fetchStoreReviews()
   }, [storeId])
 
   // Sample store data fallback (if no storeId or API fails)
@@ -651,7 +659,12 @@ export function ViewProfile() {
                   </View>
                   <View>
                     <Text style={styles.reviewsTitle}>Customer Reviews</Text>
-                    <Text style={styles.reviewsSubtitle}>{reviews.length} reviews • 4.8 average</Text>
+                    <Text style={styles.reviewsSubtitle}>
+                      {storeReviews.length} reviews
+                      {storeReviews.length > 0 && ` • ${(
+                        storeReviews.reduce((sum, r) => sum + (r.rating || 0), 0) / storeReviews.length
+                      ).toFixed(1)} average`}
+                    </Text>
                   </View>
                 </View>
                 <Ionicons
@@ -661,9 +674,19 @@ export function ViewProfile() {
                 />
               </TouchableOpacity>
 
+              {currentUser && (
+                <TouchableOpacity
+                  style={styles.leaveReviewButton}
+                  onPress={() => setIsLeaveReviewVisible(true)}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.leaveReviewText}>Leave a review</Text>
+                </TouchableOpacity>
+              )}
+
               {reviewsExpanded && (
                 <View style={styles.reviewsList}>
-                  {reviews.map((review) => (
+                  {storeReviews.map((review) => (
                     <TouchableOpacity
                       key={review.id}
                       style={styles.reviewItem}
@@ -708,6 +731,36 @@ export function ViewProfile() {
         </Section>
       </ScrollView>
 
+      {/* Leave Review Modal (from store page) */}
+      {storeId && (
+        <LeaveReviewModal
+          visible={isLeaveReviewVisible}
+          onClose={() => setIsLeaveReviewVisible(false)}
+          onSubmit={async (rating, comment) => {
+            const baseUrl = DOMAIN?.endsWith('/') ? DOMAIN.slice(0, -1) : DOMAIN
+            const session = await authClient.getSession()
+            const token = session?.data?.session?.token
+            if (!token) {
+              Alert.alert('Review', 'Please log in to leave a review.')
+              return
+            }
+            const response = await fetch(`${baseUrl}/api/stores/${storeId}/reviews`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`,
+              },
+              body: JSON.stringify({ rating, comment }),
+            })
+            const data = await response.json().catch(() => ({}))
+            if (!response.ok) {
+              throw new Error(data.message || 'Failed to submit review')
+            }
+            await fetchStoreReviews()
+          }}
+        />
+      )}
+
       {/* PayFast Payment Modal */}
       {selectedListing && (
         <PayFastPayment
@@ -737,6 +790,8 @@ export function ViewProfile() {
             await fetchStoreData()
             setIsPaymentModalVisible(false)
             setSelectedListing(null)
+            // Prompt buyer to leave a review for this store
+            setIsLeaveReviewVisible(true)
           }}
           onCancel={() => {
             console.log('Payment cancelled')
@@ -872,6 +927,16 @@ const getStyles = (theme: any) => StyleSheet.create({
     fontFamily: theme.regularFont,
     color: 'rgba(255, 255, 255, 0.8)',
     lineHeight: 20,
+  },
+  leaveReviewButton: {
+    alignSelf: 'flex-end',
+    marginTop: SPACING.sm,
+    marginBottom: SPACING.xs,
+  },
+  leaveReviewText: {
+    fontSize: TYPOGRAPHY.bodySmall,
+    fontFamily: theme.regularFont,
+    color: theme.tintColor || '#73EC8B',
   },
   emptyContainer: {
     alignItems: 'center',

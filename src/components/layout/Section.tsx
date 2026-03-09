@@ -26,20 +26,23 @@ export function Section({
 }: SectionProps) {
   const { theme } = useContext(ThemeContext)
   const styles = getStyles(theme)
+  const hideHeader = title === 'In Search Of' || title === 'Reviews'
   
   return (
     <View style={[styles.container, style]}>
-      <View style={styles.header}>
-        <Text style={styles.title}>{title}</Text>
-        <View style={styles.headerRight}>
-          {rightContent}
-          {showSeeAll && (
-            <TouchableOpacity onPress={onSeeAllPress} activeOpacity={0.6}>
-              <Text style={styles.seeAll}>{seeAllText}</Text>
-            </TouchableOpacity>
-          )}
+      {!hideHeader && (
+        <View style={styles.header}>
+          <Text style={styles.title}>{title}</Text>
+          <View style={styles.headerRight}>
+            {rightContent}
+            {showSeeAll && (
+              <TouchableOpacity onPress={onSeeAllPress} activeOpacity={0.6}>
+                <Text style={styles.seeAll}>{seeAllText}</Text>
+              </TouchableOpacity>
+            )}
+          </View>
         </View>
-      </View>
+      )}
       <View style={styles.content}>
         {children}
       </View>
