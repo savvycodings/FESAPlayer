@@ -1,5 +1,6 @@
 import { useState, useContext } from 'react'
-import { View, StyleSheet, TextInput, TouchableOpacity, Pressable, KeyboardAvoidingView, Platform, ScrollView, Alert } from 'react-native'
+import { View, StyleSheet, TextInput, TouchableOpacity, Pressable, KeyboardAvoidingView, Platform, ScrollView, Alert, Modal, FlatList, ActivityIndicator } from 'react-native'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Text } from '../../components/ui/text'
 import { ThemeContext } from '../../context'
 import { SPACING, TYPOGRAPHY, RADIUS } from '../../constants/layout'
@@ -36,6 +37,7 @@ const getButtonGradientColors = (theme: any): string[] => {
 
 export function Login() {
   const { theme } = useContext(ThemeContext)
+  const insets = useSafeAreaInsets()
   const styles = getStyles(theme)
   const { setAuthenticated, setHasSeenOnboarding } = useAuth()
   const [isSignUp, setIsSignUp] = useState(false)
@@ -44,9 +46,71 @@ export function Login() {
   const [name, setName] = useState('')
   const [phone, setPhone] = useState('')
   const [pudoAddress, setPudoAddress] = useState('')
+  const [pudoLockerCode, setPudoLockerCode] = useState('')
+  const [pudoLockerName, setPudoLockerName] = useState('')
   const [loading, setLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
   const [authError, setAuthError] = useState<string | null>(null)
+  const [lockerModalVisible, setLockerModalVisible] = useState(false)
+  const [lockers, setLockers] = useState<Array<{ code: string; name: string; address: string }>>([])
+  const [lockersLoading, setLockersLoading] = useState(false)
+  const [lockerSearch, setLockerSearch] = useState('')
+
+  const fetchLockers = async () => {
+    setLockersLoading(true)
+    try {
+      const baseUrl = DOMAIN?.endsWith('/') ? DOMAIN.slice(0, -1) : DOMAIN
+      const res = await fetch(`${baseUrl}/api/pudo/lockers`)
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        const msg = data?.message || data?.error || 'Failed to load lockers'
+        throw new Error(msg)
+      }
+      const list = Array.isArray(data) ? data : []
+      const mapped = list
+        .map((l: any) => ({
+          code: (l.code ?? '').toString().trim(),
+          name: (l.name ?? '').toString().trim(),
+          address: (l.address ?? '').toString().trim(),
+        }))
+        .filter((l) => l.code.length > 0)
+      setLockers(mapped)
+    } catch (e: any) {
+      console.warn('Lockers fetch failed:', e)
+      showAlert('Could not load lockers', e?.message || 'Try again or enter address manually.')
+      setLockers([])
+    } finally {
+      setLockersLoading(false)
+    }
+  }
+
+  const openLockerModal = () => {
+    setLockerModalVisible(true)
+    if (lockers.length === 0) fetchLockers()
+  }
+
+  const selectLocker = (l: { code: string; name: string; address: string }) => {
+    setPudoLockerCode(l.code)
+    setPudoLockerName(l.name)
+    setPudoAddress([l.name, l.address].filter(Boolean).join(' — ') || l.address)
+    setLockerModalVisible(false)
+    setLockerSearch('')
+  }
+
+  const clearLockerSelection = () => {
+    setPudoLockerCode('')
+    setPudoLockerName('')
+    setPudoAddress('')
+  }
+
+  const filteredLockers = lockerSearch.trim()
+    ? lockers.filter(
+        (l) =>
+          l.code.toLowerCase().includes(lockerSearch.toLowerCase()) ||
+          (l.name && l.name.toLowerCase().includes(lockerSearch.toLowerCase())) ||
+          (l.address && l.address.toLowerCase().includes(lockerSearch.toLowerCase()))
+      )
+    : lockers
 
   const handleAuth = async () => {
     if (!email || !password) {
@@ -63,12 +127,12 @@ export function Login() {
         showAlert('Error', 'Please enter your phone number')
         return
       }
-      if (!pudoAddress.trim()) {
-        showAlert('Error', 'Please enter your PUDO address')
+      if (!pudoLockerCode.trim() && !pudoAddress.trim()) {
+        showAlert('Error', 'Please choose your PUDO locker or enter address')
         return
       }
       // On web, Alert.alert() with multiple buttons is not supported — use confirm so sign up works
-      const pudoMessage = 'Did you enter your PUDO address (parcel drop-off location), not your home address? Packages will be sent to this address.'
+      const pudoMessage = 'Packages will be sent to your chosen PUDO locker. Confirm to continue.'
       if (isWeb && typeof window !== 'undefined') {
         if (window.confirm(pudoMessage)) {
           doSignUp()
@@ -150,6 +214,8 @@ export function Login() {
             body: JSON.stringify({
               phone: phone.trim() || undefined,
               pudoAddress: pudoAddress.trim() || undefined,
+              pudoLockerCode: pudoLockerCode.trim() || undefined,
+              pudoLockerName: pudoLockerName.trim() || undefined,
             }),
           })
         }
@@ -225,23 +291,89 @@ export function Login() {
               )}
 
               {isSignUp && (
-                <View style={styles.inputContainer}>
-                  <Ionicons name="location-outline" size={20} color={theme.mutedForegroundColor} style={styles.inputIcon} />
-                  <TextInput
-                    style={styles.input}
-                    placeholder="PUDO address (parcel drop-off, not home)"
-                    placeholderTextColor={theme.mutedForegroundColor}
-                    value={pudoAddress}
-                    onChangeText={setPudoAddress}
-                    autoCapitalize="none"
-                    autoComplete="street-address"
-                  />
-                </View>
-              )}
-              {isSignUp && (
-                <Text style={styles.pudoHint}>
-                  Use your PUDO parcel drop-off location address. Do not use your home address.
-                </Text>
+                <>
+                  <View style={styles.lockerButtonWrap}>
+                    <Pressable style={styles.lockerButton} onPress={openLockerModal}>
+                      <Ionicons name="location-outline" size={20} color={theme.tintColor || '#0281ff'} style={styles.inputIcon} />
+                      <Text style={styles.lockerButtonText} numberOfLines={2}>
+                        {pudoLockerCode ? `${pudoLockerCode} • ${(pudoAddress || 'Selected').split(' — ')[0] || pudoAddress}` : 'Choose PUDO locker (for orders)'}
+                      </Text>
+                      <Ionicons name="chevron-forward" size={18} color={theme.mutedForegroundColor} />
+                    </Pressable>
+                    {pudoLockerCode ? (
+                      <Pressable style={styles.clearLockerBtn} onPress={clearLockerSelection}>
+                        <Text style={[styles.clearLockerText, { color: theme.mutedForegroundColor }]}>Clear</Text>
+                      </Pressable>
+                    ) : null}
+                  </View>
+                  {lockerModalVisible && (
+                    <Modal visible={lockerModalVisible} animationType="slide" onRequestClose={() => setLockerModalVisible(false)}>
+                      <View style={[styles.modalContainer, { backgroundColor: theme.backgroundColor, paddingTop: insets.top + SPACING.lg }]}>
+                        <View style={styles.modalHeader}>
+                          <Text style={[styles.modalTitle, { color: theme.textColor }]}>Choose PUDO locker</Text>
+                          <Pressable onPress={() => setLockerModalVisible(false)} style={styles.modalClose}>
+                            <Text style={[styles.modalCloseText, { color: theme.tintColor }]}>Done</Text>
+                          </Pressable>
+                        </View>
+                        <TextInput
+                          style={[styles.searchInput, { backgroundColor: theme.cardBackground, borderColor: theme.borderColor, color: theme.textColor }]}
+                          placeholder="Search by code, name or address..."
+                          placeholderTextColor={theme.mutedForegroundColor}
+                          value={lockerSearch}
+                          onChangeText={setLockerSearch}
+                        />
+                        {lockersLoading ? (
+                          <View style={styles.lockersLoading}>
+                            <ActivityIndicator size="large" color={theme.tintColor} />
+                            <Text style={[styles.lockersLoadingText, { color: theme.mutedForegroundColor }]}>Loading lockers...</Text>
+                          </View>
+                        ) : (
+                          <>
+                            <Pressable onPress={fetchLockers} style={styles.refreshLockersBtn}>
+                              <Ionicons name="refresh" size={18} color={theme.tintColor} />
+                              <Text style={[styles.refreshLockersText, { color: theme.tintColor }]}>Refresh list</Text>
+                            </Pressable>
+                            <FlatList
+                            data={filteredLockers}
+                            keyExtractor={(item) => item.code}
+                            renderItem={({ item }) => (
+                              <Pressable
+                                style={[styles.lockerRow, { backgroundColor: theme.cardBackground, borderColor: theme.borderColor }]}
+                                onPress={() => selectLocker(item)}
+                              >
+                                <Text style={[styles.lockerRowCode, { color: theme.tintColor }]}>{item.code}</Text>
+                                <Text style={[styles.lockerRowName, { color: theme.textColor }]} numberOfLines={1}>{item.name}</Text>
+                                <Text style={[styles.lockerRowAddress, { color: theme.mutedForegroundColor }]} numberOfLines={2}>{item.address}</Text>
+                              </Pressable>
+                            )}
+                            ListEmptyComponent={
+                              <Text style={[styles.lockersEmpty, { color: theme.mutedForegroundColor }]}>
+                                {lockers.length === 0 ? 'No lockers loaded. Check connection or try again.' : 'No lockers match your search.'}
+                              </Text>
+                            }
+                          />
+                          </>
+                        )}
+                      </View>
+                    </Modal>
+                  )}
+                  {!pudoLockerCode && (
+                    <View style={styles.inputContainer}>
+                      <Ionicons name="create-outline" size={18} color={theme.mutedForegroundColor} style={styles.inputIcon} />
+                      <TextInput
+                        style={styles.input}
+                        placeholder="Or enter PUDO address manually if lockers did not load"
+                        placeholderTextColor={theme.mutedForegroundColor}
+                        value={pudoAddress}
+                        onChangeText={setPudoAddress}
+                        autoCapitalize="none"
+                      />
+                    </View>
+                  )}
+                  <Text style={styles.pudoHint}>
+                    Select your PUDO parcel locker so we can complete locker-to-locker orders.
+                  </Text>
+                </>
               )}
 
               <View style={styles.inputContainer}>
@@ -390,6 +522,114 @@ const getStyles = (theme: any) => StyleSheet.create({
   },
   inputIcon: {
     marginRight: SPACING.sm,
+  },
+  lockerButtonWrap: {
+    marginBottom: SPACING.sm,
+  },
+  lockerButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: theme.cardBackground || 'rgba(255, 255, 255, 0.05)',
+    borderRadius: RADIUS.md,
+    borderWidth: 1,
+    borderColor: theme.borderColor || 'rgba(255, 255, 255, 0.1)',
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.md,
+    minHeight: 52,
+  },
+  lockerButtonText: {
+    flex: 1,
+    fontSize: TYPOGRAPHY.body,
+    fontFamily: theme.regularFont,
+    color: theme.textColor,
+  },
+  clearLockerBtn: {
+    alignSelf: 'flex-end',
+    paddingVertical: SPACING.xs,
+    paddingHorizontal: SPACING.sm,
+    marginTop: SPACING.xs,
+  },
+  clearLockerText: {
+    fontSize: TYPOGRAPHY.caption,
+    fontFamily: theme.mediumFont,
+  },
+  refreshLockersBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-end',
+    paddingVertical: SPACING.sm,
+    paddingHorizontal: SPACING.sm,
+    marginBottom: SPACING.sm,
+    gap: SPACING.xs,
+  },
+  refreshLockersText: {
+    fontSize: TYPOGRAPHY.caption,
+    fontFamily: theme.mediumFont,
+  },
+  modalContainer: {
+    flex: 1,
+    paddingHorizontal: SPACING.lg,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: SPACING.lg,
+  },
+  modalTitle: {
+    fontSize: TYPOGRAPHY.h4,
+    fontFamily: theme.boldFont,
+  },
+  modalClose: {
+    padding: SPACING.sm,
+  },
+  modalCloseText: {
+    fontSize: TYPOGRAPHY.body,
+    fontFamily: theme.semiBoldFont,
+  },
+  searchInput: {
+    borderRadius: RADIUS.md,
+    borderWidth: 1,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.sm,
+    fontSize: TYPOGRAPHY.body,
+    fontFamily: theme.regularFont,
+    marginBottom: SPACING.lg,
+  },
+  lockersLoading: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: SPACING['4xl'],
+  },
+  lockersLoadingText: {
+    marginTop: SPACING.md,
+    fontSize: TYPOGRAPHY.body,
+  },
+  lockerRow: {
+    padding: SPACING.md,
+    borderRadius: RADIUS.md,
+    borderWidth: 1,
+    marginBottom: SPACING.sm,
+  },
+  lockerRowCode: {
+    fontSize: TYPOGRAPHY.bodySmall,
+    fontFamily: theme.semiBoldFont,
+    marginBottom: 2,
+  },
+  lockerRowName: {
+    fontSize: TYPOGRAPHY.body,
+    fontFamily: theme.mediumFont,
+    marginBottom: 2,
+  },
+  lockerRowAddress: {
+    fontSize: TYPOGRAPHY.caption,
+    fontFamily: theme.regularFont,
+  },
+  lockersEmpty: {
+    textAlign: 'center',
+    paddingVertical: SPACING['4xl'],
+    fontSize: TYPOGRAPHY.body,
   },
   pudoHint: {
     fontSize: TYPOGRAPHY.caption,
