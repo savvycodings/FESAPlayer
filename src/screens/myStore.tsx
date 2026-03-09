@@ -40,6 +40,9 @@ type MyStoreStackParamList = {
     purchaseType?: 'instant' | 'auction' | 'bid' | 'both'
     currentBid?: number
   }
+  EditProfile: undefined
+  EditPhone: undefined
+  EditPudoAddress: undefined
 }
 
 type MyStoreScreenNavigationProp = NativeStackNavigationProp<MyStoreStackParamList, 'MyStoreMain'>
@@ -955,7 +958,7 @@ export function MyStore() {
           xpToNextLevel={xpToNextLevel}
           salesCount={salesCount}
           shareableLink={shareableLink}
-          onEditPress={() => (navigation.getParent() as any)?.navigate('Settings', { screen: 'EditProfile' })}
+          onEditPress={() => navigation.navigate('EditProfile')}
           onEditStorePress={openEditStoreModal}
           showBannerEdit={true}
           onBannerEditPress={openEditStoreModal}

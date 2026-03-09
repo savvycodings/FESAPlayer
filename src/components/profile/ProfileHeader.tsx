@@ -189,7 +189,9 @@ export function ProfileHeader({
 
   const handleChartLayout = (event: LayoutChangeEvent) => {
     const { width } = event.nativeEvent.layout
-    setChartWidth(width)
+    // Clamp chart width so it never extends past the visible screen (prevents overflow on the right)
+    const maxWidth = SCREEN_WIDTH - SPACING.containerPadding * 2
+    setChartWidth(Math.min(width, maxWidth))
   }
 
   // Format date based on period and index
@@ -964,7 +966,8 @@ const getStyles = (theme: any) => StyleSheet.create({
   chartSvgContainer: {
     flex: 1,
     height: 200,
-    overflow: 'visible',
+    // Prevent chart (and its tooltips) from overflowing off the right edge of the screen
+    overflow: 'hidden',
     position: 'relative',
   },
   tooltip: {

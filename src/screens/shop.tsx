@@ -10,7 +10,6 @@ import {
   PromoCarousel,
   VerifiedStoresCarousel,
   VerifiedStoreModal,
-  CategoryBadges,
   RecentListings,
   VaultingSection,
   BlogCarousel,
@@ -346,18 +345,6 @@ export function Shop() {
               onApplyPress={() => setIsVerifiedStoreModalVisible(true)}
             />
           )}
-        </Section>
-
-        <Section 
-          title="Categories" 
-          showSeeAll 
-          onSeeAllPress={() => navigation.navigate('Search' as never)}
-        >
-          <CategoryBadges
-            categories={categories}
-            selectedCategory={selectedCategory}
-            onCategorySelect={setSelectedCategory}
-          />
         </Section>
 
         <View ref={recentListingsSectionRef} onLayout={captureRecentListingsY}>

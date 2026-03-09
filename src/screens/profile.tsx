@@ -556,44 +556,55 @@ export function Profile() {
           />
         }
       >
-        <ProfileHeader
-          userName={userName}
-          isPremium={isPremium}
-          portfolioValue={portfolioValueStr}
-          stats={stats}
-          portfolioData={portfolioData}
-          level={userLevel}
-          currentXP={currentXP}
-          xpToNextLevel={xpToNextLevel}
-          profileImage={user?.avatar ? { uri: user.avatar } : undefined}
-          productsCount={user?.productsCount ?? 0}
-          followersCount={user?.followersCount ?? 0}
-          salesCount={user?.salesCount ?? 0}
-          onEditPress={async () => {
-            // Update avatar
-            const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync()
-            if (status !== 'granted') {
-              Alert.alert('Permission needed', 'Photo library access is required.')
-              return
-            }
-            const result = await ImagePicker.launchImageLibraryAsync({
-              mediaTypes: ImagePicker.MediaTypeOptions.Images,
-              allowsEditing: true,
-              quality: 0.8,
-              aspect: [1, 1], // Square for avatar
-            })
-            if (!result.canceled && result.assets[0]) {
-              try {
-                // Upload image to Cloudinary first
-                const imageUrl = await uploadImage(result.assets[0].uri, 'gradeit/avatars')
-                // Then update user avatar with the Cloudinary URL
-                updateUserAvatar(imageUrl)
-              } catch (error: any) {
-                Alert.alert('Upload Error', error.message || 'Failed to upload avatar image')
-              }
-            }
-          }}
-        />
+        <View style={styles.headerRow}>
+          <View style={{ flex: 1 }}>
+            <ProfileHeader
+              userName={userName}
+              isPremium={isPremium}
+              portfolioValue={portfolioValueStr}
+              stats={stats}
+              portfolioData={portfolioData}
+              level={userLevel}
+              currentXP={currentXP}
+              xpToNextLevel={xpToNextLevel}
+              profileImage={user?.avatar ? { uri: user.avatar } : undefined}
+              productsCount={user?.productsCount ?? 0}
+              followersCount={user?.followersCount ?? 0}
+              salesCount={user?.salesCount ?? 0}
+              onEditPress={async () => {
+                // Update avatar
+                const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync()
+                if (status !== 'granted') {
+                  Alert.alert('Permission needed', 'Photo library access is required.')
+                  return
+                }
+                const result = await ImagePicker.launchImageLibraryAsync({
+                  mediaTypes: ImagePicker.MediaTypeOptions.Images,
+                  allowsEditing: true,
+                  quality: 0.8,
+                  aspect: [1, 1], // Square for avatar
+                })
+                if (!result.canceled && result.assets[0]) {
+                  try {
+                    // Upload image to Cloudinary first
+                    const imageUrl = await uploadImage(result.assets[0].uri, 'gradeit/avatars')
+                    // Then update user avatar with the Cloudinary URL
+                    updateUserAvatar(imageUrl)
+                  } catch (error: any) {
+                    Alert.alert('Upload Error', error.message || 'Failed to upload avatar image')
+                  }
+                }
+              }}
+            />
+          </View>
+          <TouchableOpacity
+            onPress={() => navigation.navigate('SettingsMain' as never)}
+            activeOpacity={0.7}
+            style={styles.settingsButton}
+          >
+            <Ionicons name="settings-outline" size={20} color={theme.textColor} />
+          </TouchableOpacity>
+        </View>
 
         <View style={styles.contentWrapper}>
           {/* Section Header: title + "See all" subtext on left; Add Card + Verify on right inline with title */}
@@ -838,6 +849,23 @@ const getStyles = (theme: any) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: theme.backgroundColor,
+  },
+  headerRow: {
+    flexDirection: 'row',
+    position: 'relative',
+    paddingHorizontal: SPACING.containerPadding,
+    paddingTop: SPACING.lg,
+  },
+  settingsButton: {
+    position: 'absolute',
+    // Push the icon down so it visually lines up with the username text in ProfileHeader
+    top: SPACING.lg + 40,
+    right: SPACING.containerPadding,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   scrollContentContainer: {
     paddingBottom: SPACING['4xl'],

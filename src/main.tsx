@@ -59,6 +59,10 @@ function ProfileStack() {
       <Stack.Screen name="ProfileMain" component={Profile} />
       <Stack.Screen name="Product" component={Product} />
       <Stack.Screen name="ViewProfile" component={ViewProfile} />
+      <Stack.Screen name="SettingsMain" component={Settings} />
+      <Stack.Screen name="EditProfile" component={EditProfile} />
+      <Stack.Screen name="EditPhone" component={EditPhone} />
+      <Stack.Screen name="EditPudoAddress" component={EditPudoAddress} />
     </Stack.Navigator>
   )
 }
@@ -73,19 +77,6 @@ function MyStoreStack() {
     >
       <Stack.Screen name="MyStoreMain" component={MyStore} />
       <Stack.Screen name="Product" component={Product} />
-    </Stack.Navigator>
-  )
-}
-
-// Settings Stack Navigator (Settings + EditProfile + EditPhone + EditPudoAddress)
-function SettingsStack() {
-  return (
-    <Stack.Navigator
-      screenOptions={{
-        headerShown: false,
-      }}
-    >
-      <Stack.Screen name="SettingsMain" component={Settings} />
       <Stack.Screen name="EditProfile" component={EditProfile} />
       <Stack.Screen name="EditPhone" component={EditPhone} />
       <Stack.Screen name="EditPudoAddress" component={EditPudoAddress} />
@@ -181,20 +172,6 @@ function MainComponent() {
             tabBarIcon: ({ color, size }) => (
               <FeatherIcon
                 name="shopping-bag"
-                color={color}
-                size={size}
-              />
-            ),
-          }}
-        />
-        <Tab.Screen
-          name="Settings"
-          component={SettingsStack}
-          options={{
-            headerShown: false,
-            tabBarIcon: ({ color, size }) => (
-              <FeatherIcon
-                name="sliders"
                 color={color}
                 size={size}
               />

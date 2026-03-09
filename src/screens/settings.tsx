@@ -81,10 +81,22 @@ export function Settings() {
   const hasAvatar = !!user?.avatar
 
   return (
-    <ScrollView
-      style={styles.container}
-      contentContainerStyle={styles.contentContainer}
-    >
+    <View style={styles.container}>
+      {/* Fixed header with back button, same pattern as SetProducts */}
+      <View style={styles.fixedHeader}>
+        <TouchableOpacity
+          onPress={() => navigation.goBack()}
+          style={styles.backButton}
+          activeOpacity={0.7}
+        >
+          <Ionicons name="chevron-back" size={28} color={theme.textColor} />
+        </TouchableOpacity>
+      </View>
+
+      <ScrollView
+        style={styles.container}
+        contentContainerStyle={styles.contentContainer}
+      >
       {/* Same profile block as Profile tab: picture, Trusted, name, level */}
       <View style={styles.headerSection}>
         {loading ? (
@@ -192,20 +204,35 @@ export function Settings() {
         </Text>
       </TouchableOpacity>
     </ScrollView>
+    </View>
   )
 }
 
 const getStyles = (theme: any) =>
   StyleSheet.create({
-    container: {
-      flex: 1,
-      backgroundColor: theme.backgroundColor,
-    },
-    contentContainer: {
-      paddingHorizontal: SPACING.containerPadding,
-      paddingTop: SPACING.md,
-      paddingBottom: 40,
-    },
+  container: {
+    flex: 1,
+    backgroundColor: theme.backgroundColor,
+  },
+  fixedHeader: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 100,
+    paddingTop: SPACING.lg,
+    paddingLeft: SPACING.containerPadding,
+    paddingRight: SPACING.containerPadding,
+    backgroundColor: 'transparent',
+  },
+  backButton: {
+    padding: SPACING.sm,
+  },
+  contentContainer: {
+    paddingHorizontal: SPACING.containerPadding,
+    paddingTop: SPACING['3xl'] + 40,
+    paddingBottom: 40,
+  },
     headerSection: {
       marginBottom: SPACING.xl,
       paddingVertical: SPACING.xl,
