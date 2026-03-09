@@ -106,7 +106,6 @@ export function Profile() {
         setStats({ cards: 0, sealed: 0, slabs: 0, total: 0 })
         setPortfolioValue(0)
         setSetDistribution([])
-        setPortfolioData([])
         return
       }
 
@@ -160,12 +159,51 @@ export function Profile() {
         setStats({ cards: 0, sealed: 0, slabs: 0, total: 0 })
         setPortfolioValue(0)
         setSetDistribution([])
-        setPortfolioData([])
       }
     } catch (error: any) {
       console.error('Error fetching collections:', error)
     } finally {
       if (!silent) setLoading(false)
+    }
+  }
+
+  // Fetch aggregated portfolio history for chart (from card_price_history)
+  const fetchPortfolioHistory = async () => {
+    try {
+      const session = await authClient.getSession()
+      if (!session?.data?.session) {
+        setPortfolioData([])
+        return
+      }
+      const sessionToken = session.data.session.token
+      const baseUrl = DOMAIN?.endsWith('/') ? DOMAIN.slice(0, -1) : DOMAIN
+      const response = await fetch(`${baseUrl}/api/profile/portfolio/history?days=90`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${sessionToken}`,
+        },
+        credentials: 'include',
+      })
+      const data = await response.json()
+      if (!response.ok || !Array.isArray(data.history)) {
+        setPortfolioData([])
+        return
+      }
+      const history = data.history as { date?: string; totalMarketPriceUsd?: number | null }[]
+      if (history.length === 0) {
+        setPortfolioData([])
+        return
+      }
+      const points = history.map((h, index) => {
+        const usd = h.totalMarketPriceUsd != null ? Number(h.totalMarketPriceUsd) : 0
+        const valueZar = usd > 0 ? Math.round(usd * USD_TO_ZAR) : 0
+        return { x: index, y: valueZar }
+      })
+      setPortfolioData(points)
+    } catch (error) {
+      console.error('Error fetching portfolio history:', error)
+      setPortfolioData([])
     }
   }
 
@@ -472,6 +510,7 @@ export function Profile() {
   useEffect(() => {
     fetchUserProfile()
     fetchCollections()
+    fetchPortfolioHistory()
   }, [])
 
   // Refresh data when screen comes into focus (silent: no full loading state, so list/chart update in place)
@@ -479,12 +518,13 @@ export function Profile() {
     useCallback(() => {
       fetchUserProfile()
       fetchCollections({ silent: true })
+      fetchPortfolioHistory()
     }, [])
   )
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true)
-    await Promise.all([fetchUserProfile(), fetchCollections({ silent: true })])
+    await Promise.all([fetchUserProfile(), fetchCollections({ silent: true }), fetchPortfolioHistory()])
     setRefreshing(false)
   }, [])
 
