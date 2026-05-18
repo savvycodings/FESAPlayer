@@ -1,31 +1,12 @@
-import { Platform } from 'react-native'
-import Constants from 'expo-constants'
+import { getApiBaseUrl } from './src/utils/apiBaseUrl'
 import { AnthropicIcon } from './src/components/AnthropicIcon'
 import { CohereIcon } from './src/components/CohereIcon'
 import { OpenAIIcon } from './src/components/OpenAIIcon'
 import { MistralIcon } from './src/components/MistralIcon'
 import { GeminiIcon } from './src/components/GeminiIcon'
 
-// Backend API URL - Local dev: use EXPO_PUBLIC_DEV_API_URL when set (e.g. http://localhost:3050). Production: EXPO_PUBLIC_BACKEND_URL (Railway).
-const getDomain = () => {
-  const devUrl = process.env.EXPO_PUBLIC_DEV_API_URL?.replace(/\/$/, '')
-  const prodUrl = process.env.EXPO_PUBLIC_BACKEND_URL?.replace(/\/$/, '') || process.env.EXPO_PUBLIC_PROD_API_URL?.replace(/\/$/, '')
-  // When running locally, prefer dev URL so app talks to your local server
-  if (process.env.EXPO_PUBLIC_ENV === 'DEVELOPMENT' && devUrl) {
-    return devUrl
-  }
-  if (prodUrl) return prodUrl
-  if (Platform.OS === 'web') return devUrl || 'http://localhost:3050'
-  try {
-    const devIp = Constants.expoConfig?.extra?.backendIp || '192.168.1.9'
-    return `http://${devIp}:3050`
-  } catch (error) {
-    console.warn('Could not get backend IP from Constants, using default:', error)
-    return 'http://192.168.1.9:3050'
-  }
-}
-
-export const DOMAIN = getDomain()
+// Backend API URL — on device, localhost in .env is rewritten to your PC's LAN IP (see apiBaseUrl.ts).
+export const DOMAIN = getApiBaseUrl()
 
 export const MODELS = {
   gpt: { name: 'GPT 4', label: 'gpt', icon: OpenAIIcon },

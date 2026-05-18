@@ -111,6 +111,7 @@ export function MyStore() {
   const [editYoutubeUrl, setEditYoutubeUrl] = useState('')
   const [updatingStore, setUpdatingStore] = useState(false)
   const [bannerUploading, setBannerUploading] = useState(false)
+  const [avatarUploading, setAvatarUploading] = useState(false)
 
   // Get Better Auth session token for API calls
   const getSessionToken = async () => {
@@ -219,6 +220,48 @@ export function MyStore() {
     setEditTwitchUrl(store.twitchUrl || '')
     setEditYoutubeUrl(store.youtubeUrl || '')
     setIsEditStoreModalVisible(true)
+  }
+
+  const handleChangeAvatar = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync()
+    if (status !== 'granted') {
+      Alert.alert('Permission needed', 'Photo library access is required to change your profile picture.')
+      return
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      quality: 0.8,
+      aspect: [1, 1],
+    })
+    if (result.canceled || !result.assets[0]) return
+    setAvatarUploading(true)
+    try {
+      const token = await getSessionToken()
+      if (!token) {
+        Alert.alert('Error', 'Please log in')
+        return
+      }
+      const imageUrl = await uploadImage(result.assets[0].uri, 'gradeit/avatars')
+      const baseUrl = DOMAIN?.endsWith('/') ? DOMAIN.slice(0, -1) : DOMAIN
+      const response = await fetch(`${baseUrl}/api/profile/user`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        credentials: 'include',
+        body: JSON.stringify({ avatar: imageUrl }),
+      })
+      const data = await response.json()
+      if (response.ok) {
+        await fetchStore({ silent: true })
+        Alert.alert('Saved', 'Profile picture updated.')
+      } else {
+        Alert.alert('Error', data.message || 'Failed to update profile picture')
+      }
+    } catch (e: any) {
+      Alert.alert('Error', e?.message || 'Failed to upload profile picture')
+    } finally {
+      setAvatarUploading(false)
+    }
   }
 
   const handleChangeBanner = async () => {
@@ -958,8 +1001,6 @@ export function MyStore() {
           xpToNextLevel={xpToNextLevel}
           salesCount={salesCount}
           shareableLink={shareableLink}
-          onEditPress={() => navigation.navigate('EditProfile')}
-          onEditStorePress={openEditStoreModal}
           showBannerEdit={true}
           onBannerEditPress={openEditStoreModal}
           twitchUrl={store.twitchUrl ?? undefined}
@@ -1331,8 +1372,34 @@ export function MyStore() {
             <CardContent style={styles.modalContent}>
               <Text style={styles.modalTitle}>Edit store details</Text>
               <Text style={styles.modalSubtitle}>
-                Store name, banner and social links (Twitch & YouTube are optional).
+                Profile picture, store banner, name and social links (Twitch & YouTube are optional).
               </Text>
+              <View style={styles.modalAvatarSection}>
+                <Text style={styles.modalBannerLabel}>Profile picture</Text>
+                <TouchableOpacity
+                  onPress={handleChangeAvatar}
+                  disabled={avatarUploading}
+                  activeOpacity={0.8}
+                  style={styles.modalAvatarTouch}
+                >
+                  {avatarUploading ? (
+                    <View style={[styles.modalAvatar, styles.modalAvatarUploading]}>
+                      <ActivityIndicator size="small" color={theme.tintColor || '#73EC8B'} />
+                    </View>
+                  ) : store?.user?.avatar ? (
+                    <Image
+                      source={{ uri: store.user.avatar }}
+                      style={styles.modalAvatar}
+                      resizeMode="cover"
+                    />
+                  ) : (
+                    <View style={[styles.modalAvatar, styles.modalAvatarEmpty]}>
+                      <Ionicons name="person-outline" size={32} color="rgba(255, 255, 255, 0.4)" />
+                      <Text style={styles.modalAvatarPlaceholderText}>Tap to add photo</Text>
+                    </View>
+                  )}
+                </TouchableOpacity>
+              </View>
               {/* Store banner */}
               <View style={styles.modalBannerSection}>
                 <Text style={styles.modalBannerLabel}>Store banner</Text>
@@ -1689,6 +1756,37 @@ const getStyles = (theme: any) => StyleSheet.create({
     color: theme.mutedForegroundColor || 'rgba(255, 255, 255, 0.6)',
     marginBottom: SPACING.xl,
     textAlign: 'center',
+  },
+  modalAvatarSection: {
+    alignItems: 'center',
+    marginBottom: SPACING.lg,
+  },
+  modalAvatarTouch: {
+    borderRadius: RADIUS.full,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: theme.borderColor || 'rgba(255, 255, 255, 0.12)',
+  },
+  modalAvatar: {
+    width: 88,
+    height: 88,
+    borderRadius: RADIUS.full,
+    backgroundColor: theme.cardBackground || '#000',
+  },
+  modalAvatarUploading: {
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalAvatarEmpty: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+  },
+  modalAvatarPlaceholderText: {
+    fontSize: 10,
+    fontFamily: theme.regularFont,
+    color: 'rgba(255, 255, 255, 0.4)',
+    marginTop: SPACING.xs,
   },
   modalBannerSection: {
     marginBottom: SPACING.lg,

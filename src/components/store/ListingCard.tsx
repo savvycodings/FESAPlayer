@@ -1,4 +1,4 @@
-import { View, StyleSheet, TouchableOpacity, Image } from 'react-native'
+import { View, StyleSheet, TouchableOpacity, Image, type ViewStyle } from 'react-native'
 import { useContext } from 'react'
 import { Text } from '../ui/text'
 import { Card, CardContent } from '../ui/card'
@@ -24,6 +24,8 @@ interface ListingCardProps {
   onBidPress?: () => void
   isOwnListing?: boolean
   onEditPress?: () => void
+  /** Precise width for 2-column grids (avoids 48% + gap overflow on Android). */
+  cardWidth?: number
 }
 
 export function ListingCard({
@@ -39,18 +41,23 @@ export function ListingCard({
   onBidPress,
   isOwnListing = false,
   onEditPress,
+  cardWidth,
 }: ListingCardProps) {
   const { theme } = useContext(ThemeContext)
   const styles = getStyles(theme)
+  const containerStyle: ViewStyle[] = [styles.cardContainer]
+  if (cardWidth != null) {
+    containerStyle.push({ width: cardWidth, maxWidth: cardWidth })
+  }
 
   return (
     <TouchableOpacity
-      style={styles.cardContainer}
+      style={containerStyle}
       onPress={onPress}
       activeOpacity={0.8}
     >
-      <Card style={styles.card}>
-        <CardContent style={styles.cardContent}>
+      <Card className="p-0 gap-0 border-0 shadow-none" style={styles.card}>
+        <CardContent className="p-0" style={styles.cardContent}>
           {/* Image Section */}
           <View style={styles.imageContainer}>
             {cardImage ? (
@@ -113,7 +120,7 @@ export function ListingCard({
                     />
                     <Text style={styles.editButtonText}>Edit</Text>
                   </TouchableOpacity>
-                  <View style={styles.badgeBelowEdit}>
+                  <View style={[styles.badgeBelowEdit, styles.ownListingActionSpaced]}>
                     <VaultingBadge status={vaultingStatus} size="sm" muted textOnly />
                   </View>
                 </View>
@@ -126,11 +133,16 @@ export function ListingCard({
                       onPress={onBuyPress}
                       activeOpacity={0.7}
                     >
-                      <Text style={styles.buyButtonText}>Buy Now R{Number(price).toLocaleString('en-ZA')}</Text>
+                      <Text style={styles.buyButtonText} numberOfLines={1}>
+                        Buy Now R{Number(price).toLocaleString('en-ZA')}
+                      </Text>
                     </TouchableOpacity>
                   ) : null}
                   <TouchableOpacity
-                    style={styles.bidButton}
+                    style={[
+                      styles.bidButton,
+                      (purchaseType === 'instant' || purchaseType === 'both') && styles.actionButtonSpaced,
+                    ]}
                     onPress={onBidPress}
                     activeOpacity={0.7}
                   >
@@ -150,8 +162,7 @@ const getStyles = (theme: any) => StyleSheet.create({
   cardContainer: {
     width: '48%',
     flexGrow: 0,
-    flexShrink: 0,
-    marginBottom: SPACING.xl,
+    flexShrink: 1,
   },
   card: {
     backgroundColor: theme.cardBackground || '#0a0a0a',
@@ -221,14 +232,17 @@ const getStyles = (theme: any) => StyleSheet.create({
     fontFamily: theme.regularFont,
     color: 'rgba(255, 255, 255, 0.5)',
   },
-  actionsContainer: {
-    gap: SPACING.sm,
+  actionsContainer: {},
+  actionButtonSpaced: {
+    marginTop: SPACING.sm,
   },
   ownListingActions: {
     flexDirection: 'column',
     alignItems: 'stretch',
     width: '100%',
-    gap: SPACING.sm,
+  },
+  ownListingActionSpaced: {
+    marginTop: SPACING.sm,
   },
   badgeBelowEdit: {
     alignItems: 'center',
@@ -236,15 +250,17 @@ const getStyles = (theme: any) => StyleSheet.create({
   buyButton: {
     backgroundColor: theme.tintColor || '#73EC8B',
     paddingVertical: SPACING.sm,
-    paddingHorizontal: SPACING.md,
+    paddingHorizontal: SPACING.sm,
     borderRadius: RADIUS.md,
     alignItems: 'center',
+    alignSelf: 'stretch',
   },
   buyButtonText: {
-    fontSize: TYPOGRAPHY.bodySmall,
+    fontSize: TYPOGRAPHY.caption,
     fontFamily: theme.semiBoldFont,
     color: '#000000',
     fontWeight: '600',
+    textAlign: 'center',
   },
   bidButton: {
     backgroundColor: 'transparent',
@@ -269,11 +285,10 @@ const getStyles = (theme: any) => StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     flexDirection: 'row',
-    gap: 6,
     alignSelf: 'stretch',
   },
   editIcon: {
-    marginRight: 0,
+    marginRight: 6,
   },
   editButtonText: {
     fontSize: TYPOGRAPHY.bodySmall,

@@ -1,4 +1,5 @@
 import 'react-native-gesture-handler'
+import './global.css'
 import { useState, useEffect, useRef } from 'react'
 import { NavigationContainer } from '@react-navigation/native'
 import { RootNavigator } from './src/navigation/RootNavigator'
@@ -30,7 +31,11 @@ import {
   BottomSheetView,
 } from '@gorhom/bottom-sheet'
 import { StyleSheet, LogBox } from 'react-native'
+import { SafeAreaProvider } from 'react-native-safe-area-context'
 import { PortalHost } from '@rn-primitives/portal'
+import { applyStableTextDefaults } from './src/utils/layoutHelpers'
+
+applyStableTextDefaults()
 
 function AuthNavigationGate() {
   const { isAuthenticated, hasSeenOnboarding } = useAuth()
@@ -143,6 +148,7 @@ export default function App() {
   if (!fontsLoaded) return null
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
+      <SafeAreaProvider>
       <AppContext.Provider
         value={{
           chatType,
@@ -187,6 +193,7 @@ export default function App() {
           <PortalHost />
         </ThemeContext.Provider>
       </AppContext.Provider>
+      </SafeAreaProvider>
     </GestureHandlerRootView>
   )
 }

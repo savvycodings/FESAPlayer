@@ -34,8 +34,9 @@ export function EditBadge({ onPress, size = 28, iconSize = 14 }: EditBadgeProps)
 const styles = StyleSheet.create({
   badge: {
     position: 'absolute',
-    bottom: 0,
+    bottom: 2,
     right: 0,
+    zIndex: 5,
     backgroundColor: 'rgba(0, 0, 0, 0.65)',
     borderWidth: 2,
     borderColor: 'rgba(255, 255, 255, 0.4)',

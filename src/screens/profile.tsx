@@ -1,8 +1,9 @@
 import React, { useContext, useState, useEffect, useCallback } from 'react'
-import { View, StyleSheet, ScrollView, Alert, TouchableOpacity, RefreshControl, ActivityIndicator } from 'react-native'
+import { View, StyleSheet, ScrollView, Alert, TouchableOpacity, RefreshControl, ActivityIndicator, Platform } from 'react-native'
 import { useNavigation, useFocusEffect } from '@react-navigation/native'
 import { NativeStackNavigationProp } from '@react-navigation/native-stack'
 import { Text } from '../components/ui/text'
+import { ThemedText } from '../components/ui/ThemedText'
 import { ThemeContext } from '../context'
 import { SPACING, TYPOGRAPHY, RADIUS } from '../constants/layout'
 import Ionicons from '@expo/vector-icons/Ionicons'
@@ -597,6 +598,13 @@ export function Profile() {
         }
       >
         <View style={styles.headerRow}>
+          <TouchableOpacity
+            onPress={() => navigation.navigate('SettingsMain' as never)}
+            activeOpacity={0.7}
+            style={styles.settingsButton}
+          >
+            <Ionicons name="settings-outline" size={20} color={theme.textColor} />
+          </TouchableOpacity>
           <View style={{ flex: 1 }}>
             <ProfileHeader
               userName={userName}
@@ -637,41 +645,34 @@ export function Profile() {
               }}
             />
           </View>
-          <TouchableOpacity
-            onPress={() => navigation.navigate('SettingsMain' as never)}
-            activeOpacity={0.7}
-            style={styles.settingsButton}
-          >
-            <Ionicons name="settings-outline" size={20} color={theme.textColor} />
-          </TouchableOpacity>
         </View>
 
         <View style={styles.contentWrapper}>
           {/* Section Header: title + "See all" subtext on left; Add Card + Verify on right inline with title */}
           <View style={styles.sectionHeader}>
             <View style={styles.sectionHeaderLeft}>
-              <Text style={styles.sectionTitle}>Your Products</Text>
-              <TouchableOpacity
-                onPress={() => Alert.alert('Coming Soon', 'Full products view coming soon!')}
-                activeOpacity={0.6}
-              >
-                <Text style={styles.seeAllSubtext}>See all</Text>
-              </TouchableOpacity>
+              <ThemedText style={styles.sectionTitle}>Your Products</ThemedText>
             </View>
             <View style={styles.sectionHeaderActions}>
               <TouchableOpacity
-                style={styles.addButton}
+                style={styles.actionButton}
                 onPress={() => setIsAddCardModalVisible(true)}
+                activeOpacity={0.7}
               >
-                <Ionicons name="add" size={18} color={theme.tintColor || '#73EC8B'} />
-                <Text style={styles.addButtonText}>Add Card</Text>
+                <View style={styles.actionButtonIcon}>
+                  <Ionicons name="add" size={16} color={theme.tintColor || '#73EC8B'} />
+                </View>
+                <ThemedText style={styles.actionButtonText}>Add Card</ThemedText>
               </TouchableOpacity>
               <TouchableOpacity
-                style={styles.vaultButton}
+                style={styles.actionButton}
                 onPress={() => setIsBulkVaultingModalVisible(true)}
+                activeOpacity={0.7}
               >
-                <Ionicons name="lock-closed-outline" size={18} color={theme.tintColor || '#73EC8B'} />
-                <Text style={styles.vaultButtonText}>Verify</Text>
+                <View style={styles.actionButtonIcon}>
+                  <Ionicons name="lock-closed-outline" size={16} color={theme.tintColor || '#73EC8B'} />
+                </View>
+                <ThemedText style={styles.actionButtonText}>Verify</ThemedText>
               </TouchableOpacity>
             </View>
           </View>
@@ -894,18 +895,17 @@ const getStyles = (theme: any) => StyleSheet.create({
     flexDirection: 'row',
     position: 'relative',
     paddingHorizontal: SPACING.containerPadding,
-    paddingTop: SPACING.lg,
   },
   settingsButton: {
     position: 'absolute',
-    // Push the icon down so it visually lines up with the username text in ProfileHeader
-    top: SPACING.lg + 40,
+    top: SPACING.lg,
     right: SPACING.containerPadding,
     width: 32,
     height: 32,
     borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
+    zIndex: 1,
   },
   scrollContentContainer: {
     paddingBottom: SPACING['4xl'],
@@ -999,10 +999,10 @@ const getStyles = (theme: any) => StyleSheet.create({
   },
   sectionHeader: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     justifyContent: 'space-between',
     marginBottom: SPACING.sm,
-    marginTop: SPACING.sm,
+    marginTop: 0,
     gap: SPACING.md,
   },
   sectionHeaderLeft: {
@@ -1011,59 +1011,46 @@ const getStyles = (theme: any) => StyleSheet.create({
   },
   sectionTitle: {
     fontSize: TYPOGRAPHY.h2,
+    lineHeight: Math.round(TYPOGRAPHY.h2 * 1.2),
     fontFamily: theme.boldFont,
-    fontWeight: '600',
     color: theme.textColor,
-    letterSpacing: -0.3,
-  },
-  seeAllSubtext: {
-    fontSize: TYPOGRAPHY.caption,
-    fontFamily: theme.regularFont,
-    color: theme.mutedForegroundColor || 'rgba(255, 255, 255, 0.5)',
-    marginTop: 2,
-    letterSpacing: 0.1,
+    letterSpacing: 0.15,
+    ...(Platform.OS === 'android' ? { includeFontPadding: false } : {}),
   },
   sectionHeaderActions: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: SPACING.lg,
+    gap: SPACING.sm,
     flexShrink: 0,
   },
-  addButton: {
+  actionButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: SPACING.xs,
+    justifyContent: 'center',
+    height: 32,
     paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.xs,
+    paddingVertical: 0,
     borderRadius: RADIUS.md,
     backgroundColor: 'rgba(115, 236, 139, 0.1)',
     borderWidth: 1,
     borderColor: theme.tintColor || '#73EC8B',
     flexShrink: 0,
+    gap: 6,
   },
-  addButtonText: {
-    fontSize: TYPOGRAPHY.bodySmall,
-    fontFamily: theme.semiBoldFont,
-    color: theme.tintColor || '#73EC8B',
-    fontWeight: '600',
-  },
-  vaultButton: {
-    flexDirection: 'row',
+  actionButtonIcon: {
+    width: 16,
+    height: 16,
     alignItems: 'center',
-    gap: SPACING.xs,
-    paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.xs,
-    borderRadius: RADIUS.md,
-    backgroundColor: 'rgba(115, 236, 139, 0.1)',
-    borderWidth: 1,
-    borderColor: theme.tintColor || '#73EC8B',
-    flexShrink: 0,
+    justifyContent: 'center',
   },
-  vaultButtonText: {
+  actionButtonText: {
     fontSize: TYPOGRAPHY.bodySmall,
+    lineHeight: Platform.OS === 'android' ? 16 : 15,
     fontFamily: theme.semiBoldFont,
     color: theme.tintColor || '#73EC8B',
-    fontWeight: '600',
+    ...(Platform.OS === 'android'
+      ? { includeFontPadding: false, textAlignVertical: 'center' as const }
+      : {}),
   },
   seeAllText: {
     fontSize: TYPOGRAPHY.bodySmall,

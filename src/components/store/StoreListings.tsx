@@ -1,5 +1,7 @@
-import { View, StyleSheet } from 'react-native'
+import { View, StyleSheet, useWindowDimensions } from 'react-native'
 import { ListingCard } from './ListingCard'
+import { getTwoColumnItemWidth } from '../../utils/layoutHelpers'
+import { SPACING } from '../../constants/layout'
 
 type VaultingStatus = 'vaulted' | 'seller-has' | 'unverified' | 'vaulting-in-process'
 type PurchaseType = 'instant' | 'bid' | 'both'
@@ -34,6 +36,8 @@ export function StoreListings({
   onEditPress,
 }: StoreListingsProps) {
   const styles = getStyles()
+  const { width: screenWidth } = useWindowDimensions()
+  const cardWidth = getTwoColumnItemWidth(screenWidth)
 
   return (
     <View style={styles.container}>
@@ -41,6 +45,7 @@ export function StoreListings({
         <ListingCard
           key={listing.id}
           {...listing}
+          cardWidth={cardWidth}
           onPress={() => onListingPress?.(listing)}
           onBuyPress={() => onBuyPress?.(listing)}
           onBidPress={() => onBidPress?.(listing)}
@@ -52,12 +57,15 @@ export function StoreListings({
   )
 }
 
+const GRID_GAP = 8
+
 const getStyles = () => StyleSheet.create({
   container: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    justifyContent: 'space-between',
+    justifyContent: 'flex-start',
     width: '100%',
-    gap: 8,
+    columnGap: GRID_GAP,
+    rowGap: SPACING.xl,
   },
 })

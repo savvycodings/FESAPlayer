@@ -1,4 +1,4 @@
-import { View, StyleSheet, TouchableOpacity, Dimensions, LayoutChangeEvent, PanResponder, Image } from 'react-native'
+import { View, StyleSheet, TouchableOpacity, Dimensions, LayoutChangeEvent, PanResponder, Image, Platform } from 'react-native'
 import { useContext, useState, useMemo, useRef } from 'react'
 import { Text } from '../ui/text'
 import Ionicons from '@expo/vector-icons/Ionicons'
@@ -7,7 +7,7 @@ import { ThemeContext } from '../../context'
 import { SPACING, TYPOGRAPHY, RADIUS, STORE_COLORS } from '../../constants/layout'
 import { ProgressBars } from '../store'
 import { LevelRewardModal } from '../store/LevelRewardModal'
-import { EditBadge } from '../ui/EditBadge'
+import { TrustedBadge } from '../ui/TrustedBadge'
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window')
 
@@ -69,7 +69,6 @@ export function ProfileHeader({
 }: ProfileHeaderProps) {
   const { theme } = useContext(ThemeContext)
   const styles = getStyles(theme)
-  const [isHovering, setIsHovering] = useState(false)
   const [selectedPeriod, setSelectedPeriod] = useState<'1M' | '3M' | '6M' | '1Y'>('1M')
   const [chartWidth, setChartWidth] = useState(SCREEN_WIDTH - (SPACING.containerPadding * 2))
   const [selectedPoint, setSelectedPoint] = useState<{ x: number; value: number; index: number } | null>(null)
@@ -321,8 +320,7 @@ export function ProfileHeader({
                 style={styles.profileIcon}
                 activeOpacity={0.8}
                 onPress={onEditPress}
-                onPressIn={() => setIsHovering(true)}
-                onPressOut={() => setIsHovering(false)}
+                disabled={!onEditPress}
               >
                 {profileImage ? (
                   <Image
@@ -336,17 +334,7 @@ export function ProfileHeader({
                     <Text style={styles.profileImageEmptyText}>Add photo</Text>
                   </View>
                 )}
-                {isHovering && (
-                  <View style={styles.editIconContainer}>
-                    <Ionicons
-                      name="pencil"
-                      size={24}
-                      color="#FFFFFF"
-                    />
-                  </View>
-                )}
               </TouchableOpacity>
-              {onEditPress ? <EditBadge onPress={onEditPress} size={30} iconSize={14} /> : null}
               {/* Level Ring - Silver for Level 3 */}
               {ringColor && (
                 <>
@@ -354,12 +342,8 @@ export function ProfileHeader({
                   <View style={[styles.ringInner, { borderColor: ringColor }]} />
                 </>
               )}
-              <View style={styles.trustedBadge}>
-                <View style={styles.shieldIconContainer}>
-                  <Ionicons name="shield-outline" size={12} color={theme.tintColor || '#73EC8B'} style={styles.shieldIcon} />
-                  <Ionicons name="checkmark" size={8} color="rgba(0, 0, 0, 0.6)" style={styles.checkmarkIcon} />
-                </View>
-                <Text style={styles.trustedText}>Trusted</Text>
+              <View style={styles.trustedBadgeAnchor}>
+                <TrustedBadge />
               </View>
             </View>
 
@@ -644,9 +628,8 @@ const getStyles = (theme: any) => StyleSheet.create({
   },
   headerSection: {
     backgroundColor: theme.backgroundColor,
-    paddingTop: SPACING['4xl'],
+    paddingTop: SPACING.lg,
     paddingBottom: SPACING.xl,
-    paddingHorizontal: SPACING.containerPadding,
   },
   headerTop: {
     flexDirection: 'row',
@@ -659,7 +642,7 @@ const getStyles = (theme: any) => StyleSheet.create({
   },
   profileAndNameRow: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     marginBottom: SPACING.md,
     gap: SPACING.md,
   },
@@ -731,6 +714,8 @@ const getStyles = (theme: any) => StyleSheet.create({
     height: 108,
     justifyContent: 'center',
     alignItems: 'center',
+    overflow: 'visible',
+    marginBottom: 4,
   },
   profileIcon: {
     width: 100,
@@ -786,51 +771,13 @@ const getStyles = (theme: any) => StyleSheet.create({
     color: 'rgba(255, 255, 255, 0.35)',
     marginTop: 2,
   },
-  trustedBadge: {
+  trustedBadgeAnchor: {
     position: 'absolute',
-    bottom: 0,
-    left: '50%',
-    transform: [{ translateX: -35 }],
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.6)',
-    paddingHorizontal: SPACING.xs,
-    paddingVertical: 2,
-    borderRadius: RADIUS.full,
-    gap: 4,
-    borderWidth: 1,
-    borderColor: theme.tintColor || '#73EC8B',
-    zIndex: 3,
-  },
-  shieldIconContainer: {
-    position: 'relative',
-    width: 12,
-    height: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  shieldIcon: {
-    position: 'absolute',
-  },
-  checkmarkIcon: {
-    position: 'absolute',
-  },
-  trustedText: {
-    fontSize: TYPOGRAPHY.label,
-    fontFamily: theme.semiBoldFont,
-    color: theme.tintColor || '#73EC8B',
-    fontWeight: '600',
-  },
-  editIconContainer: {
-    position: 'absolute',
-    top: 0,
+    bottom: -2,
     left: 0,
     right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.6)',
-    borderRadius: RADIUS.full,
-    justifyContent: 'center',
     alignItems: 'center',
+    zIndex: 4,
   },
   progressContainer: {
     marginBottom: SPACING.md,
@@ -845,11 +792,14 @@ const getStyles = (theme: any) => StyleSheet.create({
   },
   levelBadge: {
     backgroundColor: theme.tintColor || '#73EC8B',
-    paddingHorizontal: SPACING.sm,
-    paddingVertical: SPACING.xs,
+    paddingHorizontal: 10,
+    paddingVertical: 0,
+    height: 22,
     borderRadius: RADIUS.sm,
-    marginTop: SPACING.xs,
+    marginTop: 0,
     alignSelf: 'flex-start',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   nextLevelBadge: {
     flexDirection: 'row',
@@ -870,10 +820,13 @@ const getStyles = (theme: any) => StyleSheet.create({
     fontWeight: '600',
   },
   levelText: {
-    fontSize: TYPOGRAPHY.caption,
+    fontSize: 12,
+    lineHeight: Platform.OS === 'android' ? 16 : 14,
     fontFamily: theme.boldFont,
     color: '#000000',
-    fontWeight: '600',
+    ...(Platform.OS === 'android'
+      ? { includeFontPadding: false, textAlignVertical: 'center' as const }
+      : {}),
   },
   portfolioValueSection: {
     marginBottom: SPACING.md,
@@ -1052,20 +1005,23 @@ const getStyles = (theme: any) => StyleSheet.create({
   },
   userNameContainer: {
     flex: 1,
+    minHeight: 108,
+    justifyContent: 'center',
+    gap: 2,
   },
   userNameRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: SPACING.sm,
-    flex: 1,
+    flexShrink: 1,
   },
   userNameLarge: {
     fontSize: TYPOGRAPHY.h1 * 1.2,
     fontFamily: theme.boldFont,
     color: theme.textColor,
-    fontWeight: '700',
-    marginTop: -SPACING.xs,
     letterSpacing: -0.3,
+    lineHeight: Math.round(TYPOGRAPHY.h1 * 1.2),
+    ...(Platform.OS === 'android' ? { includeFontPadding: false } : {}),
   },
   emptyChartContainer: {
     padding: SPACING['2xl'],

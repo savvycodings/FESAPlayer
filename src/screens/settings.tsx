@@ -19,6 +19,7 @@ import { SkeletonBox } from '../components/layout/SkeletonBox'
 import { authClient } from '../lib/auth-client'
 import { useAuth } from '../context/AuthContext'
 import { DOMAIN } from '../../constants'
+import { TrustedBadge } from '../components/ui/TrustedBadge'
 
 const { width } = Dimensions.get('window')
 
@@ -120,9 +121,8 @@ export function Settings() {
                   <Text style={styles.avatarEmptyText}>Add photo</Text>
                 </View>
               )}
-              <View style={styles.trustedBadge}>
-                <Ionicons name="shield-checkmark" size={18} color={theme.tintColor || '#73EC8B'} />
-                <Text style={styles.trustedText}>Trusted</Text>
+              <View style={styles.trustedBadgeAnchor}>
+                <TrustedBadge />
               </View>
             </View>
             <View style={styles.nameAndLevel}>
@@ -241,7 +241,6 @@ const getStyles = (theme: any) =>
     profileRow: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: SPACING.xl,
     },
     avatarWrapper: {
       position: 'relative',
@@ -249,6 +248,8 @@ const getStyles = (theme: any) =>
       height: 130,
       justifyContent: 'center',
       alignItems: 'center',
+      overflow: 'visible',
+      marginBottom: 4,
     },
     avatar: {
       width: 112,
@@ -275,30 +276,17 @@ const getStyles = (theme: any) =>
       color: 'rgba(255, 255, 255, 0.4)',
       marginTop: SPACING.xs,
     },
-    trustedBadge: {
+    trustedBadgeAnchor: {
       position: 'absolute',
-      bottom: -4,
-      left: '50%',
-      transform: [{ translateX: -42 }],
-      flexDirection: 'row',
+      bottom: -2,
+      left: 0,
+      right: 0,
       alignItems: 'center',
-      backgroundColor: 'rgba(0, 0, 0, 0.6)',
-      paddingHorizontal: SPACING.sm,
-      paddingVertical: 4,
-      borderRadius: RADIUS.full,
-      gap: 6,
-      borderWidth: 1,
-      borderColor: theme.tintColor || '#73EC8B',
-      zIndex: 1,
-    },
-    trustedText: {
-      fontSize: TYPOGRAPHY.body,
-      fontFamily: theme.semiBoldFont,
-      color: theme.tintColor || '#73EC8B',
-      fontWeight: '600',
+      zIndex: 4,
     },
     nameAndLevel: {
       flex: 1,
+      marginLeft: SPACING.xl,
     },
     userName: {
       fontSize: 28,

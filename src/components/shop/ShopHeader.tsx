@@ -1,6 +1,6 @@
 import { View, StyleSheet } from 'react-native'
 import { useContext } from 'react'
-import { Text } from '../ui/text'
+import { ThemedText } from '../ui/ThemedText'
 import { ThemeContext } from '../../context'
 import { SPACING, TYPOGRAPHY } from '../../constants/layout'
 
@@ -15,41 +15,45 @@ export function ShopHeader({ userName }: ShopHeaderProps) {
   return (
     <View style={styles.headerContainer}>
       <View style={styles.welcomeContainer}>
-        <Text style={styles.welcomeText}>Welcome back</Text>
-        <Text style={styles.userNameText}>{userName}</Text>
+        <ThemedText style={styles.welcomeText}>Welcome back</ThemedText>
+        <ThemedText style={styles.userNameText} numberOfLines={2}>
+          {userName}
+        </ThemedText>
       </View>
     </View>
   )
 }
 
-const getStyles = (theme: any) => StyleSheet.create({
-  headerContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: SPACING.containerPadding,
-    paddingTop: SPACING.headerPadding,
-    paddingBottom: SPACING.headerPadding,
-    backgroundColor: theme.backgroundColor,
-    borderBottomWidth: 1,
-    borderBottomColor: theme.borderColor || 'rgba(255, 255, 255, 0.08)',
-  },
-  welcomeContainer: {
-    justifyContent: 'center',
-    flex: 1,
-  },
-  welcomeText: {
-    fontSize: 13,
-    fontFamily: theme.regularFont,
-    color: theme.mutedForegroundColor || 'rgba(255, 255, 255, 0.6)',
-    marginBottom: 4,
-    letterSpacing: 0.2,
-  },
-  userNameText: {
-    fontSize: 18,
-    fontFamily: theme.boldFont,
-    color: theme.textColor,
-    fontWeight: '600',
-    letterSpacing: -0.2,
-  },
-})
+const getStyles = (theme: any) =>
+  StyleSheet.create({
+    headerContainer: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: SPACING.containerPadding,
+      paddingTop: SPACING.lg,
+      paddingBottom: SPACING.lg,
+      backgroundColor: theme.backgroundColor,
+      borderBottomWidth: 1,
+      borderBottomColor: theme.borderColor || 'rgba(255, 255, 255, 0.08)',
+    },
+    welcomeContainer: {
+      justifyContent: 'center',
+      flex: 1,
+    },
+    welcomeText: {
+      fontSize: TYPOGRAPHY.caption,
+      fontFamily: theme.regularFont,
+      color: theme.mutedForegroundColor || 'rgba(255, 255, 255, 0.55)',
+      marginBottom: SPACING.xs,
+      letterSpacing: 1.2,
+      textTransform: 'uppercase',
+    },
+    userNameText: {
+      fontSize: 28,
+      fontFamily: theme.boldFont,
+      color: theme.textColor,
+      letterSpacing: -0.4,
+      lineHeight: 34,
+    },
+  })

@@ -6,10 +6,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Shop, Settings, EditProfile, EditPhone, EditPudoAddress, Search, Grade, Profile, Product, Category, SetProducts, ViewProfile, MyStore } from './screens'
 import { Header } from './components'
 import FeatherIcon from '@expo/vector-icons/Feather'
-import {
-  SafeAreaProvider,
-  useSafeAreaInsets,
-} from 'react-native-safe-area-context'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { ThemeContext } from './context'
 
 const Tab = createBottomTabNavigator()
@@ -184,11 +181,7 @@ function MainComponent() {
 }
 
 export function Main() {
-  return (
-    <SafeAreaProvider>
-      <MainComponent />
-    </SafeAreaProvider>
-  )
+  return <MainComponent />
 }
 
 // Container: top/left/right insets only. No bottom inset so the tab bar

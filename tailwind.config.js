@@ -10,6 +10,13 @@ module.exports = {
   presets: [require('nativewind/preset')],
   theme: {
     extend: {
+      fontFamily: {
+        sans: ['GoogleSans_400Regular'],
+        regular: ['GoogleSans_400Regular'],
+        medium: ['GoogleSans_500Medium'],
+        semibold: ['GoogleSans_600SemiBold'],
+        bold: ['GoogleSans_700Bold'],
+      },
       colors: {
         border: 'hsl(var(--border))',
         input: 'hsl(var(--input))',

@@ -1,12 +1,13 @@
-import { View, StyleSheet, Image, TouchableOpacity, Linking } from 'react-native'
+import { View, StyleSheet, Image, TouchableOpacity, Linking, Platform } from 'react-native'
 import { useContext, useState } from 'react'
 import { Text } from '../ui/text'
+import { ThemedText } from '../ui/ThemedText'
 import { ThemeContext } from '../../context'
 import { SPACING, TYPOGRAPHY, RADIUS } from '../../constants/layout'
 import { VerificationRings } from './VerificationRings'
 import { ProgressBars } from './ProgressBars'
 import { LevelRewardModal } from './LevelRewardModal'
-import { EditBadge } from '../ui/EditBadge'
+import { TrustedBadge } from '../ui/TrustedBadge'
 import Ionicons from '@expo/vector-icons/Ionicons'
 import { Iconify } from 'react-native-iconify/native'
 
@@ -20,8 +21,6 @@ interface StoreHeaderProps {
   xpToNextLevel: number
   salesCount: number
   shareableLink: string
-  onEditPress?: () => void
-  onEditStorePress?: () => void
   showBannerEdit?: boolean
   onBannerEditPress?: () => void
   twitchUrl?: string
@@ -38,8 +37,6 @@ export function StoreHeader({
   xpToNextLevel,
   salesCount,
   shareableLink,
-  onEditPress,
-  onEditStorePress,
   showBannerEdit = false,
   onBannerEditPress,
   twitchUrl,
@@ -92,55 +89,38 @@ export function StoreHeader({
           <View style={styles.bannerProfileSection}>
             <View style={styles.profileContainer}>
               <View style={styles.profileWrapper}>
-                {onEditPress ? (
-                  <TouchableOpacity
-                    style={styles.profileIcon}
-                    onPress={onEditPress}
-                    activeOpacity={0.8}
-                  >
-                    {profileImage ? (
-                      <Image
-                        source={profileImage}
-                        style={styles.profileImage}
-                        resizeMode="cover"
-                      />
-                    ) : (
-                      <View style={styles.profileInitialsContainer}>
-                        <Text style={styles.profileInitialsText}>{profileInitials}</Text>
-                      </View>
-                    )}
-                  </TouchableOpacity>
-                ) : (
-                  <View style={styles.profileIcon}>
-                    {profileImage ? (
-                      <Image
-                        source={profileImage}
-                        style={styles.profileImage}
-                        resizeMode="cover"
-                      />
-                    ) : (
-                      <View style={styles.profileInitialsContainer}>
-                        <Text style={styles.profileInitialsText}>{profileInitials}</Text>
-                      </View>
-                    )}
-                  </View>
-                )}
-                {onEditPress ? <EditBadge onPress={onEditPress} size={32} iconSize={16} /> : null}
+                <View style={styles.profileIcon}>
+                  {profileImage ? (
+                    <Image
+                      source={profileImage}
+                      style={styles.profileImage}
+                      resizeMode="cover"
+                    />
+                  ) : (
+                    <View style={styles.profileInitialsContainer}>
+                      <Text style={styles.profileInitialsText}>{profileInitials}</Text>
+                    </View>
+                  )}
+                </View>
                 <VerificationRings salesCount={salesCount} size={108} />
-                <View style={styles.trustedBadge}>
-                  <View style={styles.shieldIconContainer}>
-                    <Ionicons name="shield-outline" size={12} color={theme.tintColor || '#73EC8B'} style={styles.shieldIcon} />
-                    <Ionicons name="checkmark" size={8} color="rgba(0, 0, 0, 0.6)" style={styles.checkmarkIcon} />
-                  </View>
-                  <Text style={styles.trustedText}>Trusted</Text>
+                <View style={styles.trustedBadgeAnchor}>
+                  <TrustedBadge />
                 </View>
               </View>
             </View>
 
             <View style={styles.bannerInfoSection}>
-              <View style={styles.storeNameRow}>
-                <Text style={styles.storeName}>{storeName}</Text>
-                <View style={styles.storeNameBadges}>
+              <View style={styles.storeInfoStack}>
+                <View style={styles.storeNameRow}>
+                  <ThemedText
+                    style={styles.storeName}
+                    numberOfLines={1}
+                    adjustsFontSizeToFit
+                    minimumFontScale={0.82}
+                    ellipsizeMode="clip"
+                  >
+                    {storeName}
+                  </ThemedText>
                   {(twitchUrl || youtubeUrl) && (
                     <View style={styles.socialIconsRow}>
                       {twitchUrl ? (
@@ -165,23 +145,26 @@ export function StoreHeader({
                       ) : null}
                     </View>
                   )}
-                  <TouchableOpacity
-                    style={styles.levelBadge}
-                    onPress={() => handleLevelPress(level)}
-                    activeOpacity={0.7}
-                  >
-                    <Text style={styles.levelText}>Lv {level}</Text>
-                  </TouchableOpacity>
+                </View>
+
+                <TouchableOpacity
+                  style={styles.levelBadge}
+                  onPress={() => handleLevelPress(level)}
+                  activeOpacity={0.7}
+                >
+                  <ThemedText style={styles.levelText}>Lv {level}</ThemedText>
+                </TouchableOpacity>
+
+                <View style={styles.progressWrap}>
+                  <ProgressBars
+                    level={level}
+                    currentXP={currentXP}
+                    xpToNextLevel={xpToNextLevel}
+                    showVertical={false}
+                    profileImage={profileImage}
+                  />
                 </View>
               </View>
-
-              <ProgressBars
-                level={level}
-                currentXP={currentXP}
-                xpToNextLevel={xpToNextLevel}
-                showVertical={false}
-                profileImage={profileImage}
-              />
             </View>
           </View>
         </View>
@@ -278,6 +261,17 @@ const getStyles = (theme: any) => StyleSheet.create({
   bannerInfoSection: {
     flex: 1,
     paddingLeft: SPACING.xs,
+    minHeight: 108,
+    justifyContent: 'flex-start',
+  },
+  storeInfoStack: {
+    gap: SPACING.sm,
+    // Shift stack so Lv badge vertical center lines up with profile image center (108px).
+    paddingTop:
+      108 / 2 - (26 + SPACING.sm + 22 / 2),
+  },
+  progressWrap: {
+    width: '100%',
   },
   profileContainer: {
     marginRight: SPACING.md,
@@ -288,6 +282,8 @@ const getStyles = (theme: any) => StyleSheet.create({
     height: 108,
     justifyContent: 'center',
     alignItems: 'center',
+    overflow: 'visible',
+    marginBottom: 4,
   },
   profileIcon: {
     width: 108,
@@ -315,39 +311,13 @@ const getStyles = (theme: any) => StyleSheet.create({
     fontSize: TYPOGRAPHY.h3,
     fontWeight: '600',
   },
-  trustedBadge: {
+  trustedBadgeAnchor: {
     position: 'absolute',
-    bottom: 0,
-    left: '50%',
-    transform: [{ translateX: -35 }],
-    flexDirection: 'row',
+    bottom: -2,
+    left: 0,
+    right: 0,
     alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.6)',
-    paddingHorizontal: SPACING.xs,
-    paddingVertical: 2,
-    borderRadius: RADIUS.full,
-    gap: 4,
-    borderWidth: 1,
-    borderColor: theme.tintColor || '#73EC8B',
-  },
-  shieldIconContainer: {
-    position: 'relative',
-    width: 12,
-    height: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  shieldIcon: {
-    position: 'absolute',
-  },
-  checkmarkIcon: {
-    position: 'absolute',
-  },
-  trustedText: {
-    fontSize: TYPOGRAPHY.label,
-    fontFamily: theme.semiBoldFont,
-    color: theme.tintColor || '#73EC8B',
-    fontWeight: '600',
+    zIndex: 4,
   },
   infoSection: {
     flex: 1,
@@ -355,28 +325,26 @@ const getStyles = (theme: any) => StyleSheet.create({
   storeNameRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: SPACING.md,
+    flexWrap: 'nowrap',
   },
   storeName: {
-    flex: 1,
-    fontSize: TYPOGRAPHY.h2,
+    flexGrow: 1,
+    flexShrink: 1,
+    minWidth: 0,
+    fontSize: 22,
+    lineHeight: 26,
     fontFamily: theme.boldFont,
     color: theme.textColor,
-    fontWeight: '700',
     marginRight: SPACING.sm,
-    letterSpacing: 0.2,
+    letterSpacing: -0.2,
     textShadowColor: 'rgba(0, 0, 0, 0.8)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 4,
   },
-  storeNameBadges: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: SPACING.sm,
-  },
   socialIconsRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    flexShrink: 0,
     gap: SPACING.xs,
   },
   socialIconButton: {
@@ -384,18 +352,23 @@ const getStyles = (theme: any) => StyleSheet.create({
   },
   levelBadge: {
     backgroundColor: theme.tintColor || '#73EC8B',
-    paddingHorizontal: SPACING.sm,
-    paddingVertical: SPACING.xs,
+    paddingHorizontal: 10,
+    paddingVertical: 0,
+    height: 22,
     borderRadius: RADIUS.sm,
+    marginTop: 0,
+    alignSelf: 'flex-start',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   levelText: {
-    fontSize: TYPOGRAPHY.caption,
+    fontSize: 12,
+    lineHeight: Platform.OS === 'android' ? 16 : 14,
     fontFamily: theme.boldFont,
     color: '#000000',
-    fontWeight: '600',
-    textShadowColor: 'rgba(255, 255, 255, 0.5)',
-    textShadowOffset: { width: 0, height: 0.5 },
-    textShadowRadius: 1,
+    ...(Platform.OS === 'android'
+      ? { includeFontPadding: false, textAlignVertical: 'center' as const }
+      : {}),
   },
   featuresContainer: {
     flexDirection: 'row',

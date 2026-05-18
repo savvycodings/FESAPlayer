@@ -1,6 +1,6 @@
 import { View, StyleSheet, TouchableOpacity, Image } from 'react-native'
 import { useContext } from 'react'
-import { Text } from '../ui/text'
+import { ThemedText } from '../ui/ThemedText'
 import { Carousel } from '../Carousel'
 import { ThemeContext } from '../../context'
 import { SPACING, TYPOGRAPHY, RADIUS } from '../../constants/layout'
@@ -34,18 +34,18 @@ export function PromoCarousel({ items, onButtonPress }: PromoCarouselProps) {
       renderItem={(item) => (
         <View style={styles.promoCard}>
           <View style={styles.promoTopContent}>
-            <Text style={styles.promoLabel}>PROMO</Text>
-            <Text style={styles.promoTitle}>{item.title}</Text>
+            <ThemedText style={styles.promoLabel}>PROMO</ThemedText>
+            <ThemedText style={styles.promoTitle}>{item.title}</ThemedText>
           </View>
           <View style={styles.promoBottomContent}>
             <View style={styles.promoLeftContent}>
-              <Text style={styles.promoDescription}>{item.description}</Text>
+              <ThemedText style={styles.promoDescription}>{item.description}</ThemedText>
               <TouchableOpacity
                 style={styles.promoButton}
                 activeOpacity={0.7}
                 onPress={() => onButtonPress?.(item)}
               >
-                <Text style={styles.promoButtonText}>{item.buttonText}</Text>
+                <ThemedText style={styles.promoButtonText}>{item.buttonText}</ThemedText>
               </TouchableOpacity>
             </View>
             <View style={styles.promoRightContent}>
@@ -93,7 +93,6 @@ const getStyles = (theme: any) => StyleSheet.create({
     fontSize: TYPOGRAPHY.h3,
     fontFamily: theme.boldFont,
     color: '#000000',
-    fontWeight: '600',
     lineHeight: 24,
     letterSpacing: -0.2,
     width: '100%',
@@ -130,7 +129,6 @@ const getStyles = (theme: any) => StyleSheet.create({
     fontSize: TYPOGRAPHY.body,
     fontFamily: theme.semiBoldFont,
     color: '#FFFFFF',
-    fontWeight: '600',
     letterSpacing: 0.3,
   },
   promoRightContent: {

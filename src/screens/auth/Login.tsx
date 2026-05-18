@@ -76,8 +76,17 @@ export function Login() {
         .filter((l) => l.code.length > 0)
       setLockers(mapped)
     } catch (e: any) {
-      console.warn('Lockers fetch failed:', e)
-      showAlert('Could not load lockers', e?.message || 'Try again or enter address manually.')
+      console.warn('Lockers fetch failed:', e, 'API base:', DOMAIN)
+      const isNetwork =
+        e?.message === 'Network request failed' ||
+        e?.message?.includes('Failed to fetch') ||
+        e?.name === 'TypeError'
+      showAlert(
+        'Could not load lockers',
+        isNetwork
+          ? `Cannot reach the server at ${DOMAIN}. On a phone, use the same Wi‑Fi as your PC and keep "pnpm run dev" running in the server folder. You can still enter an address manually below.`
+          : e?.message || 'Try again or enter address manually.'
+      )
       setLockers([])
     } finally {
       setLockersLoading(false)

@@ -1,6 +1,6 @@
 import { View, StyleSheet, ViewStyle } from 'react-native'
 import { useContext } from 'react'
-import { Text } from '../ui/text'
+import { ThemedText } from '../ui/ThemedText'
 import { SPACING, TYPOGRAPHY } from '../../constants/layout'
 import { TouchableOpacity } from 'react-native'
 import { ThemeContext } from '../../context'
@@ -32,12 +32,12 @@ export function Section({
     <View style={[styles.container, style]}>
       {!hideHeader && (
         <View style={styles.header}>
-          <Text style={styles.title}>{title}</Text>
+          <ThemedText style={styles.title}>{title}</ThemedText>
           <View style={styles.headerRight}>
             {rightContent}
             {showSeeAll && (
               <TouchableOpacity onPress={onSeeAllPress} activeOpacity={0.6}>
-                <Text style={styles.seeAll}>{seeAllText}</Text>
+                <ThemedText style={styles.seeAll}>{seeAllText}</ThemedText>
               </TouchableOpacity>
             )}
           </View>
@@ -70,10 +70,9 @@ const getStyles = (theme: any) => StyleSheet.create({
   title: {
     fontSize: TYPOGRAPHY.h2,
     fontFamily: theme.boldFont,
-    fontWeight: '700',
     color: theme.textColor,
     letterSpacing: 0.15,
-    lineHeight: TYPOGRAPHY.h2,
+    lineHeight: TYPOGRAPHY.h2 * 1.2,
   },
   seeAll: {
     fontSize: TYPOGRAPHY.bodySmall,

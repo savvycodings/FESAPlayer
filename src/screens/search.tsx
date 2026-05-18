@@ -620,8 +620,8 @@ export function Search() {
               const displayName = formatDisplayName(item.name)
               return (
                 <View style={styles.carouselItemContainer}>
-                  <Card style={styles.carouselCard}>
-                    <CardContent style={styles.carouselCardContent}>
+                  <Card className="p-0 gap-0 border-0 shadow-none" style={styles.carouselCard}>
+                    <CardContent className="p-0" style={styles.carouselCardContent}>
                       <View style={styles.featuredImageContainerFeatured}>
                         <Image
                           source={item.image}
@@ -699,8 +699,8 @@ export function Search() {
               const productCount = Math.floor(Math.random() * 15) + 3
               return (
                 <View style={styles.carouselItemContainer}>
-                  <Card style={styles.carouselCard}>
-                    <CardContent style={styles.carouselCardContent}>
+                  <Card className="p-0 gap-0 border-0 shadow-none" style={styles.carouselCard}>
+                    <CardContent className="p-0" style={styles.carouselCardContent}>
                       <View style={styles.featuredImageContainer}>
                         <Image
                           source={item.image}
@@ -780,8 +780,8 @@ export function Search() {
               const stockCount = Math.floor(Math.random() * 10) + 1
               return (
                 <View style={styles.carouselItemContainer}>
-                  <Card style={styles.carouselCard}>
-                    <CardContent style={styles.carouselCardContent}>
+                  <Card className="p-0 gap-0 border-0 shadow-none" style={styles.carouselCard}>
+                    <CardContent className="p-0" style={styles.carouselCardContent}>
                       <View style={styles.featuredImageContainer}>
                         <Image
                           source={item.image}
@@ -845,8 +845,8 @@ export function Search() {
               const price = Math.floor(Math.random() * 200) + 50
               return (
                 <View style={styles.carouselItemContainer}>
-                  <Card style={styles.carouselCard}>
-                    <CardContent style={styles.carouselCardContent}>
+                  <Card className="p-0 gap-0 border-0 shadow-none" style={styles.carouselCard}>
+                    <CardContent className="p-0" style={styles.carouselCardContent}>
                       <View style={styles.featuredImageContainer}>
                         <Image
                           source={item.image}

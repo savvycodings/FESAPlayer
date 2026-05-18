@@ -2,14 +2,15 @@ import { Text, TextClassContext } from '@/src/components/ui/text';
 import { cn } from '@/src/utils';
 import { View, type ViewProps } from 'react-native';
 
-function Card({ className, ...props }: ViewProps & React.RefAttributes<View>) {
+function Card({ className, style, ...props }: ViewProps & React.RefAttributes<View>) {
   return (
     <TextClassContext.Provider value="text-card-foreground">
       <View
         className={cn(
-          'bg-card border-border flex flex-col gap-6 rounded-xl border py-6 shadow-sm shadow-black/5',
+          'bg-card border-border flex flex-col rounded-xl border shadow-sm shadow-black/5',
           className
         )}
+        style={style}
         {...props}
       />
     </TextClassContext.Provider>
@@ -41,8 +42,8 @@ function CardDescription({
   return <Text className={cn('text-muted-foreground text-sm', className)} {...props} />;
 }
 
-function CardContent({ className, ...props }: ViewProps & React.RefAttributes<View>) {
-  return <View className={cn('px-6', className)} {...props} />;
+function CardContent({ className, style, ...props }: ViewProps & React.RefAttributes<View>) {
+  return <View className={cn(className)} style={style} {...props} />;
 }
 
 function CardFooter({ className, ...props }: ViewProps & React.RefAttributes<View>) {
