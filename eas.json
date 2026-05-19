@@ -20,6 +20,9 @@
     "production": {
       "autoIncrement": true,
       "node": "22.14.0",
+      "cache": {
+        "key": "fb6412c-no-worklets-core"
+      },
       "ios": {
         "simulator": false
       }
