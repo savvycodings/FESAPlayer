@@ -3,7 +3,7 @@ import { useContext, useRef, useCallback } from 'react';
 import { StyleSheet, Text, View, Button } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { Shop, Settings, EditProfile, EditPhone, EditPudoAddress, Search, Grade, Profile, Product, Category, SetProducts, ViewProfile, MyStore } from './screens'
+import { Shop, Market, MarketSet, Settings, EditProfile, EditPhone, EditPudoAddress, Search, Grade, Profile, Product, Category, SetProducts, ViewProfile, MyStore } from './screens'
 import { Header } from './components'
 import FeatherIcon from '@expo/vector-icons/Feather'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -25,6 +25,17 @@ function SearchStack() {
       <Stack.Screen name="Category" component={Category} />
       <Stack.Screen name="SetProducts" component={SetProducts} />
       <Stack.Screen name="ViewProfile" component={ViewProfile} />
+    </Stack.Navigator>
+  )
+}
+
+// Market Stack Navigator
+function MarketStack() {
+  return (
+    <Stack.Navigator screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="MarketMain" component={Market} />
+      <Stack.Screen name="MarketSet" component={MarketSet} />
+      <Stack.Screen name="Product" component={Product} />
     </Stack.Navigator>
   )
 }
@@ -112,6 +123,20 @@ function MainComponent() {
             tabBarIcon: ({ color, size }) => (
               <FeatherIcon
                 name="shopping-cart"
+                color={color}
+                size={size}
+              />
+            ),
+          }}
+        />
+        <Tab.Screen
+          name="Market"
+          component={MarketStack}
+          options={{
+            headerShown: false,
+            tabBarIcon: ({ color, size }) => (
+              <FeatherIcon
+                name="bar-chart-2"
                 color={color}
                 size={size}
               />

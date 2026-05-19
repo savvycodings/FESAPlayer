@@ -12,6 +12,7 @@ import { PayFastPayment } from '../components/payment'
 import { SkeletonBox } from '../components/layout/SkeletonBox'
 import { Section } from '../components/layout/Section'
 import { DOMAIN } from '../../constants'
+import { CARD_PLACEHOLDER_IMAGE } from '../constants/cardPlaceholder'
 import * as ImagePicker from 'expo-image-picker'
 import { uploadImage, isExternalUrl } from '../utils/imageUpload'
 import { getPokemonTcgImageUrl, getPokemonTcgImageUrlFromSetNumberIfOnCdn } from '../utils/pokemonTcgImages'
@@ -557,7 +558,7 @@ export function Profile() {
       ? { uri: tcgImageUrl }
       : collection.image
         ? { uri: collection.image }
-        : require('../../assets/singles/Shining_Charizard_Secret.jpg')
+        : CARD_PLACEHOLDER_IMAGE
     return {
       id: collection.id,
       name: collection.name,

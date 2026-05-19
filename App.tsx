@@ -32,8 +32,10 @@ import {
 } from '@gorhom/bottom-sheet'
 import { StyleSheet, LogBox } from 'react-native'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
+import { KeyboardProvider } from 'react-native-keyboard-controller'
 import { PortalHost } from '@rn-primitives/portal'
 import { applyStableTextDefaults } from './src/utils/layoutHelpers'
+import { getApiBaseUrl } from './src/utils/apiBaseUrl'
 
 applyStableTextDefaults()
 
@@ -80,6 +82,9 @@ export default function App() {
   })
 
   useEffect(() => {
+    if (__DEV__) {
+      console.log('[FASAPlayer] API base URL:', getApiBaseUrl())
+    }
     configureStorage()
   }, [])
 
@@ -148,6 +153,7 @@ export default function App() {
   if (!fontsLoaded) return null
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
+      <KeyboardProvider preload={false}>
       <SafeAreaProvider>
       <AppContext.Provider
         value={{
@@ -194,6 +200,7 @@ export default function App() {
         </ThemeContext.Provider>
       </AppContext.Provider>
       </SafeAreaProvider>
+      </KeyboardProvider>
     </GestureHandlerRootView>
   )
 }

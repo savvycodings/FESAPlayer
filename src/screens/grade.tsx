@@ -2,9 +2,7 @@ import {
   View,
   Text,
   TouchableHighlight,
-  KeyboardAvoidingView,
   StyleSheet,
-  ScrollView,
   ActivityIndicator,
   Dimensions,
   Image,
@@ -18,6 +16,7 @@ import { ThemeContext } from '../context'
 import Ionicons from '@expo/vector-icons/Ionicons'
 import MaterialIcons from '@expo/vector-icons/MaterialCommunityIcons'
 import * as ImagePicker from 'expo-image-picker'
+import { KeyboardAwareScrollView } from 'react-native-keyboard-controller'
 import * as Clipboard from 'expo-clipboard'
 import { useActionSheet } from '@expo/react-native-action-sheet'
 
@@ -339,15 +338,13 @@ export function Grade() {
 
   return (
     <View style={styles.container}>
-      <KeyboardAvoidingView
-        behavior="padding"
-        style={styles.container}
-        keyboardVerticalOffset={110}
-      >
-        <ScrollView
+        <KeyboardAwareScrollView
           contentContainerStyle={cards.length === 0 ? styles.scrollContentContainer : styles.scrollContentContainerWithCards}
           ref={scrollViewRef}
           style={styles.scrollContainer}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
+          bottomOffset={110}
         >
           {cards.length === 0 ? (
             <View style={styles.emptyStateContainer}>
@@ -507,7 +504,7 @@ export function Grade() {
               )}
             </>
           )}
-        </ScrollView>
+        </KeyboardAwareScrollView>
         {cards.length > 0 && (
           <View style={styles.bottomActions}>
             <TouchableHighlight
@@ -525,7 +522,6 @@ export function Grade() {
             </TouchableHighlight>
           </View>
         )}
-      </KeyboardAvoidingView>
     </View>
   )
 }

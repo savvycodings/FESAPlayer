@@ -1,4 +1,5 @@
-import { View, StyleSheet, Modal, TouchableOpacity, ScrollView, TextInput, Alert, ActivityIndicator, Image, FlatList, KeyboardAvoidingView, Platform } from 'react-native'
+import { View, StyleSheet, Modal, TouchableOpacity, TextInput, Alert, ActivityIndicator, Image, FlatList } from 'react-native'
+import { KeyboardAwareScrollView } from 'react-native-keyboard-controller'
 import { useContext, useState, useEffect, useMemo, useRef } from 'react'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Text } from '../ui/text'
@@ -260,6 +261,37 @@ export function AddCardModal({
     // Reset happens in useEffect when visible becomes true (next time modal opens).
   }
 
+  const hasUnsavedProgress = () =>
+    name.trim().length > 0 ||
+    cardNumber.trim().length > 0 ||
+    set.trim().length > 0 ||
+    condition.trim().length > 0 ||
+    description.trim().length > 0 ||
+    notes.trim().length > 0 ||
+    grade.trim().length > 0 ||
+    Boolean(image) ||
+    Boolean(cardId)
+
+  const requestClose = () => {
+    if (setPickerVisible) {
+      setSetPickerVisible(false)
+      setSetSearch('')
+      return
+    }
+    if (!hasUnsavedProgress()) {
+      handleClose()
+      return
+    }
+    Alert.alert(
+      'Discard this card?',
+      'Going back will clear what you have entered.',
+      [
+        { text: 'Keep editing', style: 'cancel' },
+        { text: 'Discard', style: 'destructive', onPress: handleClose },
+      ],
+    )
+  }
+
   const usdToZar = (usd: number) => Math.round(usd * USD_TO_ZAR)
   const formatZar = (zar: number) => `R${zar.toLocaleString('en-ZA')}`
 
@@ -331,7 +363,9 @@ export function AddCardModal({
       // Keep set as display name (e.g. "Prismatic Evolutions"), never overwrite with code (e.g. "PRE")
       if (data.setName != null || data.setId != null) setSet(String(data.setName ?? data.setId ?? ''))
       if (data.cardNumber != null) setCardNumber(String(data.cardNumber))
-      // Price lookup does not touch the card image; image is driven only by set + number (built URL) or a separate image API.
+      if (data.imageUrl && String(data.imageUrl).startsWith('http')) {
+        setImage(String(data.imageUrl))
+      }
     } catch (e) {
       setCardInfo(null)
     }
@@ -340,39 +374,38 @@ export function AddCardModal({
   return (
     <Modal
       visible={visible}
-      transparent
-      animationType="fade"
-      onRequestClose={handleClose}
+      animationType="slide"
+      presentationStyle="fullScreen"
+      onRequestClose={requestClose}
       statusBarTranslucent
     >
-      <KeyboardAvoidingView
-        style={styles.keyboardAvoid}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
-      >
-        <View style={styles.overlay}>
-          <TouchableOpacity 
-            style={styles.overlayTouchable}
-            activeOpacity={1}
-            onPress={handleClose}
-          />
-          <View style={styles.modalContainer}>
-            {/* Header */}
-            <View style={[styles.header, { paddingTop: Math.max(insets.top, SPACING.sm) + SPACING.lg }]}>
-              <Text style={styles.title}>Add to Collection</Text>
-              <TouchableOpacity onPress={handleClose} style={styles.closeButton} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
-                <Ionicons name="close" size={24} color={theme.textColor} />
-              </TouchableOpacity>
-            </View>
+      <View style={styles.screen}>
+        <View style={[styles.header, { paddingTop: Math.max(insets.top, SPACING.sm) + SPACING.sm }]}>
+          <TouchableOpacity
+            onPress={requestClose}
+            style={styles.backButton}
+            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+            accessibilityRole="button"
+            accessibilityLabel="Go back"
+          >
+            <Ionicons name="chevron-back" size={28} color={theme.textColor} />
+          </TouchableOpacity>
+          <Text style={styles.title} numberOfLines={1}>
+            Add to Collection
+          </Text>
+          <View style={styles.headerSpacer} />
+        </View>
 
-            <ScrollView
-              showsVerticalScrollIndicator={false}
-              contentContainerStyle={styles.scrollContent}
-              nestedScrollEnabled={true}
-              bounces={false}
-              keyboardShouldPersistTaps="handled"
-              keyboardDismissMode="on-drag"
-            >
+        <KeyboardAwareScrollView
+          style={styles.scroll}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
+          bottomOffset={32}
+          contentContainerStyle={styles.scrollContent}
+          nestedScrollEnabled
+          bounces={false}
+        >
             {/* Type Selection */}
             <View style={styles.inputSection}>
               <Text style={styles.inputLabel}>Type</Text>
@@ -534,24 +567,25 @@ export function AddCardModal({
               </>
             )}
 
-            {/* Image: shown only after name, card number and condition (then we search market + image). */}
+            {/* Card preview — same proportions as Product screen (profile tap-through). */}
             <View style={styles.inputSection}>
-              <Text style={styles.inputLabel}>Image</Text>
               {type === 'card' ? (
                 (() => {
                   const canShowImage = condition.trim().length > 0
                   if (!canShowImage) {
                     return (
-                      <View style={styles.cardImageBox}>
-                        <Text style={styles.noImageText}>Select condition above to load image</Text>
+                      <View style={[styles.cardImageHero, styles.cardImageHeroEmpty]}>
+                        <Text style={styles.noImageText}>Select condition above to load card art</Text>
                       </View>
                     )
                   }
-                  const displayUri = getPokemonTcgImageUrlFromSetNumberIfOnCdn(set, cardNumber)
+                  const builtUri = getPokemonTcgImageUrlFromSetNumberIfOnCdn(set, cardNumber)
+                  const displayUri =
+                    builtUri || (image && image.startsWith('http') ? image : null)
                   if (!displayUri) {
                     return (
-                      <View style={[styles.cardImageBox, styles.cardImageBoxInfo]}>
-                        {cardInfo && (
+                      <View style={[styles.cardImageHero, styles.cardImageHeroEmpty, styles.cardImageHeroInfo]}>
+                        {cardInfo ? (
                           <View style={styles.cardInfoPrices}>
                             <View style={styles.cardInfoPriceRow}>
                               <View style={styles.cardInfoPriceLabelRow}>
@@ -572,16 +606,18 @@ export function AddCardModal({
                               </Text>
                             </View>
                           </View>
+                        ) : (
+                          <Text style={styles.noImageText}>Searching for card art…</Text>
                         )}
                       </View>
                     )
                   }
                   return (
-                    <View style={styles.cardImageBox}>
+                    <View style={styles.cardImageHero}>
                       <Image
                         source={{ uri: displayUri }}
-                        style={styles.cardImage}
-                        resizeMode="contain"
+                        style={styles.cardImageFill}
+                        resizeMode="cover"
                       />
                     </View>
                   )
@@ -603,10 +639,9 @@ export function AddCardModal({
               )}
             </View>
 
-            {/* Searching market: runs only after name, card number (3+) and condition are set */}
+            {/* Market prices + lookup list (no title/box when matched) */}
             {type === 'card' && (
-              <View style={[styles.inputSection, styles.searchingMarketSection]}>
-                <Text style={styles.searchingMarketLabel}>{cardId ? 'Matched' : 'Searching market'}</Text>
+              <View style={styles.inputSection}>
                 {!condition.trim() && (
                   <Text style={styles.searchingMarketHint}>Select condition above to search market prices</Text>
                 )}
@@ -617,7 +652,7 @@ export function AddCardModal({
                   </View>
                 )}
                 {lookupResults.length > 0 && (
-                  <View style={styles.lookupResults}>
+                  <View style={[styles.lookupResults, styles.lookupResultsBox]}>
                     <Text style={styles.lookupResultsHint}>Tap to select (match # to your card)</Text>
                     {lookupResults.slice(0, 8).map((item) => (
                       <TouchableOpacity
@@ -640,26 +675,24 @@ export function AddCardModal({
                   </View>
                 )}
                 {cardId && cardInfo && (
-                  <View style={styles.cardInfoBox}>
-                    <View style={styles.cardInfoPrices}>
-                        <View style={styles.cardInfoPriceRow}>
-                          <View style={styles.cardInfoPriceLabelRow}>
-                            <Ionicons name="trending-up-outline" size={18} color={theme.tintColor || '#73EC8B'} style={styles.cardInfoPriceIcon} />
-                            <Text style={styles.cardInfoPriceLabel}>Market</Text>
-                          </View>
-                          <Text style={styles.cardInfoPriceValue}>
-                            {cardInfo.marketPrice != null ? formatZar(usdToZar(cardInfo.marketPrice)) : '—'}
-                          </Text>
-                        </View>
-                        <View style={[styles.cardInfoPriceRow, styles.cardInfoPriceRowLast]}>
-                          <View style={styles.cardInfoPriceLabelRow}>
-                            <Ionicons name="pricetag-outline" size={18} color={theme.tintColor || '#73EC8B'} style={styles.cardInfoPriceIcon} />
-                            <Text style={styles.cardInfoPriceLabel}>eBay last sold</Text>
-                          </View>
-                          <Text style={styles.cardInfoPriceValue}>
-                            {cardInfo.ebayLastSold != null ? formatZar(usdToZar(cardInfo.ebayLastSold)) : '—'}
-                          </Text>
-                        </View>
+                  <View style={styles.cardInfoPrices}>
+                    <View style={styles.cardInfoPriceRow}>
+                      <View style={styles.cardInfoPriceLabelRow}>
+                        <Ionicons name="trending-up-outline" size={18} color={theme.tintColor || '#73EC8B'} style={styles.cardInfoPriceIcon} />
+                        <Text style={styles.cardInfoPriceLabel}>Market</Text>
+                      </View>
+                      <Text style={styles.cardInfoPriceValue}>
+                        {cardInfo.marketPrice != null ? formatZar(usdToZar(cardInfo.marketPrice)) : '—'}
+                      </Text>
+                    </View>
+                    <View style={[styles.cardInfoPriceRow, styles.cardInfoPriceRowLast]}>
+                      <View style={styles.cardInfoPriceLabelRow}>
+                        <Ionicons name="pricetag-outline" size={18} color={theme.tintColor || '#73EC8B'} style={styles.cardInfoPriceIcon} />
+                        <Text style={styles.cardInfoPriceLabel}>eBay last sold</Text>
+                      </View>
+                      <Text style={styles.cardInfoPriceValue}>
+                        {cardInfo.ebayLastSold != null ? formatZar(usdToZar(cardInfo.ebayLastSold)) : '—'}
+                      </Text>
                     </View>
                   </View>
                 )}
@@ -751,101 +784,84 @@ export function AddCardModal({
                 </View>
               </TouchableOpacity>
             </View>
-          </ScrollView>
+        </KeyboardAwareScrollView>
 
-          {/* Upload Success */}
-          {uploadSuccess && (
-            <View style={[styles.errorContainer, { backgroundColor: 'rgba(115, 236, 139, 0.2)', borderColor: '#73EC8B' }]}>
-              <Ionicons name="checkmark-circle" size={16} color="#73EC8B" />
-              <Text style={[styles.errorText, { color: '#73EC8B' }]}>Card added successfully!</Text>
-            </View>
-          )}
-          
-          {/* Upload Error */}
-          {uploadError && (
-            <View style={styles.errorContainer}>
-              <Ionicons name="alert-circle" size={16} color="#EF4444" />
-              <Text style={styles.errorText}>{uploadError}</Text>
-            </View>
-          )}
-
-          {/* Actions */}
-          <View style={styles.actions}>
-            <TouchableOpacity
-              style={[styles.button, styles.buttonSecondary]}
-              onPress={handleClose}
-              disabled={isUploading}
-            >
-              <Text style={styles.buttonTextSecondary}>Cancel</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.button, styles.buttonPrimary, (!isValid() || isUploading) && styles.buttonDisabled]}
-              onPress={handleAdd}
-              disabled={!isValid() || isUploading}
-            >
-              {isUploading ? (
-                <View style={styles.loadingContainer}>
-                  <ActivityIndicator size="small" color="#000" />
-                  <Text style={[styles.buttonTextPrimary, { marginLeft: SPACING.xs }]}>Uploading...</Text>
-                </View>
-              ) : (
-                <Text style={styles.buttonTextPrimary}>Add Card</Text>
-              )}
-            </TouchableOpacity>
+        {uploadSuccess && (
+          <View style={[styles.errorContainer, styles.footerMessage, { backgroundColor: 'rgba(115, 236, 139, 0.2)', borderColor: '#73EC8B' }]}>
+            <Ionicons name="checkmark-circle" size={16} color="#73EC8B" />
+            <Text style={[styles.errorText, { color: '#73EC8B' }]}>Card added successfully!</Text>
           </View>
+        )}
+
+        {uploadError && (
+          <View style={[styles.errorContainer, styles.footerMessage]}>
+            <Ionicons name="alert-circle" size={16} color="#EF4444" />
+            <Text style={styles.errorText}>{uploadError}</Text>
+          </View>
+        )}
+
+        <View style={[styles.actions, { paddingBottom: Math.max(insets.bottom, SPACING.md) }]}>
+          <TouchableOpacity
+            style={[styles.button, styles.buttonPrimary, (!isValid() || isUploading) && styles.buttonDisabled]}
+            onPress={handleAdd}
+            disabled={!isValid() || isUploading}
+          >
+            {isUploading ? (
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator size="small" color="#000" />
+                <Text style={[styles.buttonTextPrimary, { marginLeft: SPACING.xs }]}>Uploading...</Text>
+              </View>
+            ) : (
+              <Text style={styles.buttonTextPrimary}>Add Card</Text>
+            )}
+          </TouchableOpacity>
         </View>
       </View>
-      </KeyboardAvoidingView>
     </Modal>
   )
 }
 
 const getStyles = (theme: any) => StyleSheet.create({
-  keyboardAvoid: {
+  screen: {
     flex: 1,
-  },
-  overlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  overlayTouchable: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-  },
-  modalContainer: {
-    width: '90%',
-    maxWidth: 500,
-    maxHeight: '90%',
-    backgroundColor: theme.cardBackground || '#1a1a1a',
-    borderRadius: RADIUS.lg,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
-    overflow: 'hidden',
+    backgroundColor: theme.backgroundColor || theme.cardBackground || '#0c0f14',
   },
   header: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    padding: SPACING.lg,
+    paddingHorizontal: SPACING.md,
+    paddingBottom: SPACING.md,
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(255, 255, 255, 0.1)',
   },
+  backButton: {
+    width: 44,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: -SPACING.xs,
+  },
+  headerSpacer: {
+    width: 44,
+  },
   title: {
+    flex: 1,
     fontSize: TYPOGRAPHY.h3,
     fontFamily: theme.boldFont,
     color: theme.textColor,
     fontWeight: '600',
+    textAlign: 'center',
   },
-  closeButton: {
-    padding: SPACING.xs,
+  scroll: {
+    flex: 1,
   },
   scrollContent: {
     padding: SPACING.lg,
+    paddingBottom: SPACING.xl,
+  },
+  footerMessage: {
+    marginHorizontal: SPACING.lg,
+    marginBottom: SPACING.sm,
   },
   inputSection: {
     marginBottom: SPACING.md,
@@ -1055,20 +1071,6 @@ const getStyles = (theme: any) => StyleSheet.create({
     fontFamily: theme.regularFont,
     color: 'rgba(255, 255, 255, 0.5)',
   },
-  searchingMarketSection: {
-    padding: SPACING.lg,
-    borderRadius: RADIUS.lg,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.12)',
-    backgroundColor: 'rgba(255, 255, 255, 0.04)',
-  },
-  searchingMarketLabel: {
-    fontSize: TYPOGRAPHY.h2,
-    fontFamily: theme.semiBoldFont,
-    color: theme.textColor,
-    marginBottom: SPACING.sm,
-    fontWeight: '600',
-  },
   searchingMarketHint: {
     fontSize: TYPOGRAPHY.body,
     fontFamily: theme.regularFont,
@@ -1088,29 +1090,23 @@ const getStyles = (theme: any) => StyleSheet.create({
     color: theme.textColor,
     fontWeight: '600',
   },
+  lookupResultsBox: {
+    padding: SPACING.md,
+    borderRadius: RADIUS.lg,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+    marginBottom: SPACING.sm,
+  },
   lookupResultsHint: {
     fontSize: TYPOGRAPHY.body,
     fontFamily: theme.regularFont,
     color: 'rgba(255, 255, 255, 0.7)',
     marginBottom: SPACING.sm,
   },
-  cardInfoBox: {
-    marginTop: SPACING.md,
-    padding: SPACING.lg,
-    borderRadius: RADIUS.lg,
-    borderWidth: 1.5,
-    borderColor: theme.tintColor || '#73EC8B',
-    backgroundColor: 'transparent',
-  },
-  cardInfoTitle: {
-    fontSize: TYPOGRAPHY.h3,
-    fontFamily: theme.semiBoldFont,
-    color: theme.textColor,
-    fontWeight: '600',
-    marginBottom: SPACING.sm,
-  },
   cardInfoPrices: {
     gap: 0,
+    marginTop: SPACING.xs,
   },
   cardInfoPriceRow: {
     flexDirection: 'row',
@@ -1119,7 +1115,7 @@ const getStyles = (theme: any) => StyleSheet.create({
     paddingVertical: SPACING.sm,
     paddingHorizontal: 0,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255, 255, 255, 0.06)',
+    borderBottomColor: 'rgba(255, 255, 255, 0.1)',
   },
   cardInfoPriceRowLast: {
     borderBottomWidth: 0,
@@ -1147,24 +1143,27 @@ const getStyles = (theme: any) => StyleSheet.create({
     fontFamily: theme.regularFont,
     color: 'rgba(255, 255, 255, 0.8)',
   },
-  cardImageBox: {
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    borderRadius: RADIUS.md,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
+  /** Matches Product screen imageContainer (2.5 × 3.5 card ratio). */
+  cardImageHero: {
+    width: '100%',
+    aspectRatio: 2.5 / 3.5,
+    borderRadius: RADIUS.lg,
     overflow: 'hidden',
+    backgroundColor: theme.cardBackground || 'rgba(255, 255, 255, 0.04)',
+  },
+  cardImageHeroEmpty: {
     alignItems: 'center',
     justifyContent: 'center',
-    minHeight: 140,
-  },
-  cardImageBoxInfo: {
-    justifyContent: 'flex-start',
-    alignItems: 'stretch',
     padding: SPACING.lg,
   },
-  cardImage: {
+  cardImageHeroInfo: {
+    aspectRatio: undefined,
+    minHeight: 120,
+    padding: SPACING.lg,
+  },
+  cardImageFill: {
     width: '100%',
-    height: 200,
+    height: '100%',
   },
   noImageText: {
     fontSize: TYPOGRAPHY.bodySmall,
@@ -1206,14 +1205,14 @@ const getStyles = (theme: any) => StyleSheet.create({
     color: theme.textColor,
   },
   actions: {
-    flexDirection: 'row',
-    gap: SPACING.md,
-    padding: SPACING.lg,
+    paddingHorizontal: SPACING.lg,
+    paddingTop: SPACING.md,
     borderTopWidth: 1,
     borderTopColor: 'rgba(255, 255, 255, 0.1)',
+    backgroundColor: theme.backgroundColor || theme.cardBackground || '#0c0f14',
   },
   button: {
-    flex: 1,
+    width: '100%',
     padding: SPACING.md,
     borderRadius: RADIUS.md,
     alignItems: 'center',

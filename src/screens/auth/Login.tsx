@@ -1,11 +1,12 @@
 import { useState, useContext } from 'react'
-import { View, StyleSheet, TextInput, TouchableOpacity, Pressable, KeyboardAvoidingView, Platform, ScrollView, Alert, Modal, FlatList, ActivityIndicator } from 'react-native'
+import { View, StyleSheet, TextInput, TouchableOpacity, Pressable, Platform, Alert, Modal, FlatList, ActivityIndicator } from 'react-native'
+import { FormScreen, ThemedTextField } from '../../components/form'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Text } from '../../components/ui/text'
 import { ThemeContext } from '../../context'
 import { SPACING, TYPOGRAPHY, RADIUS } from '../../constants/layout'
-import { LinearGradient } from 'expo-linear-gradient'
 import Ionicons from '@expo/vector-icons/Ionicons'
+import { PrimaryGradientButton } from '../../components/ui/PrimaryGradientButton'
 import { authClient } from '../../lib/auth-client'
 import { useAuth } from '../../context/AuthContext'
 import AsyncStorage from '@react-native-async-storage/async-storage'
@@ -18,21 +19,6 @@ function showAlert(title: string, message?: string) {
     return
   }
   Alert.alert(title, message ?? undefined)
-}
-
-// Helper function to get gradient colors based on theme
-const getButtonGradientColors = (theme: any): string[] => {
-  const tintColor = theme.tintColor || '#0281ff'
-  // Create a darker version for the gradient
-  if (tintColor === '#0281ff') {
-    return ['#0281ff', '#0051a5']
-  } else if (tintColor === '#F7B5CD') {
-    return ['#F7B5CD', '#d89bb0']
-  } else if (tintColor === '#73EC8B') {
-    return ['#73EC8B', '#5bc973']
-  } else {
-    return [tintColor, tintColor]
-  }
 }
 
 export function Login() {
@@ -243,14 +229,8 @@ export function Login() {
   }
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-    >
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        keyboardShouldPersistTaps="handled"
-      >
+    <View style={styles.container}>
+      <FormScreen contentContainerStyle={styles.scrollContent}>
           <View style={styles.content}>
             <View style={styles.header}>
               <View style={styles.headerTextBlock}>
@@ -270,33 +250,25 @@ export function Login() {
 
             <View style={styles.form}>
               {isSignUp && (
-                <View style={styles.inputContainer}>
-                  <Ionicons name="person-outline" size={20} color={theme.mutedForegroundColor} style={styles.inputIcon} />
-                  <TextInput
-                    style={styles.input}
-                    placeholder="Full Name"
-                    placeholderTextColor={theme.mutedForegroundColor}
-                    value={name}
-                    onChangeText={setName}
-                    autoCapitalize="words"
-                    autoComplete="name"
-                  />
-                </View>
+                <ThemedTextField
+                  icon="person-outline"
+                  placeholder="Full Name"
+                  value={name}
+                  onChangeText={setName}
+                  autoCapitalize="words"
+                  autoComplete="name"
+                />
               )}
 
               {isSignUp && (
-                <View style={styles.inputContainer}>
-                  <Ionicons name="call-outline" size={20} color={theme.mutedForegroundColor} style={styles.inputIcon} />
-                  <TextInput
-                    style={styles.input}
-                    placeholder="Phone number"
-                    placeholderTextColor={theme.mutedForegroundColor}
-                    value={phone}
-                    onChangeText={setPhone}
-                    keyboardType="phone-pad"
-                    autoComplete="tel"
-                  />
-                </View>
+                <ThemedTextField
+                  icon="call-outline"
+                  placeholder="Phone number"
+                  value={phone}
+                  onChangeText={setPhone}
+                  keyboardType="phone-pad"
+                  autoComplete="tel"
+                />
               )}
 
               {isSignUp && (
@@ -305,7 +277,7 @@ export function Login() {
                     <Pressable style={styles.lockerButton} onPress={openLockerModal}>
                       <Ionicons name="location-outline" size={20} color={theme.tintColor || '#0281ff'} style={styles.inputIcon} />
                       <Text style={styles.lockerButtonText} numberOfLines={2}>
-                        {pudoLockerCode ? `${pudoLockerCode} • ${(pudoAddress || 'Selected').split(' — ')[0] || pudoAddress}` : 'Choose PUDO locker (for orders)'}
+                        {pudoLockerCode ? `${pudoLockerCode} • ${(pudoAddress || 'Selected').split(' — ')[0] || pudoAddress}` : 'PUDO locker'}
                       </Text>
                       <Ionicons name="chevron-forward" size={18} color={theme.mutedForegroundColor} />
                     </Pressable>
@@ -324,10 +296,10 @@ export function Login() {
                             <Text style={[styles.modalCloseText, { color: theme.tintColor }]}>Done</Text>
                           </Pressable>
                         </View>
-                        <TextInput
-                          style={[styles.searchInput, { backgroundColor: theme.cardBackground, borderColor: theme.borderColor, color: theme.textColor }]}
+                        <ThemedTextField
+                          containerStyle={{ marginHorizontal: SPACING.containerPadding * 2, marginBottom: SPACING.md }}
+                          icon="search-outline"
                           placeholder="Search by code, name or address..."
-                          placeholderTextColor={theme.mutedForegroundColor}
                           value={lockerSearch}
                           onChangeText={setLockerSearch}
                         />
@@ -366,62 +338,40 @@ export function Login() {
                       </View>
                     </Modal>
                   )}
-                  {!pudoLockerCode && (
-                    <View style={styles.inputContainer}>
-                      <Ionicons name="create-outline" size={18} color={theme.mutedForegroundColor} style={styles.inputIcon} />
-                      <TextInput
-                        style={styles.input}
-                        placeholder="Or enter PUDO address manually if lockers did not load"
-                        placeholderTextColor={theme.mutedForegroundColor}
-                        value={pudoAddress}
-                        onChangeText={setPudoAddress}
-                        autoCapitalize="none"
-                      />
-                    </View>
-                  )}
-                  <Text style={styles.pudoHint}>
-                    Select your PUDO parcel locker so we can complete locker-to-locker orders.
-                  </Text>
                 </>
               )}
 
-              <View style={styles.inputContainer}>
-                <Ionicons name="mail-outline" size={20} color={theme.mutedForegroundColor} style={styles.inputIcon} />
-                <TextInput
-                  style={styles.input}
-                  placeholder="Email"
-                  placeholderTextColor={theme.mutedForegroundColor}
-                  value={email}
-                  onChangeText={setEmail}
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                  autoComplete="email"
-                />
-              </View>
+              <ThemedTextField
+                icon="mail-outline"
+                placeholder="Email"
+                value={email}
+                onChangeText={setEmail}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                autoComplete="email"
+              />
 
-              <View style={styles.inputContainer}>
-                <Ionicons name="lock-closed-outline" size={20} color={theme.mutedForegroundColor} style={styles.inputIcon} />
-                <TextInput
-                  style={styles.input}
-                  placeholder="Password"
-                  placeholderTextColor={theme.mutedForegroundColor}
-                  value={password}
-                  onChangeText={setPassword}
-                  secureTextEntry={!showPassword}
-                  autoCapitalize="none"
-                  autoComplete="password"
-                />
-                <TouchableOpacity
-                  onPress={() => setShowPassword(!showPassword)}
-                  style={styles.eyeIcon}
-                >
-                  <Ionicons
-                    name={showPassword ? 'eye-outline' : 'eye-off-outline'}
-                    size={20}
-                    color={theme.mutedForegroundColor}
-                  />
-                </TouchableOpacity>
-              </View>
+              <ThemedTextField
+                icon="lock-closed-outline"
+                placeholder="Password"
+                value={password}
+                onChangeText={setPassword}
+                secureTextEntry={!showPassword}
+                autoCapitalize="none"
+                autoComplete="password"
+                rightAccessory={
+                  <TouchableOpacity
+                    onPress={() => setShowPassword(!showPassword)}
+                    style={styles.eyeIcon}
+                  >
+                    <Ionicons
+                      name={showPassword ? 'eye-outline' : 'eye-off-outline'}
+                      size={20}
+                      color={theme.mutedForegroundColor}
+                    />
+                  </TouchableOpacity>
+                }
+              />
 
               {!isSignUp && (
                 <Pressable style={({ pressed }) => [styles.forgotPassword, pressed && { opacity: 0.8 }]}>
@@ -429,22 +379,12 @@ export function Login() {
                 </Pressable>
               )}
 
-              <Pressable
-                style={({ pressed }) => [styles.authButton, pressed && styles.authButtonPressed]}
+              <PrimaryGradientButton
+                title={loading ? 'Please wait...' : isSignUp ? 'Sign Up' : 'Sign In'}
                 onPress={handleAuth}
                 disabled={loading}
-              >
-                <LinearGradient
-                  colors={getButtonGradientColors(theme)}
-                  style={styles.buttonGradient}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 0 }}
-                >
-                  <Text style={styles.authButtonText}>
-                    {loading ? 'Please wait...' : (isSignUp ? 'Sign Up' : 'Sign In')}
-                  </Text>
-                </LinearGradient>
-              </Pressable>
+                style={styles.authButton}
+              />
 
               {authError && (
                 <Text style={styles.errorText}>
@@ -464,8 +404,8 @@ export function Login() {
               </View>
             </View>
           </View>
-        </ScrollView>
-    </KeyboardAvoidingView>
+      </FormScreen>
+    </View>
   )
 }
 
@@ -640,13 +580,6 @@ const getStyles = (theme: any) => StyleSheet.create({
     paddingVertical: SPACING['4xl'],
     fontSize: TYPOGRAPHY.body,
   },
-  pudoHint: {
-    fontSize: TYPOGRAPHY.caption,
-    fontFamily: theme.regularFont,
-    color: theme.mutedForegroundColor || 'rgba(255, 255, 255, 0.5)',
-    marginBottom: SPACING.lg,
-    marginTop: -SPACING.sm,
-  },
   input: {
     flex: 1,
     fontSize: TYPOGRAPHY.body,
@@ -668,24 +601,8 @@ const getStyles = (theme: any) => StyleSheet.create({
     color: theme.tintColor || '#0281ff',
   },
   authButton: {
-    width: '100%',
-    borderRadius: RADIUS.full,
-    overflow: 'hidden',
     marginBottom: SPACING.lg,
     cursor: 'pointer',
-  },
-  authButtonPressed: {
-    opacity: 0.9,
-  },
-  buttonGradient: {
-    paddingVertical: SPACING.lg,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  authButtonText: {
-    fontSize: TYPOGRAPHY.h4,
-    fontFamily: theme.boldFont,
-    color: theme.tintTextColor || '#fff',
   },
   switchAuthLinkPressed: {
     opacity: 0.8,

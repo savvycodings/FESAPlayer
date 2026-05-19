@@ -2,6 +2,7 @@
   "expo": {
     "name": "SA Player",
     "slug": "saplayer",
+    "scheme": "saplayer",
     "version": "1.0.0",
     "sdkVersion": "54.0.0",
     "orientation": "portrait",
@@ -64,7 +65,7 @@
       "eas": {
         "projectId": "2fe9f301-ca9e-4003-b72f-18f077865f9f"
       },
-      "backendIp": "192.168.1.9"
+      "backendIp": "192.168.1.4"
     },
     "owner": "brrrkyle"
   }

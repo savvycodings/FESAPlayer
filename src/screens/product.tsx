@@ -1,4 +1,4 @@
-import { useContext, useState, useEffect } from 'react'
+import { useContext, useState } from 'react'
 import {
   View,
   StyleSheet,
@@ -17,7 +17,7 @@ import Ionicons from '@expo/vector-icons/Ionicons'
 import { Text } from '../components/ui/text'
 import { Card, CardContent } from '../components/ui/card'
 import { SPACING, TYPOGRAPHY, RADIUS } from '../constants/layout'
-import { PriceChart } from '../components/profile/PriceChart'
+import { CardPriceSection } from '../components/card/CardPriceSection'
 import { PayFastPayment } from '../components/payment'
 import { authClient } from '../lib/auth-client'
 import { DOMAIN } from '../../constants'
@@ -81,9 +81,6 @@ export function Product() {
   const [initialPudoLockerCode, setInitialPudoLockerCode] = useState('')
   const [initialShippingAddress, setInitialShippingAddress] = useState('')
   const [removing, setRemoving] = useState(false)
-  const [chartData, setChartData] = useState<{ x: number; y: number }[]>([])
-  const [chartDates, setChartDates] = useState<string[]>([])
-  const [chartLoading, setChartLoading] = useState(false)
   /** Market price USD from card_prices (for 80% min bid floor). Set when cardId is present. */
   const [marketPriceUsd, setMarketPriceUsd] = useState<number | null>(null)
   // Format product name
@@ -232,65 +229,6 @@ export function Product() {
     )
   }
 
-  // Fetch price history for chart when cardId is present (e.g. from collection)
-  useEffect(() => {
-    if (!cardId?.trim()) {
-      setChartData(displayPrice > 0 ? [{ x: 0, y: displayPrice }, { x: 1, y: displayPrice }] : [])
-      setChartDates([])
-      return
-    }
-    let cancelled = false
-    setChartLoading(true)
-    const baseUrl = DOMAIN?.endsWith('/') ? DOMAIN.slice(0, -1) : DOMAIN
-    fetch(`${baseUrl}/pokedata/card/${encodeURIComponent(cardId.trim())}/price-history?days=30`)
-      .then((res) => res.json())
-      .then((data) => {
-        if (cancelled) return
-        const history = data.history || []
-        if (history.length === 0) {
-          setChartData(displayPrice > 0 ? [{ x: 0, y: displayPrice }, { x: 1, y: displayPrice }] : [])
-          setChartDates([])
-        } else {
-          const points = history.map((h: { date?: string; marketPrice?: number | null }, i: number) => {
-            const y = (h.marketPrice != null ? h.marketPrice * USD_TO_ZAR : displayPrice)
-            return { x: i, y }
-          })
-          setChartData(points)
-          setChartDates(history.map((h: { date?: string }) => h.date || ''))
-        }
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setChartData(displayPrice > 0 ? [{ x: 0, y: displayPrice }, { x: 1, y: displayPrice }] : [])
-          setChartDates([])
-        }
-      })
-      .finally(() => { if (!cancelled) setChartLoading(false) })
-    return () => { cancelled = true }
-  }, [cardId, displayPrice, USD_TO_ZAR])
-
-  // Fetch current market price from card_prices for 80% min bid floor (when cardId present)
-  useEffect(() => {
-    if (!cardId?.trim()) {
-      setMarketPriceUsd(null)
-      return
-    }
-    let cancelled = false
-    const baseUrl = DOMAIN?.endsWith('/') ? DOMAIN.slice(0, -1) : DOMAIN
-    fetch(`${baseUrl}/pokedata/card/${encodeURIComponent(cardId.trim())}`)
-      .then((res) => res.json())
-      .then((data) => {
-        if (cancelled) return
-        const mp = data?.marketPrice ?? data?.market_price
-        const num = mp != null && mp !== '' ? parseFloat(String(mp)) : null
-        setMarketPriceUsd(Number.isFinite(num) ? num! : null)
-      })
-      .catch(() => { if (!cancelled) setMarketPriceUsd(null) })
-    return () => { cancelled = true }
-  }, [cardId])
-
-  const currentValueData = chartData.length > 0 ? chartData : (displayPrice > 0 ? [{ x: 0, y: displayPrice }, { x: 1, y: displayPrice }] : [])
-
   return (
     <View style={styles.container}>
       {/* Header with back button */}
@@ -422,25 +360,12 @@ export function Product() {
           </CardContent>
         </Card>
 
-        {/* Market value chart - real history when cardId present, else flat line */}
-        {chartLoading && cardId ? (
-          <Card style={styles.imageCard}>
-            <CardContent style={styles.imageCardContent}>
-              <View style={{ paddingVertical: SPACING.xl, alignItems: 'center' }}>
-                <ActivityIndicator size="small" color={tintColor} />
-                <Text style={[styles.priceLabel, { marginTop: SPACING.sm }]}>Loading price history…</Text>
-              </View>
-            </CardContent>
-          </Card>
-        ) : currentValueData.length > 0 ? (
-          <PriceChart
-            data={currentValueData}
-            dates={chartDates.length > 0 ? chartDates : undefined}
-            title="Market value"
-            subtitle={chartDates.length >= 2 ? `${chartDates.length} points` : 'Current'}
-            valuePrefix="R"
-            color={tintColor}
-            height={160}
+        {cardId?.trim() ? (
+          <CardPriceSection
+            cardId={cardId.trim()}
+            displayPriceZar={displayPrice}
+            days={90}
+            onMarketPriceUsd={setMarketPriceUsd}
           />
         ) : null}
 

@@ -1,5 +1,6 @@
 import { Platform } from 'react-native'
 import Constants from 'expo-constants'
+import * as Device from 'expo-device'
 
 /** Metro / Expo Go host (e.g. 192.168.68.86 from debuggerHost) — same machine as the dev server. */
 function getLanHostFromExpo(): string | null {
@@ -14,14 +15,24 @@ function getLanHostFromExpo(): string | null {
   return host
 }
 
+/** Host that can reach the PC running the API (Metro debugger IP, app.json fallback, or Android emulator alias). */
+function getNativeDevHost(): string | null {
+  if (Platform.OS === 'web') return null
+  // Android emulator: "localhost" is the emulator itself; 10.0.2.2 is the host machine.
+  if (Platform.OS === 'android' && !Device.isDevice) {
+    return '10.0.2.2'
+  }
+  const lan = getLanHostFromExpo()
+  const backendIp = Constants.expoConfig?.extra?.backendIp as string | undefined
+  return lan || backendIp || null
+}
+
 /** On device/emulator, localhost in env points at the phone — swap for the dev machine LAN IP. */
 function rewriteLocalhostForNative(url: string): string {
   if (Platform.OS === 'web') return url
   if (!/localhost|127\.0\.0\.1/i.test(url)) return url
 
-  const lan = getLanHostFromExpo()
-  const backendIp = Constants.expoConfig?.extra?.backendIp as string | undefined
-  const host = lan || backendIp
+  const host = getNativeDevHost()
   if (!host) return url
 
   try {
@@ -51,8 +62,6 @@ export function getApiBaseUrl(): string {
   if (prodUrl) return prodUrl
   if (Platform.OS === 'web' && devUrl) return devUrl
 
-  const lan = getLanHostFromExpo()
-  const backendIp = Constants.expoConfig?.extra?.backendIp as string | undefined
-  const host = lan || backendIp || '192.168.1.9'
+  const host = getNativeDevHost() || '10.0.2.2'
   return `http://${host}:3050`
 }

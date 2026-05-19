@@ -3,9 +3,7 @@ import {
   View,
   Text,
   StyleSheet,
-  ScrollView,
   Image,
-  TextInput,
   TouchableOpacity,
   ActivityIndicator,
   Alert,
@@ -19,6 +17,7 @@ import { SPACING, TYPOGRAPHY, RADIUS } from '../constants/layout'
 import { authClient } from '../lib/auth-client'
 import { DOMAIN } from '../../constants'
 import { uploadImage } from '../utils/imageUpload'
+import { FormScreen, ThemedTextField } from '../components/form'
 
 const { width } = Dimensions.get('window')
 const BANNER_HEIGHT = 120
@@ -238,11 +237,7 @@ export function EditProfile() {
         </TouchableOpacity>
       </View>
 
-      <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={styles.scrollContent}
-        keyboardShouldPersistTaps="handled"
-      >
+      <FormScreen contentContainerStyle={styles.scrollContent}>
         {/* Profile picture centered on top – tap to change (updates everywhere your profile picture appears) */}
         <View style={styles.avatarSection}>
           <TouchableOpacity onPress={handleChangeAvatar} disabled={avatarUploading} activeOpacity={0.8}>
@@ -264,52 +259,40 @@ export function EditProfile() {
 
         {/* Name and store name above the banner */}
         <View style={styles.formSection}>
-          <View style={styles.inputWrap}>
-            <Text style={styles.label}>Name</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Your name"
-              placeholderTextColor={theme.mutedForegroundColor}
-              value={name}
-              onChangeText={setName}
-            />
-          </View>
-          <View style={styles.inputWrap}>
-            <Text style={styles.label}>Store name</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Store name"
-              placeholderTextColor={theme.mutedForegroundColor}
-              value={storeName}
-              onChangeText={setStoreName}
-            />
-          </View>
+          <ThemedTextField
+            label="Name"
+            placeholder="Your name"
+            value={name}
+            onChangeText={setName}
+            icon="person-outline"
+          />
+          <ThemedTextField
+            label="Store name"
+            placeholder="Store name"
+            value={storeName}
+            onChangeText={setStoreName}
+            icon="storefront-outline"
+          />
           {store && (
             <>
-              <View style={styles.inputWrap}>
-                <Text style={styles.label}>Twitch URL</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="https://twitch.tv/yourchannel"
-                  placeholderTextColor={theme.mutedForegroundColor}
-                  value={twitchUrl}
-                  onChangeText={setTwitchUrl}
-                  autoCapitalize="none"
-                  keyboardType="url"
-                />
-              </View>
-              <View style={styles.inputWrap}>
-                <Text style={styles.label}>YouTube URL</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="https://youtube.com/@yourchannel"
-                  placeholderTextColor={theme.mutedForegroundColor}
-                  value={youtubeUrl}
-                  onChangeText={setYoutubeUrl}
-                  autoCapitalize="none"
-                  keyboardType="url"
-                />
-              </View>
+              <ThemedTextField
+                label="Twitch URL"
+                placeholder="https://twitch.tv/yourchannel"
+                value={twitchUrl}
+                onChangeText={setTwitchUrl}
+                autoCapitalize="none"
+                keyboardType="url"
+                icon="logo-twitch"
+              />
+              <ThemedTextField
+                label="YouTube URL"
+                placeholder="https://youtube.com/@yourchannel"
+                value={youtubeUrl}
+                onChangeText={setYoutubeUrl}
+                autoCapitalize="none"
+                keyboardType="url"
+                icon="logo-youtube"
+              />
             </>
           )}
         </View>
@@ -332,7 +315,7 @@ export function EditProfile() {
             )}
           </TouchableOpacity>
         </View>
-      </ScrollView>
+      </FormScreen>
     </View>
   )
 }

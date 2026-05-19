@@ -1,4 +1,6 @@
 export { Shop } from './shop'
+export { Market } from './market'
+export { MarketSet } from './marketSet'
 export { Settings } from './settings'
 export { EditProfile } from './EditProfile'
 export { EditPhone } from './EditPhone'

@@ -1,5 +1,6 @@
 import { useState, useContext } from 'react'
-import { View, StyleSheet, Modal, TouchableOpacity, TextInput, ScrollView, KeyboardAvoidingView, Platform } from 'react-native'
+import { View, StyleSheet, Modal, TouchableOpacity, TextInput } from 'react-native'
+import { KeyboardAwareScrollView } from 'react-native-keyboard-controller'
 import { Text } from '../ui/text'
 import Ionicons from '@expo/vector-icons/Ionicons'
 import { ThemeContext } from '../../context'
@@ -144,10 +145,7 @@ export function CreateAuctionModal({
             activeOpacity={1}
             onPress={handleClose}
           />
-          <KeyboardAvoidingView
-            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-            style={styles.modalContainer}
-          >
+          <View style={styles.modalContainer}>
           <View style={styles.modalHeader}>
             <Text style={styles.modalTitle}>Create New Auction</Text>
             <TouchableOpacity
@@ -159,11 +157,14 @@ export function CreateAuctionModal({
             </TouchableOpacity>
           </View>
 
-          <ScrollView
+          <KeyboardAwareScrollView
             showsVerticalScrollIndicator={false}
             contentContainerStyle={styles.scrollContent}
             nestedScrollEnabled={true}
             bounces={false}
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="on-drag"
+            bottomOffset={32}
           >
             <View style={styles.inputSection}>
               <Text style={styles.inputLabel}>Auction Title</Text>
@@ -289,7 +290,7 @@ export function CreateAuctionModal({
                 />
               </View>
             )}
-          </ScrollView>
+          </KeyboardAwareScrollView>
 
           <View style={styles.modalActions}>
             <TouchableOpacity
@@ -310,7 +311,7 @@ export function CreateAuctionModal({
               </Text>
             </TouchableOpacity>
           </View>
-        </KeyboardAvoidingView>
+        </View>
       </View>
     </Modal>
     </>

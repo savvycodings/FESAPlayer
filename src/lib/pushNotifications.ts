@@ -1,19 +1,27 @@
-import * as Notifications from 'expo-notifications'
 import * as Device from 'expo-device'
 import { Platform } from 'react-native'
 import Constants from 'expo-constants'
 import { DOMAIN } from '../../constants'
 import { authClient } from './auth-client'
 
-/**
- * Request notification permission, get Expo push token, and send it to the backend.
- * Call when the user is logged in (e.g. after auth). On web/simulator we skip.
- */
-export async function registerPushTokenAndSaveToBackend(): Promise<boolean> {
+/** Remote push is not available in Expo Go on Android (SDK 53+). Use a dev build to test. */
+function canUseRemotePush(): boolean {
   if (Platform.OS === 'web') return false
   if (!Device.isDevice) return false
+  if (Constants.appOwnership === 'expo') return false
+  return true
+}
+
+/**
+ * Request notification permission, get Expo push token, and send it to the backend.
+ * Call when the user is logged in (e.g. after auth). Skipped in Expo Go and on simulators.
+ */
+export async function registerPushTokenAndSaveToBackend(): Promise<boolean> {
+  if (!canUseRemotePush()) return false
 
   try {
+    const Notifications = await import('expo-notifications')
+
     const { status: existingStatus } = await Notifications.getPermissionsAsync()
     let finalStatus = existingStatus
     if (existingStatus !== 'granted') {
@@ -49,7 +57,7 @@ export async function registerPushTokenAndSaveToBackend(): Promise<boolean> {
     }
     return true
   } catch (e) {
-    console.warn('[Push] Register error:', e)
+    console.warn('[Push] Register skipped or failed:', e)
     return false
   }
 }

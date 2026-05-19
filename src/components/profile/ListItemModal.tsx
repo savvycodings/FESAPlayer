@@ -1,4 +1,5 @@
-import { View, StyleSheet, Modal, TouchableOpacity, ScrollView, TextInput, Image, Alert, ActivityIndicator } from 'react-native'
+import { View, StyleSheet, Modal, TouchableOpacity, TextInput, Image, Alert, ActivityIndicator } from 'react-native'
+import { KeyboardAwareScrollView } from 'react-native-keyboard-controller'
 import { useContext, useState, useEffect } from 'react'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import * as ImagePicker from 'expo-image-picker'
@@ -206,11 +207,14 @@ export function ListItemModal({
             </TouchableOpacity>
           </View>
 
-          <ScrollView
+          <KeyboardAwareScrollView
             showsVerticalScrollIndicator={false}
             contentContainerStyle={styles.scrollContent}
             nestedScrollEnabled={true}
             bounces={false}
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="on-drag"
+            bottomOffset={32}
           >
             {/* Product Preview - TCG card portrait aspect (e.g. 63x88mm ≈ 0.72) */}
             {productImage && (
@@ -338,7 +342,7 @@ export function ListItemModal({
                 <Text style={styles.removeButtonText}>Remove listing</Text>
               </TouchableOpacity>
             )}
-          </ScrollView>
+          </KeyboardAwareScrollView>
         </View>
       </View>
     </Modal>

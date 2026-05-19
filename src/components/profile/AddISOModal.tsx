@@ -257,23 +257,22 @@ export function AddISOModal({
 
             {/* Card image showcase – below Set */}
             <View style={styles.inputSection}>
-              <Text style={styles.inputLabel}>Card preview</Text>
               {(() => {
                 const displayUri = getPokemonTcgImageUrlFromSetNumberIfOnCdn(set, cardNumber)
                 if (!displayUri) {
                   return (
-                    <View style={styles.cardImageBox}>
+                    <View style={[styles.cardImageHero, styles.cardImageHeroEmpty]}>
                       <Ionicons name="image-outline" size={32} color="rgba(255, 255, 255, 0.3)" />
                       <Text style={styles.noImageText}>Select set & number or look up a card</Text>
                     </View>
                   )
                 }
                 return (
-                  <View style={styles.cardImageBox}>
+                  <View style={styles.cardImageHero}>
                     <Image
                       source={{ uri: displayUri }}
-                      style={styles.cardImage}
-                      resizeMode="contain"
+                      style={styles.cardImageFill}
+                      resizeMode="cover"
                     />
                   </View>
                 )
@@ -464,20 +463,21 @@ const getStyles = (theme: any) =>
       fontFamily: theme.regularFont,
       color: theme.textColor,
     },
-    cardImageBox: {
-      backgroundColor: 'rgba(255, 255, 255, 0.05)',
-      borderRadius: RADIUS.md,
-      borderWidth: 1,
-      borderColor: 'rgba(255, 255, 255, 0.1)',
-      minHeight: 140,
+    cardImageHero: {
+      width: '100%',
+      aspectRatio: 2.5 / 3.5,
+      borderRadius: RADIUS.lg,
+      overflow: 'hidden',
+      backgroundColor: theme.cardBackground || 'rgba(255, 255, 255, 0.04)',
+    },
+    cardImageHeroEmpty: {
       alignItems: 'center',
       justifyContent: 'center',
-      padding: SPACING.sm,
+      padding: SPACING.lg,
     },
-    cardImage: {
+    cardImageFill: {
       width: '100%',
-      height: 200,
-      maxWidth: 180,
+      height: '100%',
     },
     noImageText: {
       fontSize: TYPOGRAPHY.bodySmall,

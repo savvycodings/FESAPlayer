@@ -2,6 +2,7 @@ import { createContext, useContext, useState, useCallback, useEffect } from 'rea
 import { AppState, AppStateStatus } from 'react-native'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { authClient } from '../lib/auth-client'
+import { getApiBaseUrl } from '../utils/apiBaseUrl'
 
 type AuthContextValue = {
   isAuthenticated: boolean
@@ -41,7 +42,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         await AsyncStorage.removeItem('authToken')
       }
     } catch (error) {
-      console.error('Error checking auth:', error)
+      console.error(
+        'Error checking auth:',
+        error,
+        '\nAPI base URL:',
+        getApiBaseUrl(),
+        '\n→ Is the server running on port 3050? Android emulator uses http://10.0.2.2:3050',
+      )
       setIsAuthenticated(false)
     } finally {
       setIsLoading(false)
