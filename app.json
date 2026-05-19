@@ -34,7 +34,9 @@
           "icon": "./assets/icon.png",
           "sounds": []
         }
-      ]
+      ],
+      "@react-native-community/datetimepicker",
+      "expo-web-browser"
     ],
     "android": {
       "adaptiveIcon": {
@@ -67,6 +69,11 @@
       },
       "backendIp": "192.168.1.4"
     },
-    "owner": "brrrkyle"
+    "owner": "brrrkyle",
+    "doctor": {
+      "appConfigFieldsNotSyncedCheck": {
+        "enabled": false
+      }
+    }
   }
 }

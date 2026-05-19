@@ -4,6 +4,14 @@ apply plugin: "com.facebook.react"
 
 def projectRoot = rootDir.getAbsoluteFile().getParentFile().getAbsolutePath()
 
+// Required by react-native-reanimated (pnpm / nested node_modules on EAS)
+project.ext.REACT_NATIVE_NODE_MODULES_DIR = new File(
+    ["node", "--print", "require.resolve('react-native/package.json')"].execute(null, rootDir).text.trim()
+).getParentFile().absolutePath
+project.ext.REACT_NATIVE_WORKLETS_NODE_MODULES_DIR = new File(
+    ["node", "--print", "require.resolve('react-native-worklets/package.json')"].execute(null, rootDir).text.trim()
+).getParentFile().absolutePath
+
 /**
  * This is the configuration block to customize your React Native Android app.
  * By default you don't need to apply any configuration, just uncomment the lines you need.

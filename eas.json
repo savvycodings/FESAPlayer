@@ -21,7 +21,7 @@
       "autoIncrement": true,
       "node": "22.14.0",
       "cache": {
-        "key": "com.brrrkyle.saplayer"
+        "key": "reanimated-worklets-direct-dep"
       },
       "ios": {
         "simulator": false
