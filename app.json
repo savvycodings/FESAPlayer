@@ -69,11 +69,6 @@
       },
       "backendIp": "192.168.1.4"
     },
-    "owner": "brrrkyle",
-    "doctor": {
-      "appConfigFieldsNotSyncedCheck": {
-        "enabled": false
-      }
-    }
+    "owner": "brrrkyle"
   }
 }

@@ -88,6 +88,13 @@
     "typescript": "~5.9.2"
   },
   "private": true,
+  "expo": {
+    "doctor": {
+      "appConfigFieldsNotSyncedCheck": {
+        "enabled": false
+      }
+    }
+  },
   "packageManager": "pnpm@11.0.8",
   "pnpm": {
     "onlyBuiltDependencies": [
