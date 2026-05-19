@@ -3,10 +3,7 @@ lockfileVersion: '9.0'
 settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
-  patchedDependencies:
-    '@expo/cli': patches/@expo__cli.patch
-    merge-options: patches/merge-options.patch
-  onlyBuiltDependencies:
+  ignoredBuiltDependencies:
     - dtrace-provider
 
 importers:
