@@ -1,4 +1,4 @@
-package com.saplayer.app
+package com.brrrkyle.saplayer
 
 import android.app.Application
 import android.content.res.Configuration

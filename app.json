@@ -18,7 +18,7 @@
     ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.saplayer.app",
+      "bundleIdentifier": "com.brrrkyle.saplayer",
       "buildNumber": "1",
       "infoPlist": {
         "NSCameraUsageDescription": "This app needs access to your camera to scan Pokémon cards.",
@@ -41,7 +41,7 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "package": "com.saplayer.app",
+      "package": "com.brrrkyle.saplayer",
       "intentFilters": [
         {
           "action": "VIEW",

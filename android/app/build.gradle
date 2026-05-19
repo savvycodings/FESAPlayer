@@ -87,9 +87,9 @@ android {
     buildToolsVersion rootProject.ext.buildToolsVersion
     compileSdk rootProject.ext.compileSdkVersion
 
-    namespace 'com.saplayer.app'
+    namespace 'com.brrrkyle.saplayer'
     defaultConfig {
-        applicationId 'com.saplayer.app'
+        applicationId 'com.brrrkyle.saplayer'
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1

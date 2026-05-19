@@ -1,4 +1,4 @@
-package com.saplayer.app
+package com.brrrkyle.saplayer
 import expo.modules.splashscreen.SplashScreenManager
 
 import android.os.Build
