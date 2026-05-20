@@ -1,4 +1,6 @@
 export { Shop } from './shop'
+export { default as BlogPostScreen } from './blogPost'
+export { default as BlogList } from './blogList'
 export { Market } from './market'
 export { MarketSet } from './marketSet'
 export { Settings } from './settings'

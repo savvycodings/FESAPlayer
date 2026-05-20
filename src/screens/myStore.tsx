@@ -27,6 +27,7 @@ import * as ImagePicker from 'expo-image-picker'
 import { uploadImage, isExternalUrl } from '../utils/imageUpload'
 import { authClient } from '../lib/auth-client'
 import { getPokemonTcgImageUrlFromSetNumberIfOnCdn } from '../utils/pokemonTcgImages'
+import { androidLabelStyle, isAndroid } from '../utils/platformHelpers'
 
 type MyStoreStackParamList = {
   MyStoreMain: undefined
@@ -1432,7 +1433,7 @@ const getStyles = (theme: any) => StyleSheet.create({
   },
   tabsRow: {
     flexDirection: 'row',
-    alignItems: 'stretch',
+    alignItems: 'center',
     marginTop: SPACING.sm,
     marginBottom: SPACING.md,
     backgroundColor: 'rgba(255, 255, 255, 0.04)',
@@ -1443,10 +1444,9 @@ const getStyles = (theme: any) => StyleSheet.create({
   },
   tabPill: {
     flex: 1,
-    paddingVertical: SPACING.xs,
+    height: 28,
     paddingHorizontal: SPACING.xs,
     borderRadius: RADIUS.full,
-    minHeight: SPACING.pillHeight + 4,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -1455,9 +1455,11 @@ const getStyles = (theme: any) => StyleSheet.create({
   },
   tabPillText: {
     fontSize: TYPOGRAPHY.label,
+    lineHeight: isAndroid ? 14 : TYPOGRAPHY.label,
     fontFamily: theme.semiBoldFont,
     color: theme.textColor,
-    fontWeight: '600',
+    textAlign: 'center',
+    ...androidLabelStyle,
   },
   tabPillTextActive: {
     color: theme.buttonFilledFg || '#000000',

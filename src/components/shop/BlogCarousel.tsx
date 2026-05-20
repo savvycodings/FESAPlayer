@@ -4,26 +4,21 @@ import { Text } from '../ui/text'
 import { Carousel } from '../Carousel'
 import { ThemeContext } from '../../context'
 import { SPACING, TYPOGRAPHY, RADIUS } from '../../constants/layout'
-
-interface BlogItem {
-  title: string
-  description: string
-  buttonText: string
-  image: any
-  category: string
-}
+import type { BlogPost } from '../../data/blogPosts'
 
 interface BlogCarouselProps {
-  items: BlogItem[]
+  items: BlogPost[]
+  onItemPress?: (item: BlogPost, index: number) => void
 }
 
-export function BlogCarousel({ items }: BlogCarouselProps) {
+export function BlogCarousel({ items, onItemPress }: BlogCarouselProps) {
   const { theme } = useContext(ThemeContext)
   const styles = getStyles(theme)
 
   return (
     <Carousel
       items={items}
+      onItemPress={onItemPress}
       renderItem={(item) => (
         <View style={styles.blogCard}>
           <View style={styles.blogTopContent}>
@@ -33,19 +28,25 @@ export function BlogCarousel({ items }: BlogCarouselProps) {
           <View style={styles.blogBottomContent}>
             <View style={styles.blogLeftContent}>
               <Text style={styles.blogDescription}>{item.description}</Text>
-              <TouchableOpacity
-                style={styles.blogButton}
-                activeOpacity={0.7}
-              >
+              <View style={styles.blogButton}>
                 <Text style={styles.blogButtonText}>{item.buttonText}</Text>
-              </TouchableOpacity>
+              </View>
             </View>
             <View style={styles.blogRightContent}>
-              <Image
-                source={item.image}
-                style={styles.blogImage}
-                resizeMode="cover"
-              />
+              <View style={styles.blogImageWrap}>
+                <Image
+                  source={item.image}
+                  style={[
+                    styles.blogImage,
+                    {
+                      width: `${Math.min(100, 96 * (item.imageScale ?? 1))}%`,
+                      height: 140 * (item.imageScale ?? 1),
+                    },
+                    item.imageOffsetTop != null && { marginTop: item.imageOffsetTop },
+                  ]}
+                  resizeMode="contain"
+                />
+              </View>
             </View>
           </View>
         </View>
@@ -61,13 +62,13 @@ const getStyles = (theme: any) => StyleSheet.create({
   blogCard: {
     width: '100%',
     height: '100%',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#000000',
     borderRadius: RADIUS.lg,
     overflow: 'hidden',
     padding: SPACING.cardPadding,
     justifyContent: 'space-between',
     borderWidth: 1,
-    borderColor: 'rgba(0, 0, 0, 0.08)',
+    borderColor: 'rgba(255, 255, 255, 0.12)',
   },
   blogTopContent: {
     width: '100%',
@@ -76,7 +77,7 @@ const getStyles = (theme: any) => StyleSheet.create({
   blogCategory: {
     fontSize: TYPOGRAPHY.caption,
     fontFamily: theme.regularFont,
-    color: 'rgba(0, 0, 0, 0.5)',
+    color: 'rgba(255, 255, 255, 0.55)',
     letterSpacing: 1,
     textTransform: 'uppercase',
     marginBottom: 6,
@@ -84,7 +85,7 @@ const getStyles = (theme: any) => StyleSheet.create({
   blogTitle: {
     fontSize: TYPOGRAPHY.h3,
     fontFamily: theme.boldFont,
-    color: '#000000',
+    color: '#FFFFFF',
     fontWeight: '600',
     lineHeight: 24,
     letterSpacing: -0.2,
@@ -103,7 +104,7 @@ const getStyles = (theme: any) => StyleSheet.create({
   blogDescription: {
     fontSize: TYPOGRAPHY.bodySmall,
     fontFamily: theme.regularFont,
-    color: 'rgba(0, 0, 0, 0.7)',
+    color: 'rgba(255, 255, 255, 0.75)',
     lineHeight: 18,
     marginBottom: 12,
     flexShrink: 1,
@@ -113,27 +114,33 @@ const getStyles = (theme: any) => StyleSheet.create({
     paddingHorizontal: 18,
     paddingVertical: 8,
     borderRadius: RADIUS.full,
-    backgroundColor: 'rgba(0, 0, 0, 0.05)',
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
     borderWidth: 1,
-    borderColor: 'rgba(0, 0, 0, 0.15)',
+    borderColor: 'rgba(255, 255, 255, 0.25)',
   },
   blogButtonText: {
     fontSize: TYPOGRAPHY.bodySmall,
     fontFamily: theme.semiBoldFont,
-    color: '#000000',
+    color: '#FFFFFF',
     fontWeight: '600',
     letterSpacing: 0.2,
   },
   blogRightContent: {
     flex: 1,
     width: '50%',
-    justifyContent: 'center',
+    justifyContent: 'flex-start',
     alignItems: 'center',
-    height: 160,
+    paddingTop: 0,
+  },
+  blogImageWrap: {
+    width: '100%',
+    height: 148,
+    alignItems: 'center',
+    justifyContent: 'flex-start',
+    marginTop: -4,
   },
   blogImage: {
-    width: '100%',
-    height: 160,
-    borderRadius: RADIUS.md,
+    width: '96%',
+    height: 140,
   },
 })

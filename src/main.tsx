@@ -4,6 +4,8 @@ import { StyleSheet, Text, View, Button } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Shop, Market, MarketSet, Settings, EditProfile, EditPhone, EditPudoAddress, Search, Grade, Profile, Product, Category, SetProducts, ViewProfile, MyStore } from './screens'
+import BlogPostScreen from './screens/blogPost'
+import BlogList from './screens/blogList'
 import { Header } from './components'
 import FeatherIcon from '@expo/vector-icons/Feather'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -49,6 +51,8 @@ function ShopStack() {
       }}
     >
       <Stack.Screen name="ShopMain" component={Shop} />
+      <Stack.Screen name="BlogPost" component={BlogPostScreen} />
+      <Stack.Screen name="BlogList" component={BlogList} />
       <Stack.Screen name="Product" component={Product} />
       <Stack.Screen name="SetProducts" component={SetProducts} />
       <Stack.Screen name="ViewProfile" component={ViewProfile} />

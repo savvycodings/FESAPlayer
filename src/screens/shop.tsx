@@ -19,9 +19,12 @@ import type { PromoItem } from '../components/shop/PromoCarousel'
 import { Text } from '../components/ui/text'
 import { authClient } from '../lib/auth-client'
 import { DOMAIN } from '../../constants'
+import { BLOG_POSTS, type BlogPost } from '../data/blogPosts'
 
 type ShopStackParamList = {
   ShopMain: undefined
+  BlogPost: { id: string }
+  BlogList: undefined
   Product: {
     id?: string
     name: string
@@ -203,31 +206,13 @@ export function Shop() {
       })
     }
   }, [navigation])
-  
-  // Blog carousel data
-  const blogItems = [
-    {
-      title: 'How to Grade Your Cards',
-      description: 'Learn the essential tips for getting your cards professionally graded.',
-      buttonText: 'Read More',
-      image: require('../../assets/products/pokevault/Pokmon_TCG_Scarlet_Violet_151_Booster_Bundle.jpg'),
-      category: 'Grading',
+
+  const handleBlogPress = useCallback(
+    (item: BlogPost) => {
+      navigation.navigate('BlogPost', { id: item.id })
     },
-    {
-      title: 'Investment Guide: Rare Cards',
-      description: 'Discover which cards are worth investing in.',
-      buttonText: 'Read More',
-      image: require('../../assets/products/pokevault/Pokmon_TCG_Scarlet_Violet_White_Flare_Pokmon_Center_Elite_Trainer_Box.jpg'),
-      category: 'Investment',
-    },
-    {
-      title: 'Card Storage Best Practices',
-      description: 'Protect your collection with proper storage techniques.',
-      buttonText: 'Read More',
-      image: require('../../assets/singles/Shining_Charizard_Secret.jpg'),
-      category: 'Storage',
-    },
-  ]
+    [navigation],
+  )
   
   const categories = [
     { id: 'all', label: 'All' },
@@ -381,9 +366,14 @@ export function Shop() {
 
         <VaultingSection />
 
-        <Section title="Blog" compact showSeeAll onSeeAllPress={() => {}}>
-          <BlogCarousel items={blogItems} />
-          </Section>
+        <Section
+          title="Blog"
+          compact
+          showSeeAll
+          onSeeAllPress={() => navigation.navigate('BlogList')}
+        >
+          <BlogCarousel items={BLOG_POSTS} onItemPress={handleBlogPress} />
+        </Section>
         </ScrollView>
 
         {/* Verified Store Modal */}
