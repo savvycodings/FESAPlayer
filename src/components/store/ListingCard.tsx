@@ -108,8 +108,9 @@ export function ListingCard({
               {isOwnListing ? (
                 <View style={styles.ownListingActions}>
                   <AppButton
-                    variant="filled"
+                    variant="outline"
                     size="sm"
+                    onDarkSurface
                     icon="pencil-outline"
                     label="Edit"
                     fullWidth
@@ -123,7 +124,7 @@ export function ListingCard({
                 <>
                   {purchaseType === 'instant' || purchaseType === 'both' ? (
                     <AppButton
-                      variant="filled"
+                      variant="accent"
                       size="sm"
                       icon="cart-outline"
                       label={`Buy R${Number(price).toLocaleString('en-ZA')}`}
@@ -132,7 +133,7 @@ export function ListingCard({
                     />
                   ) : null}
                   <AppButton
-                    variant="outline"
+                    variant="accent"
                     size="sm"
                     icon="hammer-outline"
                     label="Bid"

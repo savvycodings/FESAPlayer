@@ -67,6 +67,13 @@ export const RADIUS = {
 /** Listing tiles on dark screens — visible stroke around card */
 export const LISTING_TILE_BORDER = 'rgba(255, 255, 255, 0.22)'
 
+/** Extra horizontal inset for listing card grids (tile width stays full column) */
+export const LISTING_GRID_EDGE_PAD = 4
+
+/** Inner Pokémon/card art inset inside the black tile (not the tile box) */
+export const LISTING_CARD_IMAGE_INSET_H = 6
+export const LISTING_CARD_IMAGE_WIDTH = '90%'
+
 /** Profile portfolio chart line / focal accent (green) */
 export const PROFILE_CHART_ACCENT = '#73EC8B'
 

@@ -7,6 +7,8 @@ import { ThemeContext } from '../../context'
 
 interface SectionProps {
   title: string
+  /** Icon or control inline after the section title (e.g. info button) */
+  titleAccessory?: React.ReactNode
   showSeeAll?: boolean
   seeAllText?: string
   onSeeAllPress?: () => void
@@ -18,7 +20,8 @@ interface SectionProps {
 }
 
 export function Section({ 
-  title, 
+  title,
+  titleAccessory,
   showSeeAll = false,
   seeAllText = 'See all',
   onSeeAllPress,
@@ -35,7 +38,10 @@ export function Section({
     <View style={[styles.container, style]}>
       {!hideHeader && (
         <View style={styles.header}>
-          <ThemedText style={styles.title}>{title}</ThemedText>
+          <View style={styles.headerLeft}>
+            <ThemedText style={styles.title}>{title}</ThemedText>
+            {titleAccessory}
+          </View>
           <View style={styles.headerRight}>
             {rightContent}
             {showSeeAll && (
@@ -64,6 +70,13 @@ const getStyles = (theme: any, compact: boolean) => StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: SPACING.sectionTitleBottom,
     minHeight: 20,
+  },
+  headerLeft: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.xs,
+    minWidth: 0,
   },
   headerRight: {
     flexDirection: 'row',

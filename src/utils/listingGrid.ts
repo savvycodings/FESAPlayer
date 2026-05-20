@@ -1,4 +1,4 @@
-import { SPACING } from '../constants/layout'
+import { SPACING, LISTING_GRID_EDGE_PAD } from '../constants/layout'
 
 /** Same column breakpoints as profile ProductGrid */
 export function listingGridColumns(width: number, override?: number): number {
@@ -13,6 +13,7 @@ export function listingTileWidth(screenWidth: number, columns?: number): number 
   const cols = listingGridColumns(screenWidth, columns)
   const gap = SPACING.gridColumnGap
   const totalGap = gap * (cols - 1)
-  const available = screenWidth - SPACING.containerPadding * 2 - totalGap
+  const horizontalInset = SPACING.containerPadding * 2 + LISTING_GRID_EDGE_PAD * 2
+  const available = screenWidth - horizontalInset - totalGap
   return Math.floor(available / cols)
 }

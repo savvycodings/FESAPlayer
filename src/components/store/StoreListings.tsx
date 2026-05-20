@@ -1,22 +1,36 @@
-import { View, StyleSheet, useWindowDimensions } from 'react-native'
-import { useContext } from 'react'
+import { View, StyleSheet } from 'react-native'
+import { useContext, useMemo } from 'react'
 import { Text } from '../ui/text'
-import { ListingTile } from '../ui/ListingTile'
+import { PortfolioCardTile } from '../profile/PortfolioCardTile'
+import { ListingTileGrid } from '../ui/ListingTileGrid'
 import { AppButton } from '../ui/AppButton'
 import { ThemeContext } from '../../context'
 import { SPACING, TYPOGRAPHY } from '../../constants/layout'
-import { listingTileWidth } from '../../utils/listingGrid'
+import {
+  computeMarketPriceChangeZar,
+  formatListingPriceZar,
+} from '../../utils/listingPriceMeta'
 
 type VaultingStatus = 'vaulted' | 'seller-has' | 'unverified' | 'vaulting-in-process'
 type PurchaseType = 'instant' | 'bid' | 'both'
 
+const USD_TO_ZAR = Number(process.env.EXPO_PUBLIC_USD_TO_ZAR) || 17
+
 export interface StoreListing {
   id: string
+  listingId?: string | number
   cardImage?: any
   cardName: string
   cardId?: string
   price: number
   quantity?: number
+  setName?: string
+  cardNumber?: string
+  condition?: string
+  metaLine?: string
+  finishLabel?: string
+  marketPrice?: number
+  ebayLastSold?: number
   vaultingStatus: VaultingStatus
   purchaseType: PurchaseType
   currentBid?: number
@@ -30,8 +44,8 @@ interface StoreListingsProps {
   onBidPress?: (listing: StoreListing) => void
   isOwnListing?: boolean
   onEditPress?: (listing: StoreListing) => void
+  /** Default 2 — same as shop Recent Listings */
   columns?: number
-  /** Show Buy/Bid on tiles (view other store). Uses compact label-only row. */
   showBuyerActions?: boolean
 }
 
@@ -42,13 +56,34 @@ export function StoreListings({
   onBidPress,
   isOwnListing = false,
   onEditPress,
-  columns: columnsProp,
+  columns = 2,
   showBuyerActions = true,
 }: StoreListingsProps) {
   const { theme } = useContext(ThemeContext)
-  const { width } = useWindowDimensions()
-  const tileWidth = listingTileWidth(width, columnsProp)
   const styles = getStyles()
+
+  const enriched = useMemo(
+    () =>
+      listings.map((listing) => {
+        const listingZar = Math.round(Number(listing.price) || 0)
+        const { priceChangeZar, priceChangePercent } = computeMarketPriceChangeZar(
+          listing.marketPrice,
+          listing.ebayLastSold,
+          USD_TO_ZAR
+        )
+        return {
+          listing,
+          priceStr: formatListingPriceZar(listingZar),
+          priceChangeZar,
+          priceChangePercent,
+          qty:
+            listing.quantity != null
+              ? Math.max(1, Math.floor(Number(listing.quantity)))
+              : 1,
+        }
+      }),
+    [listings]
+  )
 
   if (listings.length === 0) {
     return (
@@ -59,19 +94,19 @@ export function StoreListings({
   }
 
   return (
-    <View style={styles.container}>
-      {listings.map((listing) => {
-        const priceLabel = listing.currentBid
-          ? `Bid R${Number(listing.currentBid).toLocaleString('en-ZA')}`
-          : `R${Number(listing.price).toLocaleString('en-ZA')}`
-
+    <ListingTileGrid
+      data={enriched}
+      columns={columns}
+      keyExtractor={(item) => String(item.listing.id)}
+      renderItem={({ listing, priceStr, priceChangeZar, priceChangePercent, qty }) => {
         let footer: React.ReactNode = null
         if (isOwnListing) {
           footer = (
             <AppButton
-              variant="filled"
+              variant="outline"
               size="sm"
               tile
+              onDarkSurface
               label="Edit"
               fullWidth
               onPress={() => onEditPress?.(listing)}
@@ -84,7 +119,7 @@ export function StoreListings({
             <View style={styles.actionRow}>
               {showBuy ? (
                 <AppButton
-                  variant="filled"
+                  variant="accent"
                   size="sm"
                   tile
                   label="Buy"
@@ -94,7 +129,7 @@ export function StoreListings({
                 />
               ) : null}
               <AppButton
-                variant="outline"
+                variant="accent"
                 size="sm"
                 tile
                 label="Bid"
@@ -107,34 +142,31 @@ export function StoreListings({
         }
 
         return (
-          <View key={listing.id} style={[styles.tileWrap, { width: tileWidth, maxWidth: tileWidth }]}>
-            <ListingTile
-              title={listing.cardName}
-              price={priceLabel}
-              image={listing.cardImage}
-              imageResizeMode="cover"
-              onPress={() => onListingPress?.(listing)}
-              footer={footer}
-            />
-          </View>
+          <PortfolioCardTile
+            relaxedBottom
+            title={listing.cardName}
+            setName={listing.setName}
+            cardNumber={listing.cardNumber}
+            metaLine={listing.metaLine}
+            condition={listing.condition}
+            finishLabel={listing.finishLabel}
+            quantity={qty}
+            quantityCaption="For sale"
+            price={priceStr}
+            priceChangeZar={priceChangeZar}
+            priceChangePercent={priceChangePercent}
+            image={listing.cardImage ?? null}
+            onPress={() => onListingPress?.(listing)}
+            footer={footer}
+          />
         )
-      })}
-    </View>
+      }}
+    />
   )
 }
 
 const getStyles = () =>
   StyleSheet.create({
-    container: {
-      flexDirection: 'row',
-      flexWrap: 'wrap',
-      columnGap: SPACING.gridColumnGap,
-      rowGap: SPACING.gridRowGap,
-      width: '100%',
-    },
-    tileWrap: {
-      minWidth: 0,
-    },
     actionRow: {
       flexDirection: 'row',
       alignItems: 'center',

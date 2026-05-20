@@ -11,7 +11,14 @@ import { useContext } from 'react'
 import { Text } from './text'
 import Ionicons from '@expo/vector-icons/Ionicons'
 import { ThemeContext } from '../../context'
-import { SPACING, TYPOGRAPHY, RADIUS, CARD_SURFACE } from '../../constants/layout'
+import {
+  SPACING,
+  TYPOGRAPHY,
+  RADIUS,
+  CARD_SURFACE,
+  LISTING_CARD_IMAGE_INSET_H,
+  LISTING_CARD_IMAGE_WIDTH,
+} from '../../constants/layout'
 
 export interface ListingTileProps {
   title: string
@@ -40,13 +47,15 @@ export function ListingTile({
   const main = (
     <>
       <View style={styles.imageContainer}>
-        {image ? (
-          <Image source={image} style={styles.image} resizeMode={imageResizeMode} />
-        ) : (
-          <View style={styles.placeholder}>
-            <Ionicons name="image-outline" size={28} color="rgba(255,255,255,0.25)" />
-          </View>
-        )}
+        <View style={styles.imageInner}>
+          {image ? (
+            <Image source={image} style={styles.image} resizeMode={imageResizeMode} />
+          ) : (
+            <View style={styles.placeholder}>
+              <Ionicons name="image-outline" size={28} color="rgba(255,255,255,0.25)" />
+            </View>
+          )}
+        </View>
       </View>
       <View style={styles.infoTop}>
         {price ? (
@@ -103,6 +112,17 @@ function getStyles(theme: { regularFont?: string; boldFont?: string }) {
       borderTopLeftRadius: RADIUS.md,
       borderTopRightRadius: RADIUS.md,
       overflow: 'hidden',
+      paddingHorizontal: LISTING_CARD_IMAGE_INSET_H,
+      paddingTop: SPACING.xs,
+      paddingBottom: SPACING.xs / 2,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    imageInner: {
+      width: LISTING_CARD_IMAGE_WIDTH,
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
     },
     image: {
       width: '100%',
@@ -110,6 +130,7 @@ function getStyles(theme: { regularFont?: string; boldFont?: string }) {
     },
     placeholder: {
       flex: 1,
+      width: '100%',
       alignItems: 'center',
       justifyContent: 'center',
     },

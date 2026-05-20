@@ -416,6 +416,7 @@ export function Product() {
               <AppButton
                 variant="outline"
                 size="md"
+                onDarkSurface
                 icon="trash-outline"
                 label={removing ? 'Removing…' : 'Remove from collection'}
                 fullWidth
@@ -452,6 +453,7 @@ export function Product() {
             <AppButton
               variant="outline"
               size="lg"
+              onDarkSurface
               icon="hammer-outline"
               label={`Bid R${minBidPrice.toLocaleString('en-ZA')}`}
               onPress={() => openPaymentModal('bid')}
@@ -459,7 +461,7 @@ export function Product() {
             />
           )}
           <AppButton
-            variant="filled"
+            variant="accent"
             size="lg"
             icon="flash-outline"
             label={`Buy R${buyNowPrice.toLocaleString('en-ZA')}`}
@@ -806,9 +808,9 @@ const getStyles = (theme: any, tintColor: string) => StyleSheet.create({
     paddingHorizontal: SPACING.containerPadding,
     paddingVertical: SPACING.md,
     paddingBottom: SPACING.screenBottom,
-    backgroundColor: theme.backgroundColor,
+    backgroundColor: theme.cardBackground || '#000000',
     borderTopWidth: 1,
-    borderTopColor: 'rgba(255, 255, 255, 0.08)',
+    borderTopColor: 'rgba(255, 255, 255, 0.12)',
     gap: SPACING.sm,
   },
   bottomBarButton: {

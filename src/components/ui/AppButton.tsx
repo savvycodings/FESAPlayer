@@ -43,7 +43,7 @@ const SIZE_HEIGHT: Record<AppButtonSize, number> = {
   lg: 40,
 }
 
-const TILE_HEIGHT = 26
+const TILE_HEIGHT = 28
 
 const ICON_SIZE: Record<AppButtonSize, number> = {
   sm: 16,
@@ -130,7 +130,14 @@ export function AppButton({
 
   if (variant === 'accent') {
     return (
-      <View style={[styles.accentStroke, disabled && styles.disabled, style]}>
+      <View
+        style={[
+          styles.accentStroke,
+          tile && fullWidth && styles.accentStrokeTileFull,
+          disabled && styles.disabled,
+          style,
+        ]}
+      >
         {pressable}
       </View>
     )
@@ -195,13 +202,13 @@ function getStyles(
         : variant === 'filled'
           ? {
               backgroundColor: filledBg,
-              borderWidth: 1,
+              borderWidth: tile ? 2 : 1,
               borderColor: LISTING_TILE_BORDER,
             }
           : {
               backgroundColor: 'rgba(255, 255, 255, 0.08)',
               borderWidth: 2,
-              borderColor: outlineBorder,
+              borderColor: tile ? LISTING_TILE_BORDER : outlineBorder,
             }),
     },
     content: {
@@ -233,6 +240,14 @@ function getStyles(
       alignSelf: 'flex-start',
       flexShrink: 0,
       overflow: 'hidden',
+      borderRadius: tile ? RADIUS.sm : RADIUS.md,
+      borderWidth: BUTTON_ACCENT.borderWidth,
+      borderColor: BUTTON_ACCENT.border,
+    },
+    accentStrokeTileFull: {
+      alignSelf: 'stretch',
+      width: '100%',
+      flex: 1,
     },
     buttonAccentInner: {
       backgroundColor: BUTTON_ACCENT.background,

@@ -39,6 +39,12 @@ type ShopStackParamList = {
 
 type VerifiedStoresCarouselNavigationProp = NativeStackNavigationProp<ShopStackParamList, 'ShopMain'>
 
+/** Compact avatars so more stores peek on screen at once */
+const VERIFIED_STORE_AVATAR = 84
+const VERIFIED_STORE_ITEM_WIDTH = VERIFIED_STORE_AVATAR
+const VERIFIED_STORE_ITEM_HEIGHT = VERIFIED_STORE_AVATAR + 26
+const VERIFIED_STORE_ITEM_GAP = 8
+
 // Shield color from store verification level (bronze → silver → gold → platinum → diamond)
 const getShieldColorForLevel = (verificationLevel: string | undefined): string => {
   if (!verificationLevel) return STORE_COLORS.bronze
@@ -87,7 +93,7 @@ export function VerifiedStoresCarousel({ items, onApplyPress }: VerifiedStoresCa
               {item.verified && (
                 <Ionicons
                   name="shield-checkmark-outline"
-                  size={14}
+                  size={12}
                   color={getShieldColorForLevel(item.verificationLevel)}
                   style={styles.verifiedIconLeft}
                 />
@@ -98,9 +104,9 @@ export function VerifiedStoresCarousel({ items, onApplyPress }: VerifiedStoresCa
             </View>
           </TouchableOpacity>
         )}
-        itemWidth={120}
-        itemHeight={170}
-        itemSpacing={12}
+        itemWidth={VERIFIED_STORE_ITEM_WIDTH}
+        itemHeight={VERIFIED_STORE_ITEM_HEIGHT}
+        itemSpacing={VERIFIED_STORE_ITEM_GAP}
       />
       <TouchableOpacity 
         style={styles.applyBanner}
@@ -132,8 +138,8 @@ const getStyles = (theme: any) => StyleSheet.create({
     alignItems: 'center',
   },
   storeImageContainer: {
-    width: 120,
-    height: 120,
+    width: VERIFIED_STORE_AVATAR,
+    height: VERIFIED_STORE_AVATAR,
     borderRadius: RADIUS.full,
     overflow: 'hidden',
     alignSelf: 'center',
@@ -154,10 +160,11 @@ const getStyles = (theme: any) => StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: SPACING.sm,
+    marginTop: SPACING.xs,
+    maxWidth: VERIFIED_STORE_ITEM_WIDTH,
   },
   storeNameText: {
-    fontSize: TYPOGRAPHY.bodySmall,
+    fontSize: TYPOGRAPHY.caption,
     fontFamily: theme.semiBoldFont,
     color: theme.textColor,
     textAlign: 'center',

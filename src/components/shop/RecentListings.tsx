@@ -106,6 +106,7 @@ export function RecentListings({ listings }: RecentListingsProps) {
 
         return (
           <PortfolioCardTile
+            relaxedBottom
             title={item.cardName}
             setName={item.setName}
             cardNumber={item.cardNumber}

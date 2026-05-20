@@ -382,16 +382,26 @@ export function MyStore() {
         // Transform database listings to component format (default to [] if missing)
         const raw = data.listings || []
         const transformedListings: StoreListing[] = raw.map((listing: any) => ({
-          id: listing.id.toString(),
+          id: String(listing.id),
+          listingId: listing.listingId ?? listing.id,
           cardName: listing.cardName,
-          cardImage: listing.cardImage ? { uri: listing.cardImage } : require('../../assets/singles/Shining_Charizard_Secret.jpg'),
+          cardImage: listing.cardImage
+            ? { uri: listing.cardImage }
+            : require('../../assets/singles/Shining_Charizard_Secret.jpg'),
           cardId: listing.cardId || undefined,
-          price: parseFloat(listing.price || '0'),
+          price: parseFloat(String(listing.price || '0')),
           quantity:
             listing.quantity != null ? Math.max(1, Math.floor(Number(listing.quantity))) : 1,
+          setName: listing.setName,
+          cardNumber: listing.cardNumber,
+          condition: listing.condition,
+          metaLine: listing.metaLine,
+          finishLabel: listing.finishLabel,
+          marketPrice: listing.marketPrice,
+          ebayLastSold: listing.ebayLastSold,
           vaultingStatus: listing.vaultingStatus || 'seller-has',
           purchaseType: listing.purchaseType || 'both',
-          currentBid: listing.currentBid ? parseFloat(listing.currentBid) : undefined,
+          currentBid: listing.currentBid ? parseFloat(String(listing.currentBid)) : undefined,
           bidCount: listing.bidCount || 0,
         }))
         setListings(transformedListings)

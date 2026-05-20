@@ -3,13 +3,13 @@ import {
   StyleSheet,
   Image,
   Pressable,
+  Text as RNText,
   type ImageSourcePropType,
   type StyleProp,
   type ViewStyle,
 } from 'react-native'
 import { useContext } from 'react'
 import { androidLabelStyle } from '../../utils/platformHelpers'
-import { Text } from '../ui/text'
 import Ionicons from '@expo/vector-icons/Ionicons'
 import { ThemeContext } from '../../context'
 import {
@@ -18,9 +18,14 @@ import {
   CARD_SURFACE,
   PROFILE_CHART_ACCENT,
   STORE_COLORS,
+  LISTING_CARD_IMAGE_INSET_H,
 } from '../../constants/layout'
 
 const CARD_IMAGE_ASPECT = 5 / 7
+/** Horizontal inset for title / price / meta (keeps text off the card border) */
+const TILE_TEXT_PAD_H = SPACING.sm
+/** Art width inside tile — height follows aspect ratio (avoids empty bands above/below) */
+const TILE_IMAGE_WIDTH = '94%'
 
 export interface PortfolioCardTileProps {
   title: string
@@ -39,6 +44,7 @@ export interface PortfolioCardTileProps {
   onPress?: () => void
   style?: StyleProp<ViewStyle>
   footer?: React.ReactNode
+  relaxedBottom?: boolean
 }
 
 function formatCondition(raw?: string): string | null {
@@ -62,8 +68,27 @@ function formatConditionShort(raw?: string): string | null {
 }
 
 function formatChangePercent(value: number | null | undefined): string {
-  if (value == null || !Number.isFinite(value)) return '0.00'
-  return Math.abs(value).toFixed(2)
+  if (value == null || !Number.isFinite(value)) return '0.0'
+  return Math.abs(value).toFixed(1)
+}
+
+function formatCompactZar(amount: number): string {
+  const abs = Math.abs(amount)
+  if (abs >= 10000) return `R${Math.round(abs / 1000)}k`
+  if (abs >= 1000) return `R${(abs / 1000).toFixed(1)}k`
+  return `R${abs.toLocaleString('en-ZA')}`
+}
+
+function buildSetLine(
+  setName?: string,
+  metaLine?: string,
+  finishLabel?: string
+): string {
+  const parts: string[] = []
+  if (setName?.trim()) parts.push(setName.trim())
+  if (metaLine?.trim()) parts.push(metaLine.trim())
+  else if (finishLabel?.trim()) parts.push(finishLabel.trim())
+  return parts.join(' · ')
 }
 
 export function PortfolioCardTile({
@@ -82,9 +107,10 @@ export function PortfolioCardTile({
   onPress,
   style,
   footer,
+  relaxedBottom = false,
 }: PortfolioCardTileProps) {
   const { theme } = useContext(ThemeContext)
-  const styles = getStyles(theme)
+  const styles = getStyles(theme, Boolean(footer))
   const conditionLabel = formatConditionShort(condition)
   const showChange =
     priceChangeZar != null &&
@@ -94,78 +120,83 @@ export function PortfolioCardTile({
     Math.abs(priceChangeZar) > 0
   const changeUp = (priceChangeZar ?? 0) >= 0
   const qtyLabel = Number.isFinite(quantity) ? Math.max(0, Math.floor(quantity)) : 1
-
-  const hasSetMeta = Boolean(setName || cardNumber || conditionLabel || metaLine || finishLabel)
+  const extraMetaLine = buildSetLine(undefined, metaLine, finishLabel)
   const displayPrice = price.replace(/\s+ZAR$/i, '').trim()
+  const numberLabel = cardNumber?.trim() ? `#${cardNumber.trim()}` : null
+  const setOnly = setName?.trim() || ''
+  const showHeaderRight = Boolean(numberLabel || setOnly)
 
   const content = (
     <View style={styles.column}>
-      <View style={styles.imageContainer}>
-        {image ? (
-          <Image source={image} style={styles.image} resizeMode="contain" />
-        ) : (
-          <View style={styles.placeholder}>
-            <Ionicons name="image-outline" size={24} color="rgba(255,255,255,0.25)" />
+      <View style={styles.header}>
+        <RNText style={styles.title} numberOfLines={2} ellipsizeMode="tail">
+          {title}
+        </RNText>
+        {showHeaderRight ? (
+          <View style={styles.headerRight}>
+            {numberLabel ? (
+              <RNText style={styles.cardNumber} numberOfLines={1}>
+                {numberLabel}
+              </RNText>
+            ) : null}
+            {setOnly ? (
+              <RNText style={styles.headerSetName} numberOfLines={1} ellipsizeMode="tail">
+                {setOnly}
+              </RNText>
+            ) : null}
           </View>
-        )}
+        ) : null}
+      </View>
+
+      <View style={styles.imageContainer}>
+        <View style={styles.imageInner}>
+          {image ? (
+            <Image source={image} style={styles.image} resizeMode="contain" />
+          ) : (
+            <View style={styles.placeholder}>
+              <Ionicons name="image-outline" size={24} color="rgba(255,255,255,0.25)" />
+            </View>
+          )}
+        </View>
       </View>
 
       <View style={styles.info}>
-        {/* Row 1: name + price */}
-        <View style={styles.row}>
-          <Text style={styles.title} numberOfLines={1} ellipsizeMode="tail">
-            {title}
-          </Text>
+        <View style={styles.priceRow}>
           <View style={styles.priceCol}>
-            <Text style={styles.price} numberOfLines={1} ellipsizeMode="tail">
+            <RNText style={styles.price} numberOfLines={1} ellipsizeMode="tail">
               {displayPrice}
-            </Text>
+            </RNText>
             {showChange ? (
               <View style={styles.changeRow}>
                 <Ionicons
                   name={changeUp ? 'caret-up' : 'caret-down'}
-                  size={11}
+                  size={10}
                   color={changeUp ? PROFILE_CHART_ACCENT : STORE_COLORS.unverified}
                   style={styles.trendIcon}
                 />
-                <Text style={styles.change} numberOfLines={1} ellipsizeMode="tail">
-                  R{Math.abs(priceChangeZar!).toLocaleString('en-ZA')} ({formatChangePercent(priceChangePercent)}%)
-                </Text>
+                <RNText style={styles.change} numberOfLines={1} ellipsizeMode="tail">
+                  {formatCompactZar(priceChangeZar!)} ({formatChangePercent(priceChangePercent)}%)
+                </RNText>
               </View>
+            ) : null}
+          </View>
+          <View style={styles.qtyCol}>
+            <RNText style={styles.qty} numberOfLines={1} ellipsizeMode="tail">
+              {quantityCaption}: {qtyLabel}
+            </RNText>
+            {conditionLabel ? (
+              <RNText style={styles.condition} numberOfLines={1}>
+                {conditionLabel}
+              </RNText>
             ) : null}
           </View>
         </View>
 
-        {/* Row 2: set / number / condition (left) · qty (right, fixed width) */}
-        <View style={styles.row}>
-          {hasSetMeta ? (
-            <Text style={styles.metaSetLine} numberOfLines={1} ellipsizeMode="tail">
-              {setName ? <Text style={styles.metaSetText}>{setName}</Text> : null}
-              {cardNumber ? (
-                <Text style={styles.metaSetText}>{setName ? ` · #${cardNumber}` : `#${cardNumber}`}</Text>
-              ) : null}
-              {conditionLabel ? (
-                <Text style={styles.metaSetAccent}>
-                  {setName || cardNumber ? ` · ${conditionLabel}` : conditionLabel}
-                </Text>
-              ) : null}
-              {metaLine ? (
-                <Text style={styles.metaSetText}>
-                  {setName || cardNumber || conditionLabel ? ` · ${metaLine}` : metaLine}
-                </Text>
-              ) : finishLabel ? (
-                <Text style={styles.metaSetText}>
-                  {setName || cardNumber || conditionLabel ? ` · ${finishLabel}` : finishLabel}
-                </Text>
-              ) : null}
-            </Text>
-          ) : (
-            <View style={styles.metaSetSpacer} />
-          )}
-          <Text style={styles.metaQty} numberOfLines={1}>
-            {quantityCaption}: {qtyLabel}
-          </Text>
-        </View>
+        {extraMetaLine ? (
+          <RNText style={styles.metaExtra} numberOfLines={1} ellipsizeMode="tail">
+            {extraMetaLine}
+          </RNText>
+        ) : null}
       </View>
     </View>
   )
@@ -188,9 +219,12 @@ export function PortfolioCardTile({
   )
 }
 
-function getStyles(theme: { regularFont?: string; boldFont?: string; semiBoldFont?: string }) {
-  const label = { fontSize: TYPOGRAPHY.label, lineHeight: TYPOGRAPHY.label, ...androidLabelStyle }
-  const caption = { fontSize: TYPOGRAPHY.caption, lineHeight: TYPOGRAPHY.caption, ...androidLabelStyle }
+function getStyles(
+  theme: { regularFont?: string; boldFont?: string; semiBoldFont?: string },
+  hasFooter: boolean
+) {
+  const labelSize = TYPOGRAPHY.label
+  const captionSize = TYPOGRAPHY.caption
 
   return StyleSheet.create({
     card: {
@@ -205,117 +239,160 @@ function getStyles(theme: { regularFont?: string; boldFont?: string; semiBoldFon
     },
     column: {
       width: '100%',
+      gap: 2,
     },
     pressed: {
       opacity: 0.92,
     },
+    header: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      justifyContent: 'space-between',
+      gap: SPACING.xs,
+      paddingHorizontal: TILE_TEXT_PAD_H,
+      paddingTop: TILE_TEXT_PAD_H,
+      paddingBottom: 2,
+    },
+    title: {
+      flex: 1,
+      minWidth: 0,
+      fontSize: captionSize,
+      lineHeight: captionSize + 1,
+      fontFamily: theme.boldFont,
+      fontWeight: '700',
+      color: CARD_SURFACE.textPrimary,
+      ...androidLabelStyle,
+    },
+    headerRight: {
+      flexShrink: 0,
+      maxWidth: '48%',
+      alignItems: 'flex-end',
+      gap: 1,
+    },
+    cardNumber: {
+      fontSize: labelSize,
+      lineHeight: labelSize + 2,
+      fontFamily: theme.semiBoldFont,
+      fontWeight: '600',
+      color: CARD_SURFACE.textSecondary,
+      textAlign: 'right',
+      ...androidLabelStyle,
+    },
+    headerSetName: {
+      fontSize: labelSize,
+      lineHeight: labelSize + 2,
+      fontFamily: theme.regularFont,
+      color: CARD_SURFACE.textMuted,
+      textAlign: 'right',
+      ...androidLabelStyle,
+    },
     imageContainer: {
       width: '100%',
+      paddingHorizontal: LISTING_CARD_IMAGE_INSET_H,
+      paddingVertical: 0,
+      alignItems: 'center',
+      overflow: 'hidden',
+    },
+    imageInner: {
+      width: TILE_IMAGE_WIDTH,
       aspectRatio: CARD_IMAGE_ASPECT,
-      paddingHorizontal: SPACING.xs,
-      paddingTop: SPACING.xs,
-      paddingBottom: 0,
       alignItems: 'center',
       justifyContent: 'center',
+      overflow: 'hidden',
     },
     image: {
       width: '100%',
       height: '100%',
     },
     placeholder: {
-      flex: 1,
       width: '100%',
+      aspectRatio: CARD_IMAGE_ASPECT,
       alignItems: 'center',
       justifyContent: 'center',
     },
     info: {
-      paddingHorizontal: SPACING.xs,
-      paddingTop: SPACING.xs / 2,
-      paddingBottom: 0,
+      paddingHorizontal: TILE_TEXT_PAD_H,
+      paddingTop: 2,
+      /** Only pad under text when there is no button footer (footer owns bottom inset) */
+      paddingBottom: hasFooter ? 0 : TILE_TEXT_PAD_H,
       gap: 2,
     },
-    row: {
+    priceRow: {
       flexDirection: 'row',
       alignItems: 'flex-start',
       justifyContent: 'space-between',
       gap: SPACING.xs,
-    },
-    title: {
-      flex: 1,
-      minWidth: 0,
-      maxWidth: '42%',
-      fontSize: TYPOGRAPHY.bodySmall,
-      fontFamily: theme.boldFont,
-      fontWeight: '700',
-      color: CARD_SURFACE.textPrimary,
-      lineHeight: TYPOGRAPHY.bodySmall,
-      ...androidLabelStyle,
+      width: '100%',
     },
     priceCol: {
+      flex: 1,
+      minWidth: 0,
+      gap: 1,
+    },
+    qtyCol: {
       flexShrink: 0,
-      minWidth: 76,
-      maxWidth: '58%',
       alignItems: 'flex-end',
+      gap: 1,
+      maxWidth: '46%',
+    },
+    metaExtra: {
+      fontSize: labelSize,
+      lineHeight: labelSize + 2,
+      fontFamily: theme.regularFont,
+      color: CARD_SURFACE.textSecondary,
+      ...androidLabelStyle,
+    },
+    qty: {
+      flexShrink: 0,
+      fontSize: labelSize,
+      lineHeight: labelSize + 2,
+      fontFamily: theme.regularFont,
+      color: CARD_SURFACE.textMuted,
+      textAlign: 'right',
+      ...androidLabelStyle,
     },
     price: {
+      flex: 1,
+      minWidth: 0,
+      fontSize: captionSize,
+      lineHeight: captionSize + 2,
       fontFamily: theme.boldFont,
       fontWeight: '700',
       color: CARD_SURFACE.textPrimary,
-      textAlign: 'right',
-      ...caption,
+      ...androidLabelStyle,
     },
     changeRow: {
       flexDirection: 'row',
       alignItems: 'center',
-      justifyContent: 'flex-end',
-      marginTop: 1,
       maxWidth: '100%',
     },
     trendIcon: {
-      width: 12,
+      width: 10,
       marginRight: 2,
       flexShrink: 0,
     },
     change: {
       flexShrink: 1,
-      minWidth: 0,
+      fontSize: labelSize,
+      lineHeight: labelSize + 2,
       fontFamily: theme.regularFont,
       color: CARD_SURFACE.textMuted,
-      textAlign: 'right',
-      ...label,
+      ...androidLabelStyle,
     },
-    metaSetLine: {
-      flex: 1,
-      minWidth: 0,
-      marginRight: SPACING.xs / 2,
-      ...label,
-    },
-    metaSetSpacer: {
-      flex: 1,
-      minWidth: 0,
-    },
-    metaSetText: {
-      fontFamily: theme.regularFont,
-      color: CARD_SURFACE.textSecondary,
-      ...label,
-    },
-    metaSetAccent: {
+    condition: {
+      fontSize: labelSize,
+      lineHeight: labelSize + 2,
       fontFamily: theme.semiBoldFont,
       fontWeight: '600',
       color: PROFILE_CHART_ACCENT,
-      ...label,
-    },
-    metaQty: {
-      flexShrink: 0,
-      fontFamily: theme.regularFont,
-      color: CARD_SURFACE.textMuted,
       textAlign: 'right',
-      ...label,
+      ...androidLabelStyle,
     },
     footer: {
-      paddingHorizontal: SPACING.xs,
-      paddingTop: SPACING.xs / 2,
-      paddingBottom: SPACING.xs / 2,
+      paddingHorizontal: TILE_TEXT_PAD_H,
+      paddingTop: SPACING.sm,
+      borderTopWidth: 1,
+      borderTopColor: 'rgba(255, 255, 255, 0.06)',
     },
   })
 }

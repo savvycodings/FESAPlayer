@@ -1,5 +1,5 @@
 import { View, StyleSheet, useWindowDimensions } from 'react-native'
-import { SPACING } from '../../constants/layout'
+import { SPACING, LISTING_GRID_EDGE_PAD } from '../../constants/layout'
 import { listingTileWidth } from '../../utils/listingGrid'
 
 export interface ListingTileGridProps<T> {
@@ -45,6 +45,7 @@ function getStyles(tileWidth: number) {
       columnGap: SPACING.gridColumnGap,
       rowGap: SPACING.gridRowGap,
       width: '100%',
+      paddingHorizontal: LISTING_GRID_EDGE_PAD,
     },
     tileWrap: {
       width: tileWidth,

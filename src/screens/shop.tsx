@@ -1,4 +1,5 @@
 import { View, StyleSheet, ScrollView, RefreshControl, TouchableOpacity } from 'react-native'
+import Ionicons from '@expo/vector-icons/Ionicons'
 import { useContext, useCallback, useEffect, useState, useRef } from 'react'
 import { useNavigation, useFocusEffect } from '@react-navigation/native'
 import { NativeStackNavigationProp } from '@react-navigation/native-stack'
@@ -318,7 +319,24 @@ export function Shop() {
       >
         <PromoCarousel items={promoItems} onButtonPress={handlePromoButtonPress} />
 
-        <Section title="Verified User Stores" compact>
+        <Section
+          title="Verified User Stores"
+          compact
+          titleAccessory={
+            <TouchableOpacity
+              onPress={() => setIsVerifiedStoreModalVisible(true)}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              accessibilityRole="button"
+              accessibilityLabel="Learn about becoming a verified store"
+            >
+              <Ionicons
+                name="information-circle-outline"
+                size={18}
+                color={theme.mutedForegroundColor || 'rgba(255, 255, 255, 0.55)'}
+              />
+            </TouchableOpacity>
+          }
+        >
           {verifiedStoresLoading ? (
             <View style={[styles.recentListingsPlaceholder, { paddingVertical: SPACING.lg }]}>
               <Text style={[styles.recentListingsPlaceholderText, { color: theme.mutedForegroundColor }]}>

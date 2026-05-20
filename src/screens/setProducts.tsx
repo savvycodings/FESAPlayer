@@ -17,6 +17,7 @@ import { Text } from '../components/ui/text'
 import { Card, CardContent } from '../components/ui/card'
 import { SPACING, TYPOGRAPHY, RADIUS } from '../constants/layout'
 import { ListingTile } from '../components/ui/ListingTile'
+import { listingTileWidth } from '../utils/listingGrid'
 
 type SetProductsStackParamList = {
   SetProducts: {
@@ -42,12 +43,6 @@ type SetProductsStackParamList = {
 
 type SetProductsScreenRouteProp = RouteProp<SetProductsStackParamList, 'SetProducts'>
 type SetProductsScreenNavigationProp = NativeStackNavigationProp<SetProductsStackParamList, 'SetProducts'>
-
-function gridColumns(width: number): number {
-  if (width >= 720) return 5
-  if (width >= 600) return 4
-  return 3
-}
 
 // Helper function to determine set from product name
 function getSetFromProductName(productName: string): string | null {
@@ -111,9 +106,7 @@ export function SetProducts() {
   const route = useRoute<SetProductsScreenRouteProp>()
   const { setName, setImage } = route.params || { setName: '', setImage: null }
   const { width } = useWindowDimensions()
-  const columns = gridColumns(width)
-  const gap = SPACING.gridColumnGap
-  const tileWidth = (width - SPACING.containerPadding * 2 - gap * (columns - 1)) / columns
+  const tileWidth = listingTileWidth(width)
   const styles = getStyles(theme)
   const [searchQuery, setSearchQuery] = useState('')
 

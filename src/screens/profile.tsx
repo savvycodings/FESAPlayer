@@ -684,7 +684,7 @@ export function Profile() {
             </View>
             <View style={styles.sectionHeaderActions}>
               <AppButton
-                variant="accent"
+                variant="outline"
                 size="sm"
                 icon="add"
                 label="Add Card"

@@ -347,12 +347,23 @@ export function ViewProfile() {
     totalSales: storeData.totalSales || 0,
     totalRevenue: storeData.totalRevenue || 0,
     shareableLink: `saplayer.app/store/${storeId || userId}`,
-    listings: listings.map(listing => ({
-      id: listing.id.toString(),
-      listingId: listing.id, // Keep numeric ID for payment
-      cardImage: listing.cardImage ? { uri: listing.cardImage } : require('../../assets/singles/Shining_Charizard_Secret.jpg'),
+    listings: listings.map((listing: any) => ({
+      id: String(listing.id),
+      listingId: listing.listingId ?? listing.id,
+      cardImage: listing.cardImage
+        ? { uri: listing.cardImage }
+        : require('../../assets/singles/Shining_Charizard_Secret.jpg'),
       cardName: listing.cardName,
+      cardId: listing.cardId,
       price: listing.price,
+      quantity: listing.quantity,
+      setName: listing.setName,
+      cardNumber: listing.cardNumber,
+      condition: listing.condition,
+      metaLine: listing.metaLine,
+      finishLabel: listing.finishLabel,
+      marketPrice: listing.marketPrice,
+      ebayLastSold: listing.ebayLastSold,
       vaultingStatus: listing.vaultingStatus,
       purchaseType: listing.purchaseType,
       currentBid: listing.currentBid,
