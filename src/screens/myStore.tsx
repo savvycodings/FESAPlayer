@@ -1139,6 +1139,8 @@ export function MyStore() {
                           fromMyStore: true,
                           listingId: String(listing.id),
                           cardId: listing.cardId,
+                          setName: listing.setName,
+                          cardNumber: listing.cardNumber,
                           purchaseType: listing.purchaseType,
                           currentBid: listing.currentBid,
                         })

@@ -1,5 +1,4 @@
-import { View, StyleSheet, ScrollView, RefreshControl, TouchableOpacity } from 'react-native'
-import Ionicons from '@expo/vector-icons/Ionicons'
+import { View, StyleSheet, ScrollView, RefreshControl } from 'react-native'
 import { useContext, useCallback, useEffect, useState, useRef } from 'react'
 import { useNavigation, useFocusEffect } from '@react-navigation/native'
 import { NativeStackNavigationProp } from '@react-navigation/native-stack'
@@ -10,7 +9,6 @@ import {
   ShopHeader,
   PromoCarousel,
   VerifiedStoresCarousel,
-  VerifiedStoreModal,
   RecentListings,
   VaultingSection,
   BlogCarousel,
@@ -20,27 +18,7 @@ import { Text } from '../components/ui/text'
 import { authClient } from '../lib/auth-client'
 import { DOMAIN } from '../../constants'
 import { BLOG_POSTS, type BlogPost } from '../data/blogPosts'
-
-type ShopStackParamList = {
-  ShopMain: undefined
-  BlogPost: { id: string }
-  BlogList: undefined
-  Product: {
-    id?: string
-    name: string
-    image: any
-    category?: 'product' | 'set' | 'single' | 'featured' | 'listing'
-    price?: number
-    description?: string
-    listingId?: number
-    storeId?: number
-    sellerId?: string
-  }
-  SetProducts: {
-    setName: string
-    setImage: any
-  }
-}
+import type { ShopStackParamList } from '../navigation/shopStackTypes'
 
 type ShopScreenNavigationProp = NativeStackNavigationProp<ShopStackParamList, 'ShopMain'>
 
@@ -49,7 +27,6 @@ export function Shop() {
   const navigation = useNavigation<ShopScreenNavigationProp>()
   const styles = getStyles(theme)
   const [selectedCategory, setSelectedCategory] = useState<string>('all')
-  const [isVerifiedStoreModalVisible, setIsVerifiedStoreModalVisible] = useState(false)
   const [recentListings, setRecentListings] = useState<Array<{
     id: number
     listingId?: number
@@ -84,32 +61,70 @@ export function Shop() {
     )
   }, [])
 
-  // Display name from profile API (updates when user edits name in Edit Profile)
+  // Display name + portfolio from profile API (same sources as Profile tab)
   const [userName, setUserName] = useState<string>('User')
+  const [portfolioValue, setPortfolioValue] = useState(0)
+  const [portfolioHistory, setPortfolioHistory] = useState<{ x: number; y: number }[]>([])
 
-  const fetchProfileName = useCallback(async () => {
+  const USD_TO_ZAR = Number(process.env.EXPO_PUBLIC_USD_TO_ZAR) || 17
+
+  const fetchShopHeader = useCallback(async () => {
     try {
       const session = await authClient.getSession()
-      if (!session?.data?.session) return
+      if (!session?.data?.session) {
+        setUserName('User')
+        setPortfolioValue(0)
+        setPortfolioHistory([])
+        return
+      }
+      const token = session.data.session.token
       const baseUrl = DOMAIN?.endsWith('/') ? DOMAIN.slice(0, -1) : DOMAIN
-      const res = await fetch(`${baseUrl}/api/profile/user`, {
-        method: 'GET',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.data.session.token}` },
-        credentials: 'include',
-      })
-      const data = await res.json()
-      if (!res.ok || !data.user) return
-      const u = data.user
-      const first = u.firstName?.trim()
-      const last = u.lastName?.trim()
-      const fallback = u.name?.trim()
-      setUserName([first, last].filter(Boolean).join(' ') || fallback || 'User')
+      const headers = {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      }
+
+      const [userRes, collectionsRes, historyRes] = await Promise.all([
+        fetch(`${baseUrl}/api/profile/user`, { method: 'GET', headers, credentials: 'include' }),
+        fetch(`${baseUrl}/api/profile/collections`, { method: 'GET', headers, credentials: 'include' }),
+        fetch(`${baseUrl}/api/profile/portfolio/history?days=90`, { method: 'GET', headers, credentials: 'include' }),
+      ])
+
+      const userData = await userRes.json()
+      if (userRes.ok && userData.user) {
+        const u = userData.user
+        const first = u.firstName?.trim()
+        const last = u.lastName?.trim()
+        const fallback = u.name?.trim()
+        setUserName([first, last].filter(Boolean).join(' ') || fallback || 'User')
+      }
+
+      const collectionsData = await collectionsRes.json()
+      if (collectionsRes.ok) {
+        setPortfolioValue(Number(collectionsData.portfolioValue) || 0)
+      } else {
+        setPortfolioValue(0)
+      }
+
+      const historyData = await historyRes.json()
+      if (historyRes.ok && Array.isArray(historyData.history) && historyData.history.length > 0) {
+        const points = historyData.history.map((h: { totalMarketPriceUsd?: number | null }, index: number) => {
+          const usd = h.totalMarketPriceUsd != null ? Number(h.totalMarketPriceUsd) : 0
+          const valueZar = usd > 0 ? Math.round(usd * USD_TO_ZAR) : 0
+          return { x: index, y: valueZar }
+        })
+        setPortfolioHistory(points)
+      } else {
+        setPortfolioHistory([])
+      }
     } catch (_) {
       setUserName('User')
+      setPortfolioValue(0)
+      setPortfolioHistory([])
     }
-  }, [])
+  }, [USD_TO_ZAR])
 
-  useFocusEffect(useCallback(() => { fetchProfileName() }, [fetchProfileName]))
+  useFocusEffect(useCallback(() => { fetchShopHeader() }, [fetchShopHeader]))
 
   // Fetch recent store listings from API
   const fetchRecentListings = useCallback(async () => {
@@ -155,11 +170,11 @@ export function Shop() {
   const onRefresh = useCallback(async () => {
     setRefreshing(true)
     try {
-      await Promise.all([fetchProfileName(), fetchRecentListings(), fetchVerifiedStores()])
+      await Promise.all([fetchShopHeader(), fetchRecentListings(), fetchVerifiedStores()])
     } finally {
       setRefreshing(false)
     }
-  }, [fetchProfileName, fetchRecentListings, fetchVerifiedStores])
+  }, [fetchShopHeader, fetchRecentListings, fetchVerifiedStores])
   
   // Promotional carousel data – each promo links to a product or set page
   const promoItems: PromoItem[] = [
@@ -213,7 +228,7 @@ export function Shop() {
     },
     [navigation],
   )
-  
+
   const categories = [
     { id: 'all', label: 'All' },
     { id: 'singles', label: 'Singles' },
@@ -286,7 +301,11 @@ export function Shop() {
 
   return (
     <View style={styles.container}>
-      <ShopHeader userName={userName} />
+      <ShopHeader
+        userName={userName}
+        portfolioValue={portfolioValue}
+        portfolioHistory={portfolioHistory}
+      />
 
       <ScrollView
         ref={scrollViewRef}
@@ -304,24 +323,7 @@ export function Shop() {
       >
         <PromoCarousel items={promoItems} onButtonPress={handlePromoButtonPress} />
 
-        <Section
-          title="Verified User Stores"
-          compact
-          titleAccessory={
-            <TouchableOpacity
-              onPress={() => setIsVerifiedStoreModalVisible(true)}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-              accessibilityRole="button"
-              accessibilityLabel="Learn about becoming a verified store"
-            >
-              <Ionicons
-                name="information-circle-outline"
-                size={18}
-                color={theme.mutedForegroundColor || 'rgba(255, 255, 255, 0.55)'}
-              />
-            </TouchableOpacity>
-          }
-        >
+        <Section title="Verified User Stores" compact style={styles.verifiedStoresSection}>
           {verifiedStoresLoading ? (
             <View style={[styles.recentListingsPlaceholder, { paddingVertical: SPACING.lg }]}>
               <Text style={[styles.recentListingsPlaceholderText, { color: theme.mutedForegroundColor }]}>
@@ -333,20 +335,9 @@ export function Shop() {
               <Text style={[styles.recentListingsPlaceholderText, { color: theme.mutedForegroundColor }]}>
                 No verified stores yet.
               </Text>
-              <TouchableOpacity
-                style={[styles.applyLink, { marginTop: SPACING.sm }]}
-                onPress={() => setIsVerifiedStoreModalVisible(true)}
-              >
-                <Text style={[styles.applyLinkText, { color: theme.tintColor || '#0281ff' }]}>
-                  Apply to become a verified store
-                </Text>
-              </TouchableOpacity>
             </View>
           ) : (
-            <VerifiedStoresCarousel 
-              items={verifiedStoresData}
-              onApplyPress={() => setIsVerifiedStoreModalVisible(true)}
-            />
+            <VerifiedStoresCarousel items={verifiedStoresData} />
           )}
         </Section>
 
@@ -376,15 +367,6 @@ export function Shop() {
         </Section>
         </ScrollView>
 
-        {/* Verified Store Modal */}
-        <VerifiedStoreModal
-          visible={isVerifiedStoreModalVisible}
-          onClose={() => setIsVerifiedStoreModalVisible(false)}
-          onPurchase={() => {
-            // TODO: Handle purchase
-            setIsVerifiedStoreModalVisible(false)
-          }}
-        />
       </View>
     )
   }
@@ -407,11 +389,7 @@ const getStyles = (theme: any) => StyleSheet.create({
     fontSize: TYPOGRAPHY.body,
     fontFamily: theme.regularFont,
   },
-  applyLink: {
-    paddingVertical: SPACING.xs,
-  },
-  applyLinkText: {
-    fontSize: TYPOGRAPHY.bodySmall,
-    fontFamily: theme.semiBoldFont,
+  verifiedStoresSection: {
+    marginTop: SPACING.xl,
   },
 })

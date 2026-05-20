@@ -130,6 +130,9 @@ export function RecentListings({ listings }: RecentListingsProps) {
                 storeId: item.storeId,
                 sellerId: item.sellerId,
                 storeName: item.storeName || item.sellerName || undefined,
+                cardId: item.cardId,
+                setName: item.setName,
+                cardNumber: item.cardNumber,
               })
             }}
           />

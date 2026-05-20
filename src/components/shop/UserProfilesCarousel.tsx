@@ -22,7 +22,6 @@ export interface VerifiedStore {
 
 interface VerifiedStoresCarouselProps {
   items: VerifiedStore[]
-  onApplyPress?: () => void
 }
 
 type ShopStackParamList = {
@@ -57,7 +56,7 @@ const getShieldColorForLevel = (verificationLevel: string | undefined): string =
   return STORE_COLORS.bronze
 }
 
-export function VerifiedStoresCarousel({ items, onApplyPress }: VerifiedStoresCarouselProps) {
+export function VerifiedStoresCarousel({ items }: VerifiedStoresCarouselProps) {
   const { theme } = useContext(ThemeContext)
   const navigation = useNavigation<VerifiedStoresCarouselNavigationProp>()
   const styles = getStyles(theme)
@@ -108,27 +107,6 @@ export function VerifiedStoresCarousel({ items, onApplyPress }: VerifiedStoresCa
         itemHeight={VERIFIED_STORE_ITEM_HEIGHT}
         itemSpacing={VERIFIED_STORE_ITEM_GAP}
       />
-      <TouchableOpacity 
-        style={styles.applyBanner}
-        activeOpacity={0.7}
-        onPress={onApplyPress}
-      >
-        <View style={styles.applyBannerContent}>
-          <Ionicons
-            name="shield-checkmark-outline"
-            size={16}
-            color={theme.mutedForegroundColor || 'rgba(255, 255, 255, 0.7)'}
-          />
-          <Text style={styles.applyBannerText}>
-            Apply to become a verified store
-          </Text>
-          <Ionicons
-            name="chevron-forward"
-            size={14}
-            color={theme.mutedForegroundColor || 'rgba(255, 255, 255, 0.5)'}
-          />
-        </View>
-      </TouchableOpacity>
     </View>
   )
 }
@@ -170,27 +148,5 @@ const getStyles = (theme: any) => StyleSheet.create({
     textAlign: 'center',
     letterSpacing: 0.1,
     fontWeight: '600',
-  },
-  applyBanner: {
-    marginTop: SPACING.md,
-    paddingVertical: SPACING.sm,
-    paddingHorizontal: SPACING.md,
-    borderRadius: RADIUS.md,
-    backgroundColor: theme.cardBackground || '#000000',
-    borderWidth: 1,
-    borderColor: theme.borderColor || 'rgba(255, 255, 255, 0.08)',
-  },
-  applyBannerContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  applyBannerText: {
-    fontSize: TYPOGRAPHY.bodySmall,
-    fontFamily: theme.regularFont,
-    color: theme.mutedForegroundColor || 'rgba(255, 255, 255, 0.7)',
-    marginLeft: SPACING.sm,
-    marginRight: SPACING.xs,
-    letterSpacing: 0.1,
   },
 })

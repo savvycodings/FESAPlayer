@@ -1,4 +1,4 @@
-import { useContext, useState } from 'react'
+import { useContext, useState, useEffect } from 'react'
 import {
   View,
   StyleSheet,
@@ -18,6 +18,7 @@ import { Text } from '../components/ui/text'
 import { Card, CardContent } from '../components/ui/card'
 import { SPACING, TYPOGRAPHY, RADIUS } from '../constants/layout'
 import { CardPriceSection } from '../components/card/CardPriceSection'
+import { CardOtherSellers } from '../components/card/CardOtherSellers'
 import { PayFastPayment } from '../components/payment'
 import { AppButton } from '../components/ui/AppButton'
 import { authClient } from '../lib/auth-client'
@@ -34,6 +35,8 @@ type ProductRouteParams = {
     ebayPrice?: number
     description?: string
     set?: string
+    setName?: string
+    cardNumber?: string
     fromProfile?: boolean
     fromMyStore?: boolean
     listingId?: string
@@ -70,7 +73,26 @@ export function Product() {
   const { theme } = useContext(ThemeContext)
   const navigation = useNavigation<ProductScreenNavigationProp>()
   const route = useRoute<ProductScreenRouteProp>()
-  const { id, name, image, category, price, ebayPrice, description, fromProfile, fromMyStore, listingId, sellerId, storeName, cardId, purchaseType, currentBid: routeCurrentBid } = route.params || {}
+  const {
+    id,
+    name,
+    image,
+    category,
+    price,
+    ebayPrice,
+    description,
+    set: routeSet,
+    setName: routeSetName,
+    cardNumber: routeCardNumber,
+    fromProfile,
+    fromMyStore,
+    listingId,
+    sellerId,
+    storeName,
+    cardId,
+    purchaseType,
+    currentBid: routeCurrentBid,
+  } = route.params || {}
   const tintColor = theme.tintColor || '#73EC8B'
   const styles = getStyles(theme, tintColor)
   const [isFavorited, setIsFavorited] = useState(false)
@@ -84,6 +106,47 @@ export function Product() {
   const [removing, setRemoving] = useState(false)
   /** Market price USD from card_prices (for 80% min bid floor). Set when cardId is present. */
   const [marketPriceUsd, setMarketPriceUsd] = useState<number | null>(null)
+  const [resolvedSetName, setResolvedSetName] = useState<string | undefined>(routeSetName || routeSet)
+  const [resolvedCardNumber, setResolvedCardNumber] = useState<string | undefined>(routeCardNumber)
+
+  useEffect(() => {
+    const id = cardId?.trim()
+    if (!id) return
+    if (resolvedSetName && resolvedCardNumber) return
+
+    let cancelled = false
+    const baseUrl = DOMAIN?.endsWith('/') ? DOMAIN.slice(0, -1) : DOMAIN
+    fetch(`${baseUrl}/pokedata/card/${encodeURIComponent(id)}`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (cancelled || !data) return
+        const sn = data.setName ?? data.set_name
+        const num = data.cardNumber ?? data.card_number ?? data.num
+        if (sn && !resolvedSetName) setResolvedSetName(String(sn).trim())
+        if (num != null && num !== '' && !resolvedCardNumber) {
+          setResolvedCardNumber(String(num).trim())
+        }
+      })
+      .catch(() => {})
+
+    return () => {
+      cancelled = true
+    }
+  }, [cardId, resolvedSetName, resolvedCardNumber])
+
+  const formatCardNumber = (num: string | undefined) => {
+    if (!num?.trim()) return null
+    const t = num.trim()
+    return t.startsWith('#') ? t : `#${t}`
+  }
+
+  const cardMetaLine = (() => {
+    const parts: string[] = []
+    if (resolvedSetName?.trim()) parts.push(resolvedSetName.trim())
+    const numLabel = formatCardNumber(resolvedCardNumber)
+    if (numLabel) parts.push(numLabel)
+    return parts.length > 0 ? parts.join(' · ') : null
+  })()
   // Format product name
   const formattedName = name
     ?.replace(/Pokémon[-_]TCG[-_]/g, '')
@@ -300,10 +363,16 @@ export function Product() {
         {/* Product Details Card */}
         <Card style={styles.detailsCard}>
           <CardContent style={styles.detailsContent}>
-            {/* Product Name */}
-            <Text style={styles.productTitle} numberOfLines={2}>
-              {formattedName}
-            </Text>
+            <View style={styles.titleBlock}>
+              <Text style={styles.productTitle} numberOfLines={2}>
+                {formattedName}
+              </Text>
+              {cardMetaLine ? (
+                <Text style={styles.cardMetaLine} numberOfLines={2}>
+                  {cardMetaLine}
+                </Text>
+              ) : null}
+            </View>
 
             {/* Seller Info with Rating - only on non-profile product page */}
             {!fromProfile && (
@@ -331,33 +400,35 @@ export function Product() {
               </View>
             )}
 
-            {/* Price Section: market value + eBay last sold from API/cache */}
-            <View style={styles.priceSection}>
-              <View style={styles.priceContainer}>
-                <View style={styles.priceIconContainer}>
-                  <Ionicons name="cash-outline" size={20} color={tintColor} />
-                </View>
-                <View style={styles.priceTextContainer}>
-                  <Text style={styles.priceLabel}>{isListing ? 'Listed price' : 'Market value'}</Text>
-                  <Text style={styles.priceText}>
-                    R{Number(displayPrice).toLocaleString('en-ZA', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
-                  </Text>
-                </View>
-              </View>
-              {ebayPrice != null && ebayPrice > 0 && (
+            {/* Price tiles live in CardPriceSection when cardId is present (avoids duplicate) */}
+            {!cardId?.trim() ? (
+              <View style={styles.priceSection}>
                 <View style={styles.priceContainer}>
                   <View style={styles.priceIconContainer}>
-                    <Ionicons name="pricetag-outline" size={20} color={tintColor} />
+                    <Ionicons name="cash-outline" size={20} color={tintColor} />
                   </View>
                   <View style={styles.priceTextContainer}>
-                    <Text style={styles.priceLabel}>eBay last sold</Text>
+                    <Text style={styles.priceLabel}>{isListing ? 'Listed price' : 'Market value'}</Text>
                     <Text style={styles.priceText}>
-                      R{ebayPrice.toLocaleString('en-ZA', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                      R{Number(displayPrice).toLocaleString('en-ZA', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
                     </Text>
                   </View>
                 </View>
-              )}
-            </View>
+                {ebayPrice != null && ebayPrice > 0 && (
+                  <View style={styles.priceContainer}>
+                    <View style={styles.priceIconContainer}>
+                      <Ionicons name="pricetag-outline" size={20} color={tintColor} />
+                    </View>
+                    <View style={styles.priceTextContainer}>
+                      <Text style={styles.priceLabel}>eBay last sold</Text>
+                      <Text style={styles.priceText}>
+                        R{ebayPrice.toLocaleString('en-ZA', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                      </Text>
+                    </View>
+                  </View>
+                )}
+              </View>
+            ) : null}
           </CardContent>
         </Card>
 
@@ -367,6 +438,19 @@ export function Product() {
             displayPriceZar={displayPrice}
             days={90}
             onMarketPriceUsd={setMarketPriceUsd}
+            isListing={isListing}
+            listedPriceZar={isListing ? displayPrice : undefined}
+          />
+        ) : null}
+
+        {cardId?.trim() ? (
+          <CardOtherSellers
+            cardId={cardId.trim()}
+            cardName={name || formattedName}
+            image={image}
+            setName={resolvedSetName}
+            cardNumber={resolvedCardNumber}
+            excludeListingId={listingId}
           />
         ) : null}
 
@@ -607,13 +691,28 @@ const getStyles = (theme: any, tintColor: string) => StyleSheet.create({
   detailsContent: {
     padding: SPACING.cardPadding,
   },
+  titleBlock: {
+    gap: 2,
+    marginBottom: SPACING.md,
+  },
   productTitle: {
     fontSize: TYPOGRAPHY.h2,
     fontFamily: theme.boldFont,
     color: theme.textColor,
     fontWeight: '600',
-    marginBottom: SPACING.md,
     letterSpacing: -0.3,
+    lineHeight: Math.round(TYPOGRAPHY.h2 * 1.15),
+    marginBottom: 0,
+    paddingBottom: 0,
+  },
+  cardMetaLine: {
+    fontSize: TYPOGRAPHY.bodySmall,
+    fontFamily: theme.regularFont,
+    color: 'rgba(255, 255, 255, 0.55)',
+    lineHeight: Math.round(TYPOGRAPHY.bodySmall * 1.2),
+    marginTop: 0,
+    marginBottom: 0,
+    paddingTop: 0,
   },
   sellerSection: {
     flexDirection: 'row',

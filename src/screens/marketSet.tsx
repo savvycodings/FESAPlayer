@@ -9,7 +9,6 @@ import {
   Platform,
 } from 'react-native'
 import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native'
-import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import type { RouteProp } from '@react-navigation/native'
 import Ionicons from '@expo/vector-icons/Ionicons'
 import { ThemeContext } from '../context'
@@ -32,8 +31,7 @@ type CatalogCard = {
 
 export function MarketSet() {
   const { theme } = useContext(ThemeContext)
-  const insets = useSafeAreaInsets()
-  const styles = getStyles(theme, insets.top)
+  const styles = getStyles(theme)
   const navigation = useNavigation()
   const route = useRoute<MarketSetRoute>()
   const { setId, setName } = route.params
@@ -90,6 +88,8 @@ export function MarketSet() {
             cardId: String(item.id),
             name: item.name,
             set: item.set || setName,
+            setName: item.set || setName,
+            cardNumber: item.number,
             price: priceZar,
             image: item.imageUrl ? { uri: item.imageUrl } : undefined,
             category: 'single',
@@ -184,16 +184,13 @@ export function MarketSet() {
   )
 }
 
-const getStyles = (
-  theme: {
-    textColor?: string
-    tintColor?: string
-    backgroundColor?: string
-    cardBackground?: string
-    regularFont?: string
-  },
-  topInset: number,
-) =>
+const getStyles = (theme: {
+  textColor?: string
+  tintColor?: string
+  backgroundColor?: string
+  cardBackground?: string
+  regularFont?: string
+}) =>
   StyleSheet.create({
     container: {
       flex: 1,
@@ -202,7 +199,7 @@ const getStyles = (
     header: {
       flexDirection: 'row',
       alignItems: 'center',
-      paddingTop: topInset + SPACING.sm,
+      paddingTop: SPACING.lg,
       paddingHorizontal: SPACING.containerPadding,
       paddingBottom: SPACING.sm,
       gap: SPACING.sm,

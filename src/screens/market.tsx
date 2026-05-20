@@ -11,7 +11,6 @@ import {
   Platform,
 } from 'react-native'
 import { useFocusEffect, useNavigation } from '@react-navigation/native'
-import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import Ionicons from '@expo/vector-icons/Ionicons'
 import { ThemeContext } from '../context'
 import { Text } from '../components/ui/text'
@@ -49,8 +48,7 @@ function formatReleaseDate(iso: string | null): string {
 
 export function Market() {
   const { theme } = useContext(ThemeContext)
-  const insets = useSafeAreaInsets()
-  const styles = getStyles(theme, insets.top)
+  const styles = getStyles(theme)
   const navigation = useNavigation<any>()
   const [sets, setSets] = useState<MarketSet[]>([])
   const [loading, setLoading] = useState(true)
@@ -217,16 +215,17 @@ const getStyles = (theme: {
   backgroundColor?: string
   cardBackground?: string
   regularFont?: string
-}, topInset: number) =>
+}) =>
   StyleSheet.create({
     container: {
       flex: 1,
       backgroundColor: theme.backgroundColor || '#0c0f14',
     },
+    /** Match Shop tab: safe area comes from main.tsx only; same top padding as ShopHeader */
     topBar: {
-      paddingTop: topInset + SPACING.sm,
+      paddingTop: SPACING.lg,
       paddingHorizontal: SPACING.containerPadding,
-      paddingBottom: SPACING.md,
+      paddingBottom: SPACING.lg,
       borderBottomWidth: 1,
       borderBottomColor: 'rgba(255, 255, 255, 0.08)',
     },

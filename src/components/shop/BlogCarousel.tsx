@@ -1,7 +1,7 @@
-import { View, StyleSheet, TouchableOpacity, Image } from 'react-native'
 import { useContext } from 'react'
-import { Text } from '../ui/text'
+import { View, StyleSheet, Image } from 'react-native'
 import { Carousel } from '../Carousel'
+import { Text } from '../ui/text'
 import { ThemeContext } from '../../context'
 import { SPACING, TYPOGRAPHY, RADIUS } from '../../constants/layout'
 import type { BlogPost } from '../../data/blogPosts'
@@ -58,89 +58,90 @@ export function BlogCarousel({ items, onItemPress }: BlogCarouselProps) {
   )
 }
 
-const getStyles = (theme: any) => StyleSheet.create({
-  blogCard: {
-    width: '100%',
-    height: '100%',
-    backgroundColor: '#000000',
-    borderRadius: RADIUS.lg,
-    overflow: 'hidden',
-    padding: SPACING.cardPadding,
-    justifyContent: 'space-between',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.12)',
-  },
-  blogTopContent: {
-    width: '100%',
-    marginBottom: 10,
-  },
-  blogCategory: {
-    fontSize: TYPOGRAPHY.caption,
-    fontFamily: theme.regularFont,
-    color: 'rgba(255, 255, 255, 0.55)',
-    letterSpacing: 1,
-    textTransform: 'uppercase',
-    marginBottom: 6,
-  },
-  blogTitle: {
-    fontSize: TYPOGRAPHY.h3,
-    fontFamily: theme.boldFont,
-    color: '#FFFFFF',
-    fontWeight: '600',
-    lineHeight: 24,
-    letterSpacing: -0.2,
-    width: '100%',
-  },
-  blogBottomContent: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    flex: 1,
-  },
-  blogLeftContent: {
-    flex: 1,
-    width: '50%',
-    paddingRight: 12,
-  },
-  blogDescription: {
-    fontSize: TYPOGRAPHY.bodySmall,
-    fontFamily: theme.regularFont,
-    color: 'rgba(255, 255, 255, 0.75)',
-    lineHeight: 18,
-    marginBottom: 12,
-    flexShrink: 1,
-  },
-  blogButton: {
-    alignSelf: 'flex-start',
-    paddingHorizontal: 18,
-    paddingVertical: 8,
-    borderRadius: RADIUS.full,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.25)',
-  },
-  blogButtonText: {
-    fontSize: TYPOGRAPHY.bodySmall,
-    fontFamily: theme.semiBoldFont,
-    color: '#FFFFFF',
-    fontWeight: '600',
-    letterSpacing: 0.2,
-  },
-  blogRightContent: {
-    flex: 1,
-    width: '50%',
-    justifyContent: 'flex-start',
-    alignItems: 'center',
-    paddingTop: 0,
-  },
-  blogImageWrap: {
-    width: '100%',
-    height: 148,
-    alignItems: 'center',
-    justifyContent: 'flex-start',
-    marginTop: -4,
-  },
-  blogImage: {
-    width: '96%',
-    height: 140,
-  },
-})
+const getStyles = (theme: any) =>
+  StyleSheet.create({
+    blogCard: {
+      width: '100%',
+      height: '100%',
+      backgroundColor: '#000000',
+      borderRadius: RADIUS.lg,
+      overflow: 'hidden',
+      padding: SPACING.cardPadding,
+      justifyContent: 'space-between',
+      borderWidth: 1,
+      borderColor: 'rgba(255, 255, 255, 0.12)',
+    },
+    blogTopContent: {
+      width: '100%',
+      marginBottom: 10,
+    },
+    blogCategory: {
+      fontSize: TYPOGRAPHY.caption,
+      fontFamily: theme.regularFont,
+      color: 'rgba(255, 255, 255, 0.55)',
+      letterSpacing: 1,
+      textTransform: 'uppercase',
+      marginBottom: 6,
+    },
+    blogTitle: {
+      fontSize: TYPOGRAPHY.h3,
+      fontFamily: theme.boldFont,
+      color: '#FFFFFF',
+      fontWeight: '600',
+      lineHeight: 24,
+      letterSpacing: -0.2,
+      width: '100%',
+    },
+    blogBottomContent: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      flex: 1,
+    },
+    blogLeftContent: {
+      flex: 1,
+      width: '50%',
+      paddingRight: 12,
+    },
+    blogDescription: {
+      fontSize: TYPOGRAPHY.bodySmall,
+      fontFamily: theme.regularFont,
+      color: 'rgba(255, 255, 255, 0.75)',
+      lineHeight: 18,
+      marginBottom: 12,
+      flexShrink: 1,
+    },
+    blogButton: {
+      alignSelf: 'flex-start',
+      paddingHorizontal: 18,
+      paddingVertical: 8,
+      borderRadius: RADIUS.full,
+      backgroundColor: 'rgba(255, 255, 255, 0.08)',
+      borderWidth: 1,
+      borderColor: 'rgba(255, 255, 255, 0.25)',
+    },
+    blogButtonText: {
+      fontSize: TYPOGRAPHY.bodySmall,
+      fontFamily: theme.semiBoldFont,
+      color: '#FFFFFF',
+      fontWeight: '600',
+      letterSpacing: 0.2,
+    },
+    blogRightContent: {
+      flex: 1,
+      width: '50%',
+      justifyContent: 'flex-start',
+      alignItems: 'center',
+      paddingTop: 0,
+    },
+    blogImageWrap: {
+      width: '100%',
+      height: 148,
+      alignItems: 'center',
+      justifyContent: 'flex-start',
+      marginTop: -4,
+    },
+    blogImage: {
+      width: '96%',
+      height: 140,
+    },
+  })

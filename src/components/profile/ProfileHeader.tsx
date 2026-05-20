@@ -1,9 +1,8 @@
-import { View, StyleSheet, TouchableOpacity, Dimensions, LayoutChangeEvent, PanResponder, Image } from 'react-native'
+import { View, StyleSheet, TouchableOpacity, Dimensions, Image } from 'react-native'
 import { androidLabelStyle, compactLevelLineHeight } from '../../utils/platformHelpers'
-import { useContext, useState, useMemo, useRef } from 'react'
+import { useContext, useState, useMemo } from 'react'
 import { Text } from '../ui/text'
 import Ionicons from '@expo/vector-icons/Ionicons'
-import Svg, { Circle, Path, Line } from 'react-native-svg'
 import { ThemeContext } from '../../context'
 import {
   SPACING,
@@ -16,7 +15,7 @@ import {
 import { ProgressBars } from '../store'
 import { LevelRewardModal } from '../store/LevelRewardModal'
 import { TrustedBadge } from '../ui/TrustedBadge'
-import { FocalBrackets } from '../ui/FocalBrackets'
+import { PortfolioLineChart } from '../charts/PortfolioLineChart'
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window')
 
@@ -79,9 +78,6 @@ export function ProfileHeader({
   const { theme } = useContext(ThemeContext)
   const styles = getStyles(theme)
   const [selectedPeriod, setSelectedPeriod] = useState<'1M' | '3M' | '6M' | '1Y'>('1M')
-  const [chartWidth, setChartWidth] = useState(SCREEN_WIDTH - (SPACING.containerPadding * 2))
-  const [selectedPoint, setSelectedPoint] = useState<{ x: number; value: number; index: number } | null>(null)
-  const chartContainerRef = useRef<View>(null)
   const [modalVisible, setModalVisible] = useState(false)
   const [selectedLevel, setSelectedLevel] = useState<number | null>(null)
 
@@ -105,185 +101,12 @@ export function ProfileHeader({
   }, [portfolioData, portfolioValueZar])
 
   const hasHistory = portfolioData && portfolioData.length > 1
-
-  // Chart calculations - professional TradingView style
-  const chartHeight = 200
-  const yAxisWidth = 50 // Wider Y-axis labels to accommodate numbers
-  const chartPaddingLeft = 15 // Padding after Y-axis labels
-  const chartPaddingRight = 0 // Minimal padding - extend to edge
-  const chartPaddingTop = 20
-  const chartPaddingBottom = 35
-  // SVG width is chartWidth minus Y-axis width
-  const svgWidth = Math.max(0, chartWidth - yAxisWidth)
-  // Graph width is SVG width minus left and right padding
-  const graphWidth = Math.max(0, svgWidth - chartPaddingLeft - chartPaddingRight)
-  const graphHeight = Math.max(0, chartHeight - chartPaddingTop - chartPaddingBottom)
-
   const hasData = chartData.length > 0
-
-  // Round to nice numbers for better Y-axis labels
-  const roundToNiceNumber = (num: number, roundUp: boolean = false) => {
-    if (num === 0) return 0
-    const magnitude = Math.pow(10, Math.floor(Math.log10(num)))
-    const normalized = num / magnitude
-    let rounded
-    if (roundUp) {
-      if (normalized <= 1) rounded = 1
-      else if (normalized <= 2) rounded = 2
-      else if (normalized <= 5) rounded = 5
-      else rounded = 10
-    } else {
-      if (normalized >= 10) rounded = 10
-      else if (normalized >= 5) rounded = 5
-      else if (normalized >= 2) rounded = 2
-      else rounded = 1
-    }
-    return rounded * magnitude
-  }
-  
-  // Calculate chart values only if we have data
-  const maxValue = hasData ? Math.max(...chartData.map(d => d.y)) : 0
-  const minValue = hasData ? Math.min(...chartData.map(d => d.y)) : 0
-  // For single value (straight line), add padding to show it properly
-  const padding = hasData ? ((maxValue === minValue ? maxValue * 0.1 : (maxValue - minValue) * 0.1) || 2000) : 0
-  const chartMin = hasData ? Math.max(0, roundToNiceNumber(minValue - padding, false)) : 0
-  const chartMax = hasData ? roundToNiceNumber(maxValue + padding, true) : 0
-  const valueRange = chartMax - chartMin || 1
-
-  // Generate grid lines and Y-axis labels - only if we have data
-  const gridCount = 5
-  const gridStep = valueRange / (gridCount - 1)
-  const gridLines = hasData ? Array.from({ length: gridCount }, (_, i) => {
-    const value = chartMin + gridStep * i
-    const y = chartHeight - chartPaddingBottom - ((value - chartMin) / valueRange) * graphHeight
-    return { y, value: Math.round(value / 1000) * 1000 } // Round to nearest 1000
-  }) : []
-
-  // Normalize chart points - coordinates relative to SVG (start after padding)
-  // Handle single point (straight line) or multiple points
-  const normalizedPoints = hasData ? chartData.map((point, index) => {
-    const xPosition = chartData.length === 1 
-      ? chartPaddingLeft + (graphWidth / 2) // Center single point
-      : chartPaddingLeft + (index / (chartData.length - 1 || 1)) * graphWidth
-    return {
-      x: xPosition,
-      y: chartHeight - chartPaddingBottom - ((point.y - chartMin) / valueRange) * graphHeight,
-      value: point.y,
-      index,
-    }
-  }) : []
-
-  // Create SVG path
-  // For single point or same values, create a horizontal line
-  const chartPathData = hasData ? (() => {
-    if (normalizedPoints.length === 0) return ''
-    if (normalizedPoints.length === 1) {
-      // Single point - create a horizontal line across the chart
-      const point = normalizedPoints[0]
-      return `M ${chartPaddingLeft} ${point.y} L ${chartPaddingLeft + graphWidth} ${point.y}`
-    }
-    // Multiple points - create path connecting them
-    return normalizedPoints.reduce((path, point, index) => {
-      if (index === 0) {
-        return `M ${point.x} ${point.y}`
-      }
-      return `${path} L ${point.x} ${point.y}`
-    }, '')
-  })() : ''
-
-  const chartPathValid = Boolean(
-    chartPathData &&
-      !/NaN|Infinity/i.test(chartPathData) &&
-      normalizedPoints.every((p) => Number.isFinite(p.x) && Number.isFinite(p.y))
-  )
-
-  // For area fill: use chart edges (left/right) so single-point doesn't form a triangle
-  const fillLeftX = hasData && normalizedPoints.length > 0
-    ? (normalizedPoints.length === 1 ? chartPaddingLeft : normalizedPoints[0].x)
-    : 0
-  const fillRightX = hasData && normalizedPoints.length > 0
-    ? (normalizedPoints.length === 1 ? chartPaddingLeft + graphWidth : normalizedPoints[normalizedPoints.length - 1].x)
-    : 0
-  const fillBottomY = chartHeight - chartPaddingBottom
 
   const latestValue = hasData ? (chartData[chartData.length - 1]?.y || 0) : 0
   const previousValue = hasData && chartData.length > 1 ? (chartData[chartData.length - 2]?.y || 0) : 0
   const change = latestValue - previousValue
   const changePercent = previousValue !== 0 ? ((change / previousValue) * 100).toFixed(1) : '0.0'
-
-  const handleChartLayout = (event: LayoutChangeEvent) => {
-    const { width } = event.nativeEvent.layout
-    // Clamp chart width so it never extends past the visible screen (prevents overflow on the right)
-    const maxWidth = SCREEN_WIDTH - SPACING.containerPadding * 2
-    setChartWidth(Math.min(width, maxWidth))
-  }
-
-  // Format date based on period and index
-  // Check if all values are the same (single-day view)
-  const isSingleDayView = hasData && chartData.length > 0 && chartData.every((point, _, arr) => point.y === arr[0].y)
-  
-  const formatDate = (index: number, total: number, period: '1M' | '3M' | '6M' | '1Y') => {
-    // If it's a single-day view (all same values), always show "Today"
-    if (isSingleDayView) {
-      return 'Today'
-    }
-    
-    const now = new Date()
-    let date = new Date(now)
-    
-    if (period === '1M') {
-      date.setDate(now.getDate() - (total - 1 - index))
-      return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-    } else if (period === '3M') {
-      date.setDate(now.getDate() - (90 - Math.floor((90 / (total - 1)) * index)))
-      return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-    } else if (period === '6M') {
-      date.setDate(now.getDate() - (180 - Math.floor((180 / (total - 1)) * index)))
-      return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-    } else {
-      date.setDate(now.getDate() - (365 - Math.floor((365 / (total - 1)) * index)))
-      return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-    }
-  }
-
-  const panResponder = useRef(
-    PanResponder.create({
-      onStartShouldSetPanResponder: () => true,
-      onMoveShouldSetPanResponder: () => true,
-      onPanResponderGrant: (evt) => {
-        handleTouch(evt.nativeEvent.locationX)
-      },
-      onPanResponderMove: (evt) => {
-        handleTouch(evt.nativeEvent.locationX)
-      },
-      onPanResponderRelease: () => {
-        // Keep showing the last touched point
-      },
-    })
-  ).current
-
-  const handleTouch = (locationX: number) => {
-    if (!hasData || normalizedPoints.length === 0) {
-      setSelectedPoint(null)
-      return
-    }
-    // locationX is relative to chartSvgContainer (y-axis is a sibling, not inside this view)
-    const touchX = locationX
-    if (touchX < chartPaddingLeft - 12 || touchX > chartPaddingLeft + graphWidth + 12) {
-      setSelectedPoint(null)
-      return
-    }
-
-    const closestPoint = normalizedPoints.reduce((prev, curr) =>
-      Math.abs(curr.x - touchX) < Math.abs(prev.x - touchX) ? curr : prev
-    )
-
-    setSelectedPoint({
-      x: closestPoint.x,
-      value: closestPoint.value,
-      index: closestPoint.index,
-    })
-  }
 
   const initials = userName
     ? userName
@@ -468,137 +291,15 @@ export function ProfileHeader({
             </View>
           )}
 
-          {hasData && chartPathValid ? (
-            <FocalBrackets
+          {hasData ? (
+            <PortfolioLineChart
+              data={chartData}
+              period={selectedPeriod}
               accentColor={chartAccent}
-              bracketLength={16}
-              bracketThickness={2}
-              offset={2}
-              style={styles.chartFocalFrame}
-            >
-              <View style={styles.chartSection} onLayout={handleChartLayout}>
-                <View style={styles.chartWrapper}>
-                  <View style={styles.yAxisContainer}>
-                    {[...gridLines].reverse().map((grid, index) => (
-                      <Text
-                        key={index}
-                        style={[
-                          styles.yAxisLabel,
-                          {
-                            position: 'absolute',
-                            top: Number.isFinite(grid.y) ? Math.max(0, grid.y - 6) : 0,
-                          },
-                        ]}
-                      >
-                        R{grid.value.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
-                      </Text>
-                    ))}
-                  </View>
-
-                  <View
-                    style={styles.chartSvgContainer}
-                    ref={chartContainerRef}
-                    {...panResponder.panHandlers}
-                  >
-                    <Svg width={svgWidth} height={chartHeight}>
-                      {gridLines.map((grid, index) => {
-                        const isBottomLine = index === 0
-                        return (
-                          <Line
-                            key={index}
-                            x1={chartPaddingLeft}
-                            y1={grid.y}
-                            x2={chartPaddingLeft + graphWidth}
-                            y2={grid.y}
-                            stroke={isBottomLine ? 'rgba(255, 255, 255, 0.22)' : 'rgba(255, 255, 255, 0.1)'}
-                            strokeWidth={1}
-                          />
-                        )
-                      })}
-
-                      {normalizedPoints.length > 0 && (
-                        <Path
-                          d={`${chartPathData} L ${fillRightX} ${fillBottomY} L ${fillLeftX} ${fillBottomY} Z`}
-                          fill={chartAccent}
-                          fillOpacity={0.12}
-                        />
-                      )}
-
-                      <Path
-                        d={chartPathData}
-                        stroke={chartAccent}
-                        strokeWidth={2.5}
-                        fill="none"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      />
-
-                      {selectedPoint && (
-                        <Line
-                          x1={selectedPoint.x}
-                          y1={chartPaddingTop}
-                          x2={selectedPoint.x}
-                          y2={chartHeight - chartPaddingBottom}
-                          stroke={chartAccent}
-                          strokeWidth={1}
-                          strokeOpacity={0.5}
-                          strokeDasharray={[4, 4]}
-                        />
-                      )}
-
-                      {selectedPoint && normalizedPoints[selectedPoint.index] && (
-                        <Circle
-                          cx={selectedPoint.x}
-                          cy={normalizedPoints[selectedPoint.index].y}
-                          r={4}
-                          fill={chartAccent}
-                          stroke="#000"
-                          strokeWidth={1}
-                        />
-                      )}
-
-                      {normalizedPoints.length === 1 &&
-                        normalizedPoints.map((point, index) => (
-                          <Circle
-                            key={index}
-                            cx={point.x}
-                            cy={point.y}
-                            r={5}
-                            fill={chartAccent}
-                            stroke="#000"
-                            strokeWidth={2}
-                          />
-                        ))}
-                    </Svg>
-
-                    {selectedPoint && normalizedPoints[selectedPoint.index] && (
-                      <View
-                        style={[
-                          styles.tooltip,
-                          {
-                            left: Math.max(
-                              4,
-                              Math.min(selectedPoint.x - 44, svgWidth - 92)
-                            ),
-                            top: Math.max(
-                              4,
-                              normalizedPoints[selectedPoint.index].y - 52
-                            ),
-                          },
-                        ]}
-                      >
-                        <Text style={styles.tooltipDate}>
-                          {formatDate(selectedPoint.index, chartData.length, selectedPeriod)}
-                        </Text>
-                        <Text style={[styles.tooltipPrice, { color: chartAccent }]}>
-                          R{selectedPoint.value.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
-                        </Text>
-                      </View>
-                    )}
-                  </View>
-                </View>
-              </View>
-            </FocalBrackets>
+              height={200}
+              roundYAxisThousands
+              maxChartWidth={SCREEN_WIDTH - SPACING.containerPadding * 2}
+            />
           ) : null}
 
         {hasHistory && chartData.length > 7 && (

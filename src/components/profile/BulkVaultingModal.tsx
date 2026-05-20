@@ -1,25 +1,58 @@
-import { View, StyleSheet, Modal, TouchableOpacity, ScrollView, Alert, ActivityIndicator } from 'react-native'
+import {
+  View,
+  StyleSheet,
+  Modal,
+  TouchableOpacity,
+  ScrollView,
+  Alert,
+  Image,
+  Pressable,
+  Text as RNText,
+} from 'react-native'
 import { useContext, useState, useEffect } from 'react'
-import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Text } from '../ui/text'
 import Ionicons from '@expo/vector-icons/Ionicons'
 import { ThemeContext } from '../../context'
-import { SPACING, TYPOGRAPHY, RADIUS } from '../../constants/layout'
-import { Image } from 'react-native'
+import { AppButton } from '../ui/AppButton'
+import { SPACING, TYPOGRAPHY, RADIUS, LISTING_TILE_BORDER, PROFILE_CHART_ACCENT } from '../../constants/layout'
+import { androidLabelStyle } from '../../utils/platformHelpers'
+import { VerificationTermsSheet } from './VerificationTermsSheet'
 
-interface Collection {
+export interface BulkVaultingCollection {
   id: number
   name: string
   image?: string
   set?: string
+  cardNumber?: string
   type: string
 }
 
 interface BulkVaultingModalProps {
   visible: boolean
-  collections: Collection[]
+  collections: BulkVaultingCollection[]
   onClose: () => void
   onRequestVaulting: (collectionIds: number[]) => Promise<void>
+}
+
+function formatCardNumber(num?: string): string | null {
+  if (!num?.trim()) return null
+  const t = num.trim()
+  return t.startsWith('#') ? t : `#${t}`
+}
+
+function formatTypeLabel(type: string): string {
+  if (type === 'slab') return 'Slab'
+  if (type === 'sealed') return 'Sealed'
+  return 'Card'
+}
+
+function buildMetaLine(set?: string, cardNumber?: string, type?: string): string | null {
+  const parts: string[] = []
+  if (set?.trim()) parts.push(set.trim())
+  const num = formatCardNumber(cardNumber)
+  if (num) parts.push(num)
+  if (parts.length === 0 && type) parts.push(formatTypeLabel(type))
+  return parts.length > 0 ? parts.join(' · ') : null
 }
 
 export function BulkVaultingModal({
@@ -29,41 +62,40 @@ export function BulkVaultingModal({
   onRequestVaulting,
 }: BulkVaultingModalProps) {
   const { theme } = useContext(ThemeContext)
-  const insets = useSafeAreaInsets()
   const styles = getStyles(theme)
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set())
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [termsVisible, setTermsVisible] = useState(false)
 
   useEffect(() => {
     if (visible) {
       setSelectedIds(new Set())
+      setTermsVisible(false)
     }
   }, [visible])
 
   const toggleSelection = (id: number) => {
-    const newSelected = new Set(selectedIds)
-    if (newSelected.has(id)) {
-      newSelected.delete(id)
-    } else {
-      newSelected.add(id)
-    }
-    setSelectedIds(newSelected)
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
   }
 
   const selectAll = () => {
-    if (selectedIds.size === collections.length) {
+    if (selectedIds.size === collections.length && collections.length > 0) {
       setSelectedIds(new Set())
     } else {
-      setSelectedIds(new Set(collections.map(c => c.id)))
+      setSelectedIds(new Set(collections.map((c) => c.id)))
     }
   }
 
   const handleSubmit = async () => {
     if (selectedIds.size === 0) {
-      Alert.alert('No Selection', 'Please select at least one card to request verification.')
+      Alert.alert('No selection', 'Select at least one card to request verification.')
       return
     }
-
     setIsSubmitting(true)
     try {
       await onRequestVaulting(Array.from(selectedIds))
@@ -77,355 +109,331 @@ export function BulkVaultingModal({
   }
 
   const handleClose = () => {
+    if (isSubmitting) return
     setSelectedIds(new Set())
     onClose()
   }
 
+  const allSelected = selectedIds.size === collections.length && collections.length > 0
+
   return (
-    <Modal
-      visible={visible}
-      transparent
-      animationType="fade"
-      onRequestClose={handleClose}
-    >
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={handleClose}>
       <View style={styles.overlay}>
-        <TouchableOpacity 
-          style={styles.overlayTouchable}
-          activeOpacity={1}
-          onPress={handleClose}
-        />
+        <Pressable style={styles.overlayTouchable} onPress={handleClose} />
         <View style={styles.modalContainer}>
-          {/* Header */}
-          <View style={[styles.header, { paddingTop: Math.max(insets.top, SPACING.sm) + SPACING.lg }]}>
-            <View style={styles.headerLeft}>
-              <Text style={styles.title}>Request Verification</Text>
-              <Text style={styles.subtitle}>
-                Send your cards in so we can verify you have them. Buyers get protection on high-value cards.
-              </Text>
+          <View style={styles.header}>
+            <View style={styles.headerTitleRow}>
+              <Text style={styles.title}>Request verification</Text>
+              <TouchableOpacity
+                onPress={handleClose}
+                style={styles.closeButton}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                disabled={isSubmitting}
+              >
+                <Ionicons name="close" size={22} color={theme.textColor} />
+              </TouchableOpacity>
             </View>
-            <TouchableOpacity onPress={handleClose} style={styles.closeButton} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
-              <Ionicons name="close" size={24} color={theme.textColor} />
-            </TouchableOpacity>
+            <RNText style={styles.subtitle}>
+              Get a PUDO code to drop your cards at a locker. We verify them and send them back to you through
+              PUDO. You have 24 hours to submit after you receive your code. See our{' '}
+              <RNText style={styles.termsLink} onPress={() => setTermsVisible(true)}>
+                Terms and conditions
+              </RNText>
+              .
+            </RNText>
           </View>
 
-          {/* Select All Button */}
-          <View style={styles.selectAllContainer}>
-            <TouchableOpacity
-              style={styles.selectAllButton}
-              onPress={selectAll}
-              activeOpacity={0.7}
-            >
-              <View style={[styles.checkbox, selectedIds.size === collections.length && collections.length > 0 && styles.checkboxChecked]}>
-                {selectedIds.size === collections.length && collections.length > 0 && (
-                  <Ionicons name="checkmark" size={16} color="#000" />
-                )}
+          <View style={styles.toolbar}>
+            <Pressable style={styles.selectAllRow} onPress={selectAll}>
+              <View style={[styles.checkbox, allSelected && styles.checkboxChecked]}>
+                {allSelected ? <Ionicons name="checkmark" size={14} color="#000" /> : null}
               </View>
-              <Text style={styles.selectAllText}>
-                {selectedIds.size === collections.length && collections.length > 0 ? 'Deselect All' : 'Select All'}
-              </Text>
-            </TouchableOpacity>
-            <Text style={styles.selectedCount}>
-              {selectedIds.size} {selectedIds.size === 1 ? 'card' : 'cards'} selected
-            </Text>
+              <RNText style={styles.selectAllText}>
+                {allSelected ? 'Deselect all' : 'Select all'}
+              </RNText>
+            </Pressable>
+            <RNText style={styles.selectedCount}>
+              {selectedIds.size} selected
+            </RNText>
           </View>
 
-          {/* Cards List */}
           <ScrollView
+            style={styles.scroll}
             showsVerticalScrollIndicator={false}
             contentContainerStyle={styles.scrollContent}
-            nestedScrollEnabled={true}
+            nestedScrollEnabled
             bounces={false}
           >
             {collections.length === 0 ? (
               <View style={styles.emptyContainer}>
-                <Ionicons name="cube-outline" size={48} color="rgba(255, 255, 255, 0.3)" />
+                <Ionicons name="cube-outline" size={40} color="rgba(255, 255, 255, 0.3)" />
                 <Text style={styles.emptyText}>No cards in your collection</Text>
-                <Text style={styles.emptySubtext}>
-                  Add cards to your collection first
-                </Text>
+                <Text style={styles.emptySubtext}>Add cards first, then request verification.</Text>
               </View>
             ) : (
               collections.map((collection) => {
                 const isSelected = selectedIds.has(collection.id)
+                const meta = buildMetaLine(collection.set, collection.cardNumber, collection.type)
+                const imageUri =
+                  typeof collection.image === 'string'
+                    ? collection.image
+                    : collection.image?.uri
+
                 return (
-                  <TouchableOpacity
+                  <Pressable
                     key={collection.id}
-                    style={[styles.cardItem, isSelected && styles.cardItemSelected]}
+                    style={[styles.cardRow, isSelected && styles.cardRowSelected]}
                     onPress={() => toggleSelection(collection.id)}
-                    activeOpacity={0.7}
                   >
-                    <View style={styles.cardItemLeft}>
-                      <View style={[styles.checkbox, isSelected && styles.checkboxChecked]}>
-                        {isSelected && (
-                          <Ionicons name="checkmark" size={16} color="#000" />
-                        )}
-                      </View>
-                      {collection.image ? (
-                        <Image
-                          source={{ uri: collection.image }}
-                          style={styles.cardImage}
-                          resizeMode="contain"
-                        />
-                      ) : (
-                        <View style={styles.cardImagePlaceholder}>
-                          <Ionicons name="image-outline" size={20} color="rgba(255, 255, 255, 0.3)" />
-                        </View>
-                      )}
-                      <View style={styles.cardInfo}>
-                        <Text style={styles.cardName} numberOfLines={1}>
-                          {collection.name}
-                        </Text>
-                        {collection.set && (
-                          <Text style={styles.cardSet} numberOfLines={1}>
-                            {collection.set}
-                          </Text>
-                        )}
-                        <Text style={styles.cardType}>
-                          {collection.type.charAt(0).toUpperCase() + collection.type.slice(1)}
-                        </Text>
-                      </View>
+                    <View style={[styles.checkbox, isSelected && styles.checkboxChecked]}>
+                      {isSelected ? <Ionicons name="checkmark" size={14} color="#000" /> : null}
                     </View>
-                    {isSelected && (
-                      <Ionicons name="checkmark-circle" size={20} color={theme.tintColor || '#73EC8B'} />
+                    {imageUri ? (
+                      <Image source={{ uri: imageUri }} style={styles.cardThumb} resizeMode="contain" />
+                    ) : (
+                      <View style={styles.cardThumbPlaceholder}>
+                        <Ionicons name="image-outline" size={18} color="rgba(255,255,255,0.35)" />
+                      </View>
                     )}
-                  </TouchableOpacity>
+                    <View style={styles.cardTextCol}>
+                      <RNText style={styles.cardName} numberOfLines={2}>
+                        {collection.name}
+                      </RNText>
+                      {meta ? (
+                        <RNText style={styles.cardMeta} numberOfLines={1}>
+                          {meta}
+                        </RNText>
+                      ) : null}
+                    </View>
+                  </Pressable>
                 )
               })
             )}
           </ScrollView>
 
-          {/* Actions */}
-          <View style={styles.actions}>
-            <TouchableOpacity
-              style={[styles.button, styles.buttonSecondary]}
+          <View style={styles.footer}>
+            <AppButton
+              variant="outline"
+              size="sm"
+              label="Cancel"
               onPress={handleClose}
               disabled={isSubmitting}
-            >
-              <Text style={styles.buttonTextSecondary}>Cancel</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.button, styles.buttonPrimary, (selectedIds.size === 0 || isSubmitting) && styles.buttonDisabled]}
+              style={styles.footerBtn}
+            />
+            <AppButton
+              variant="accent"
+              size="sm"
+              label={
+                isSubmitting
+                  ? 'Requesting…'
+                  : `Request (${selectedIds.size})`
+              }
               onPress={handleSubmit}
               disabled={selectedIds.size === 0 || isSubmitting}
-            >
-              {isSubmitting ? (
-                <ActivityIndicator size="small" color="#000" />
-              ) : (
-                <Text style={styles.buttonTextPrimary}>
-                  Request Verification ({selectedIds.size})
-                </Text>
-              )}
-            </TouchableOpacity>
+              style={styles.footerBtn}
+            />
           </View>
         </View>
       </View>
+
+      <VerificationTermsSheet visible={termsVisible} onClose={() => setTermsVisible(false)} />
     </Modal>
   )
 }
 
-const getStyles = (theme: any) => StyleSheet.create({
-  overlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  overlayTouchable: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-  },
-  modalContainer: {
-    width: '90%',
-    maxWidth: 500,
-    maxHeight: '90%',
-    backgroundColor: theme.cardBackground || '#1a1a1a',
-    borderRadius: RADIUS.lg,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
-    overflow: 'hidden',
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    padding: SPACING.lg,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255, 255, 255, 0.1)',
-  },
-  headerLeft: {
-    flex: 1,
-    marginRight: SPACING.md,
-  },
-  title: {
-    fontSize: TYPOGRAPHY.h3,
-    fontFamily: theme.boldFont,
-    color: theme.textColor,
-    fontWeight: '600',
-    marginBottom: SPACING.xs,
-  },
-  subtitle: {
-    fontSize: TYPOGRAPHY.bodySmall,
-    fontFamily: theme.regularFont,
-    color: 'rgba(255, 255, 255, 0.6)',
-    lineHeight: 18,
-  },
-  closeButton: {
-    padding: SPACING.xs,
-  },
-  selectAllContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: SPACING.lg,
-    paddingVertical: SPACING.md,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255, 255, 255, 0.1)',
-  },
-  selectAllButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: SPACING.sm,
-  },
-  checkbox: {
-    width: 20,
-    height: 20,
-    borderRadius: RADIUS.sm,
-    borderWidth: 2,
-    borderColor: 'rgba(255, 255, 255, 0.3)',
-    backgroundColor: 'transparent',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  checkboxChecked: {
-    backgroundColor: theme.tintColor || '#73EC8B',
-    borderColor: theme.tintColor || '#73EC8B',
-  },
-  selectAllText: {
-    fontSize: TYPOGRAPHY.body,
-    fontFamily: theme.semiBoldFont,
-    color: theme.textColor,
-    fontWeight: '600',
-  },
-  selectedCount: {
-    fontSize: TYPOGRAPHY.bodySmall,
-    fontFamily: theme.regularFont,
-    color: theme.tintColor || '#73EC8B',
-  },
-  scrollContent: {
-    padding: SPACING.lg,
-  },
-  emptyContainer: {
-    padding: SPACING['2xl'],
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  emptyText: {
-    fontSize: TYPOGRAPHY.body,
-    fontFamily: theme.semiBoldFont,
-    color: 'rgba(255, 255, 255, 0.6)',
-    marginTop: SPACING.md,
-    textAlign: 'center',
-  },
-  emptySubtext: {
-    fontSize: TYPOGRAPHY.bodySmall,
-    fontFamily: theme.regularFont,
-    color: 'rgba(255, 255, 255, 0.4)',
-    marginTop: SPACING.xs,
-    textAlign: 'center',
-  },
-  cardItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: SPACING.md,
-    marginBottom: SPACING.sm,
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    borderRadius: RADIUS.md,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
-  },
-  cardItemSelected: {
-    backgroundColor: 'rgba(115, 236, 139, 0.1)',
-    borderColor: theme.tintColor || '#73EC8B',
-  },
-  cardItemLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-    gap: SPACING.md,
-  },
-  cardImage: {
-    width: 50,
-    height: 50,
-    borderRadius: RADIUS.sm,
-  },
-  cardImagePlaceholder: {
-    width: 50,
-    height: 50,
-    borderRadius: RADIUS.sm,
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  cardInfo: {
-    flex: 1,
-  },
-  cardName: {
-    fontSize: TYPOGRAPHY.body,
-    fontFamily: theme.semiBoldFont,
-    color: theme.textColor,
-    fontWeight: '600',
-    marginBottom: SPACING.xs / 2,
-  },
-  cardSet: {
-    fontSize: TYPOGRAPHY.bodySmall,
-    fontFamily: theme.regularFont,
-    color: 'rgba(255, 255, 255, 0.6)',
-    marginBottom: SPACING.xs / 2,
-  },
-  cardType: {
-    fontSize: TYPOGRAPHY.caption,
-    fontFamily: theme.regularFont,
-    color: 'rgba(255, 255, 255, 0.4)',
-  },
-  actions: {
-    flexDirection: 'row',
-    gap: SPACING.md,
-    padding: SPACING.lg,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(255, 255, 255, 0.1)',
-  },
-  button: {
-    flex: 1,
-    padding: SPACING.md,
-    borderRadius: RADIUS.md,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  buttonSecondary: {
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
-  },
-  buttonPrimary: {
-    backgroundColor: theme.tintColor || '#73EC8B',
-  },
-  buttonDisabled: {
-    opacity: 0.5,
-  },
-  buttonTextSecondary: {
-    fontSize: TYPOGRAPHY.body,
-    fontFamily: theme.semiBoldFont,
-    color: theme.textColor,
-    fontWeight: '600',
-  },
-  buttonTextPrimary: {
-    fontSize: TYPOGRAPHY.body,
-    fontFamily: theme.semiBoldFont,
-    color: '#000',
-    fontWeight: '600',
-  },
-})
+const getStyles = (theme: {
+  textColor?: string
+  cardBackground?: string
+  backgroundColor?: string
+  semiBoldFont?: string
+  regularFont?: string
+  boldFont?: string
+  tintColor?: string
+}) =>
+  StyleSheet.create({
+    overlay: {
+      flex: 1,
+      backgroundColor: 'rgba(0, 0, 0, 0.7)',
+      justifyContent: 'center',
+      alignItems: 'center',
+      padding: SPACING.containerPadding,
+    },
+    overlayTouchable: {
+      ...StyleSheet.absoluteFillObject,
+    },
+    modalContainer: {
+      width: '100%',
+      maxWidth: 440,
+      maxHeight: '88%',
+      backgroundColor: theme.cardBackground || '#1a1a1a',
+      borderRadius: RADIUS.lg,
+      borderWidth: 1,
+      borderColor: LISTING_TILE_BORDER,
+      overflow: 'hidden',
+    },
+    header: {
+      paddingHorizontal: SPACING.cardPadding,
+      paddingTop: SPACING.cardPadding,
+      paddingBottom: SPACING.sm,
+      gap: SPACING.stackGap,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: 'rgba(255, 255, 255, 0.1)',
+    },
+    headerTitleRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: SPACING.sm,
+    },
+    title: {
+      flex: 1,
+      fontSize: TYPOGRAPHY.h4,
+      fontFamily: theme.boldFont,
+      color: theme.textColor,
+      fontWeight: '600',
+      lineHeight: Math.round(TYPOGRAPHY.h4 * 1.2),
+      ...androidLabelStyle,
+    },
+    subtitle: {
+      fontSize: TYPOGRAPHY.caption,
+      fontFamily: theme.regularFont,
+      color: 'rgba(255, 255, 255, 0.55)',
+      lineHeight: Math.round(TYPOGRAPHY.caption * 1.4),
+    },
+    termsLink: {
+      fontSize: TYPOGRAPHY.caption,
+      fontFamily: theme.semiBoldFont,
+      color: PROFILE_CHART_ACCENT,
+      fontWeight: '600',
+      textDecorationLine: 'underline',
+    },
+    closeButton: {
+      width: 32,
+      height: 32,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    toolbar: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: SPACING.cardPadding,
+      paddingBottom: SPACING.sm,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: 'rgba(255, 255, 255, 0.1)',
+    },
+    selectAllRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: SPACING.sm,
+    },
+    selectAllText: {
+      fontSize: TYPOGRAPHY.bodySmall,
+      fontFamily: theme.semiBoldFont,
+      color: theme.textColor,
+      fontWeight: '600',
+      ...androidLabelStyle,
+    },
+    selectedCount: {
+      fontSize: TYPOGRAPHY.caption,
+      fontFamily: theme.regularFont,
+      color: 'rgba(255, 255, 255, 0.5)',
+      ...androidLabelStyle,
+    },
+    checkbox: {
+      width: 18,
+      height: 18,
+      borderRadius: 4,
+      borderWidth: 1.5,
+      borderColor: 'rgba(255, 255, 255, 0.35)',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    checkboxChecked: {
+      backgroundColor: theme.tintColor || '#73EC8B',
+      borderColor: theme.tintColor || '#73EC8B',
+    },
+    scroll: {
+      flexGrow: 0,
+      flexShrink: 1,
+    },
+    scrollContent: {
+      padding: SPACING.cardPadding,
+      gap: SPACING.stackGap,
+    },
+    emptyContainer: {
+      paddingVertical: SPACING.xl,
+      alignItems: 'center',
+      gap: SPACING.xs,
+    },
+    emptyText: {
+      fontSize: TYPOGRAPHY.bodySmall,
+      color: 'rgba(255, 255, 255, 0.6)',
+      textAlign: 'center',
+    },
+    emptySubtext: {
+      fontSize: TYPOGRAPHY.caption,
+      color: 'rgba(255, 255, 255, 0.4)',
+      textAlign: 'center',
+    },
+    cardRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: SPACING.sm,
+      paddingVertical: SPACING.sm,
+      paddingHorizontal: SPACING.sm,
+      borderRadius: RADIUS.md,
+      borderWidth: 1,
+      borderColor: 'rgba(255, 255, 255, 0.1)',
+      backgroundColor: 'rgba(255, 255, 255, 0.04)',
+    },
+    cardRowSelected: {
+      borderColor: theme.tintColor || '#73EC8B',
+      backgroundColor: 'rgba(115, 236, 139, 0.08)',
+    },
+    cardThumb: {
+      width: 40,
+      height: 56,
+      borderRadius: RADIUS.sm,
+    },
+    cardThumbPlaceholder: {
+      width: 40,
+      height: 56,
+      borderRadius: RADIUS.sm,
+      backgroundColor: 'rgba(255, 255, 255, 0.06)',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    cardTextCol: {
+      flex: 1,
+      minWidth: 0,
+      gap: 2,
+    },
+    cardName: {
+      fontSize: TYPOGRAPHY.bodySmall,
+      fontFamily: theme.semiBoldFont,
+      color: theme.textColor,
+      fontWeight: '600',
+      lineHeight: Math.round(TYPOGRAPHY.bodySmall * 1.25),
+      ...androidLabelStyle,
+    },
+    cardMeta: {
+      fontSize: TYPOGRAPHY.caption,
+      fontFamily: theme.regularFont,
+      color: 'rgba(255, 255, 255, 0.55)',
+      lineHeight: Math.round(TYPOGRAPHY.caption * 1.2),
+      ...androidLabelStyle,
+    },
+    footer: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: SPACING.sm,
+      paddingHorizontal: SPACING.cardPadding,
+      paddingVertical: SPACING.cardPadding,
+      borderTopWidth: StyleSheet.hairlineWidth,
+      borderTopColor: 'rgba(255, 255, 255, 0.1)',
+    },
+    footerBtn: {
+      flex: 1,
+    },
+  })

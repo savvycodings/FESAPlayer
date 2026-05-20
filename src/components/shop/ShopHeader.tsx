@@ -2,13 +2,16 @@ import { View, StyleSheet } from 'react-native'
 import { useContext } from 'react'
 import { ThemedText } from '../ui/ThemedText'
 import { ThemeContext } from '../../context'
+import { PortfolioValueInline, type PortfolioHistoryPoint } from '../profile/PortfolioValueInline'
 import { SPACING, TYPOGRAPHY } from '../../constants/layout'
 
 interface ShopHeaderProps {
   userName: string
+  portfolioValue?: number
+  portfolioHistory?: PortfolioHistoryPoint[]
 }
 
-export function ShopHeader({ userName }: ShopHeaderProps) {
+export function ShopHeader({ userName, portfolioValue = 0, portfolioHistory = [] }: ShopHeaderProps) {
   const { theme } = useContext(ThemeContext)
   const styles = getStyles(theme)
 
@@ -16,9 +19,20 @@ export function ShopHeader({ userName }: ShopHeaderProps) {
     <View style={styles.headerContainer}>
       <View style={styles.welcomeContainer}>
         <ThemedText style={styles.welcomeText}>Welcome back</ThemedText>
-        <ThemedText style={styles.userNameText} numberOfLines={2}>
-          {userName}
-        </ThemedText>
+        <View style={styles.nameRow}>
+          <View style={styles.userNameWrap}>
+            <ThemedText style={styles.userNameText} numberOfLines={1}>
+              {userName}
+            </ThemedText>
+          </View>
+          <View style={styles.portfolioSlot}>
+            <PortfolioValueInline
+              portfolioValue={portfolioValue}
+              portfolioHistory={portfolioHistory}
+              variant="shop"
+            />
+          </View>
+        </View>
       </View>
     </View>
   )
@@ -40,6 +54,7 @@ const getStyles = (theme: any) =>
     welcomeContainer: {
       justifyContent: 'center',
       flex: 1,
+      minWidth: 0,
     },
     welcomeText: {
       fontSize: TYPOGRAPHY.caption,
@@ -49,11 +64,29 @@ const getStyles = (theme: any) =>
       letterSpacing: 1.2,
       textTransform: 'uppercase',
     },
+    nameRow: {
+      flexDirection: 'row',
+      alignItems: 'flex-end',
+      justifyContent: 'space-between',
+      width: '100%',
+    },
+    userNameWrap: {
+      flex: 1,
+      minWidth: 0,
+      marginRight: SPACING.sm,
+    },
     userNameText: {
       fontSize: 28,
       fontFamily: theme.boldFont,
       color: theme.textColor,
       letterSpacing: -0.4,
       lineHeight: 34,
+      height: 34,
+      includeFontPadding: false,
+      textAlignVertical: 'bottom',
+    },
+    portfolioSlot: {
+      flexShrink: 0,
+      alignItems: 'flex-end',
     },
   })

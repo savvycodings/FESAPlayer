@@ -768,6 +768,8 @@ export function Profile() {
                       ebayPrice: ebayPrice != null ? ebayPrice : undefined,
                       description: product.name,
                       set: set,
+                      setName: (product as any).setName ?? set,
+                      cardNumber: (product as any).cardNumber,
                       fromProfile: true,
                     })
                   }
@@ -863,11 +865,17 @@ export function Profile() {
       {/* Bulk Verification Modal */}
       <BulkVaultingModal
         visible={isBulkVaultingModalVisible}
-        collections={collections.map(c => ({
+        collections={collections.map((c) => ({
           id: c.id,
           name: c.name,
-          image: c.image || undefined,
+          image: c.cardImageUrl || c.image || undefined,
           set: c.set || undefined,
+          cardNumber:
+            c.cardNumber != null && String(c.cardNumber).trim() !== ''
+              ? String(c.cardNumber).trim()
+              : c.number != null && String(c.number).trim() !== ''
+                ? String(c.number).trim()
+                : undefined,
           type: c.type,
         }))}
         onClose={() => setIsBulkVaultingModalVisible(false)}

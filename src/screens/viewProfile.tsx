@@ -475,6 +475,8 @@ export function ViewProfile() {
                   sellerId: sellerId ?? undefined,
                   storeName: storeData?.storeName ?? storeData?.name ?? undefined,
                   cardId: listing.cardId ?? undefined,
+                  setName: listing.setName,
+                  cardNumber: listing.cardNumber,
                   purchaseType: listing.purchaseType ?? undefined,
                   currentBid: listing.currentBid != null ? Number(listing.currentBid) : undefined,
                 })
