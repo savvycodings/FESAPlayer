@@ -22,7 +22,6 @@ import { Card, CardContent } from '../components/ui/card'
 import { SPACING, TYPOGRAPHY, RADIUS } from '../constants/layout'
 import { DOMAIN } from '../../constants'
 import { AppButton } from '../components/ui/AppButton'
-import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 type SearchStackParamList = {
   SearchMain: undefined
@@ -60,7 +59,6 @@ type SearchScreenNavigationProp = NativeStackNavigationProp<SearchStackParamList
 export function Search() {
   const { theme } = useContext(ThemeContext)
   const navigation = useNavigation<SearchScreenNavigationProp>()
-  const insets = useSafeAreaInsets()
   const styles = getStyles(theme)
 
   // Featured data with actual images and names
@@ -147,6 +145,25 @@ export function Search() {
       .split(' ')
       .map(word => word.charAt(0).toUpperCase() + word.slice(1))
       .join(' ')
+  }
+
+  /** Collapsed tiles: cap at 3 words; expanded (See all) shows full name on one line with tail ellipsis */
+  const truncateTileName = (display: string, sectionExpanded: boolean) => {
+    if (sectionExpanded) return display
+    const words = display.split(/\s+/).filter(Boolean)
+    if (words.length <= 3) return display
+    return `${words.slice(0, 3).join(' ')}…`
+  }
+
+  const getProductDisplayName = (item: { name: string }, index: number) => {
+    if (index === 0) return 'Phantasmal Flames Booster Bundle'
+    if (index === 1) return 'Destined Rivals Elite Trainer Box'
+    if (index === 3) return 'White Flare Elite Trainer Box'
+    return formatDisplayName(
+      item.name
+        .replace(/Pokémon[-_]TCG[-_]/g, '')
+        .replace(/[-_]/g, ' '),
+    )
   }
 
   // Fetch stores when search query changes
@@ -355,7 +372,11 @@ export function Search() {
     return (
       <View style={styles.expandedGrid}>
         {itemsToShow.map((item, index) => {
-          const displayName = formatDisplayName(item.name)
+          const fullName =
+            type === 'product'
+              ? getProductDisplayName(item, index + itemsToSkip)
+              : formatDisplayName(item.name)
+          const displayName = truncateTileName(fullName, true)
           const viewCount = Math.floor(Math.random() * 500) + 100
           const itemCount = Math.floor(Math.random() * 20) + 5
           const searchCount = Math.floor(Math.random() * 300) + 50
@@ -417,7 +438,9 @@ export function Search() {
                 </CardContent>
               </Card>
               <View style={styles.itemNameContainer}>
-                <Text style={styles.itemNameText} numberOfLines={1}>{displayName}</Text>
+                <Text style={styles.itemNameText} numberOfLines={1} ellipsizeMode="tail">
+                  {displayName}
+                </Text>
                 <View style={styles.itemInfoContainer}>
                   {type === 'featured' && (
                     <>
@@ -523,15 +546,9 @@ export function Search() {
 
   return (
     <View style={styles.container}>
-      {/* Search Bar - Fixed at top */}
-      <View style={[styles.topSearchBarContainer, { paddingTop: insets.top + SPACING.sm }]}>
+      <View style={styles.topBar}>
         <View style={styles.searchBar}>
-          <Ionicons
-            name="search-outline"
-            size={20}
-            color="#E5E5E5"
-            style={styles.searchIcon}
-          />
+          <Ionicons name="search-outline" size={20} color="#E5E5E5" style={styles.searchIcon} />
           <TextInput
             style={styles.searchText}
             placeholder="Search"
@@ -539,15 +556,13 @@ export function Search() {
             underlineColorAndroid="transparent"
             value={searchQuery}
             onChangeText={setSearchQuery}
+            returnKeyType="search"
           />
-          {searchQuery.length > 0 && (
-            <TouchableOpacity
-              onPress={() => setSearchQuery('')}
-              style={styles.clearButton}
-            >
+          {searchQuery.length > 0 ? (
+            <TouchableOpacity onPress={() => setSearchQuery('')} hitSlop={8} style={styles.clearBtn}>
               <Ionicons name="close-circle" size={20} color="#E5E5E5" />
             </TouchableOpacity>
-          )}
+          ) : null}
         </View>
       </View>
 
@@ -608,8 +623,9 @@ export function Search() {
         nestedScrollEnabled={true}
       >
         {/* Featured Section */}
-        <Section 
+        <Section
           title="Featured"
+          style={styles.firstSection}
           showSeeAll={true}
           seeAllText={expandedSections.featured ? 'See less' : 'See all'}
           onSeeAllPress={() => toggleSection('featured')}
@@ -620,7 +636,7 @@ export function Search() {
               const showBadge = index === 0
               const viewCount = Math.floor(Math.random() * 500) + 100
               const itemCount = Math.floor(Math.random() * 20) + 5
-              const displayName = formatDisplayName(item.name)
+              const displayName = truncateTileName(formatDisplayName(item.name), expandedSections.featured)
               return (
                 <View style={styles.carouselItemContainer}>
                   <Card className="p-0 gap-0 border-0 shadow-none" style={styles.carouselCard}>
@@ -652,7 +668,9 @@ export function Search() {
                     </CardContent>
                   </Card>
                   <View style={styles.itemNameContainer}>
-                    <Text style={styles.itemNameText}>{displayName}</Text>
+                    <Text style={styles.itemNameText} numberOfLines={1} ellipsizeMode="tail">
+                      {displayName}
+                    </Text>
                     <View style={styles.itemInfoContainer}>
                       <View style={styles.itemInfoItem}>
                         <Ionicons name="eye-outline" size={12} color="rgba(255, 255, 255, 0.6)" />
@@ -695,7 +713,7 @@ export function Search() {
           <Carousel
             items={setsItems}
             renderItem={(item, index) => {
-              const setName = formatDisplayName(item.name)
+              const setName = truncateTileName(formatDisplayName(item.name), expandedSections.sets)
               const showBadge = index === 0
               const searchCount = Math.floor(Math.random() * 300) + 50
               const productCount = Math.floor(Math.random() * 15) + 3
@@ -721,7 +739,9 @@ export function Search() {
                     </CardContent>
                   </Card>
                   <View style={styles.itemNameContainer}>
-                    <Text style={styles.itemNameText}>{setName}</Text>
+                    <Text style={styles.itemNameText} numberOfLines={1} ellipsizeMode="tail">
+                      {setName}
+                    </Text>
                     <View style={styles.itemInfoContainer}>
                       <View style={styles.itemInfoItem}>
                         <Ionicons name="search-outline" size={12} color="rgba(255, 255, 255, 0.6)" />
@@ -759,24 +779,10 @@ export function Search() {
           <Carousel
             items={productsItems}
             renderItem={(item, index) => {
-              let productName
-              if (index === 0) {
-                // First product: Phantasmal Flames Booster Bundle
-                productName = 'Phantasmal Flames Booster Bundle'
-              } else if (index === 1) {
-                // Second product: Destined Rivals Elite Trainer Box
-                productName = 'Destined Rivals Elite Trainer Box'
-              } else if (index === 3) {
-                // Fourth product: White Flare Elite Trainer Box
-                productName = 'White Flare Elite Trainer Box'
-              } else {
-                productName = item.name
-                  .replace(/Pokémon[-_]TCG[-_]/g, '')
-                  .replace(/[-_]/g, ' ')
-                  .split(' ')
-                  .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-                  .join(' ')
-              }
+              const productName = truncateTileName(
+                getProductDisplayName(item, index),
+                expandedSections.products,
+              )
               const showBadge = index === 0
               const trendCount = Math.floor(Math.random() * 200) + 30
               const stockCount = Math.floor(Math.random() * 10) + 1
@@ -802,7 +808,9 @@ export function Search() {
                     </CardContent>
                   </Card>
                   <View style={styles.itemNameContainer}>
-                    <Text style={styles.itemNameText}>{productName}</Text>
+                    <Text style={styles.itemNameText} numberOfLines={1} ellipsizeMode="tail">
+                      {productName}
+                    </Text>
                     <View style={styles.itemInfoContainer}>
                       <View style={styles.itemInfoItem}>
                         <Ionicons name="trending-up-outline" size={12} color="rgba(255, 255, 255, 0.6)" />
@@ -841,7 +849,7 @@ export function Search() {
           <Carousel
             items={singlesItems}
             renderItem={(item, index) => {
-              const cardName = formatDisplayName(item.name)
+              const cardName = truncateTileName(formatDisplayName(item.name), expandedSections.singles)
               const showBadge = index === 0
               const bidCount = Math.floor(Math.random() * 15) + 2
               const price = Math.floor(Math.random() * 200) + 50
@@ -867,7 +875,9 @@ export function Search() {
                     </CardContent>
                   </Card>
                   <View style={styles.itemNameContainer}>
-                    <Text style={styles.itemNameText}>{cardName}</Text>
+                    <Text style={styles.itemNameText} numberOfLines={1} ellipsizeMode="tail">
+                      {cardName}
+                    </Text>
                     <View style={styles.itemInfoContainer}>
                       <View style={styles.itemInfoItem}>
                         <Ionicons name="hand-left-outline" size={12} color="rgba(255, 255, 255, 0.6)" />
@@ -908,23 +918,23 @@ const getStyles = (theme: any) => StyleSheet.create({
   },
   scrollContentContainer: {
     paddingHorizontal: SPACING.containerPadding,
-    paddingTop: SPACING.md,
+    paddingTop: SPACING.sm,
     paddingBottom: SPACING.screenBottom,
   },
-  topSearchBarContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  firstSection: {
+    marginTop: SPACING.xs,
+  },
+  /** Match Market tab: safe area comes from main.tsx only */
+  topBar: {
+    paddingTop: SPACING.lg,
     paddingHorizontal: SPACING.containerPadding,
-    paddingTop: SPACING.sm,
-    paddingBottom: SPACING.sm,
-    backgroundColor: theme.backgroundColor,
+    paddingBottom: SPACING.lg,
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(255, 255, 255, 0.08)',
-    position: 'relative',
+    backgroundColor: theme.backgroundColor,
     zIndex: 9999,
   },
   searchBar: {
-    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: theme.cardBackground || '#000000',
@@ -933,14 +943,6 @@ const getStyles = (theme: any) => StyleSheet.create({
     paddingVertical: SPACING.sm,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.1)',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
   },
   searchIcon: {
     marginRight: SPACING.xs,
@@ -951,11 +953,13 @@ const getStyles = (theme: any) => StyleSheet.create({
     fontFamily: theme.regularFont,
     fontSize: TYPOGRAPHY.body,
     marginLeft: SPACING.xs,
-    ...(Platform.OS === 'web' ? {
-      outline: 'none',
-      outlineWidth: 0,
-      outlineStyle: 'none',
-    } : {}),
+    paddingVertical: Platform.OS === 'ios' ? 4 : 2,
+    ...(Platform.OS === 'web'
+      ? { outlineStyle: 'none' as const, outlineWidth: 0 }
+      : {}),
+  },
+  clearBtn: {
+    marginLeft: SPACING.xs,
   },
   topButtonsContainer: {
     flexDirection: 'row',
@@ -1021,13 +1025,9 @@ const getStyles = (theme: any) => StyleSheet.create({
     width: '100%',
     height: '100%',
   },
-  clearButton: {
-    padding: SPACING.xs,
-    marginLeft: SPACING.sm,
-  },
   suggestionsDropdown: {
     position: 'absolute',
-    top: 70,
+    top: 68,
     left: SPACING.containerPadding,
     right: SPACING.containerPadding,
     backgroundColor: 'rgba(20, 20, 20, 0.98)',
@@ -1149,6 +1149,8 @@ const getStyles = (theme: any) => StyleSheet.create({
     marginTop: SPACING.xs,
     paddingHorizontal: 0,
     width: '100%',
+    minHeight: 20,
+    maxHeight: 20,
   },
   itemNameText: {
     fontSize: TYPOGRAPHY.bodySmall,
@@ -1156,6 +1158,8 @@ const getStyles = (theme: any) => StyleSheet.create({
     color: '#FFFFFF',
     flex: 1,
     flexShrink: 1,
+    minWidth: 0,
+    lineHeight: 20,
   },
   itemInfoContainer: {
     flexDirection: 'row',
@@ -1163,6 +1167,7 @@ const getStyles = (theme: any) => StyleSheet.create({
     justifyContent: 'flex-end',
     gap: SPACING.md,
     marginLeft: SPACING.sm,
+    flexShrink: 0,
   },
   itemInfoItem: {
     flexDirection: 'row',
@@ -1188,6 +1193,7 @@ const getStyles = (theme: any) => StyleSheet.create({
   expandedItem: {
     width: '48%',
     marginBottom: 0,
+    alignSelf: 'flex-start',
   },
   expandedCard: {
     backgroundColor: theme.cardBackground || '#000000',

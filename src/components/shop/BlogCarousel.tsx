@@ -3,7 +3,7 @@ import { View, StyleSheet, Image } from 'react-native'
 import { Carousel } from '../Carousel'
 import { Text } from '../ui/text'
 import { ThemeContext } from '../../context'
-import { SPACING, TYPOGRAPHY, RADIUS } from '../../constants/layout'
+import { SPACING, TYPOGRAPHY, RADIUS, LISTING_TILE_BORDER, PROFILE_CHART_ACCENT } from '../../constants/layout'
 import type { BlogPost } from '../../data/blogPosts'
 
 interface BlogCarouselProps {
@@ -68,20 +68,22 @@ const getStyles = (theme: any) =>
       overflow: 'hidden',
       padding: SPACING.cardPadding,
       justifyContent: 'space-between',
-      borderWidth: 1,
-      borderColor: 'rgba(255, 255, 255, 0.12)',
+      borderWidth: 2,
+      borderColor: LISTING_TILE_BORDER,
     },
     blogTopContent: {
       width: '100%',
       marginBottom: 10,
     },
     blogCategory: {
-      fontSize: TYPOGRAPHY.caption,
-      fontFamily: theme.regularFont,
-      color: 'rgba(255, 255, 255, 0.55)',
+      fontSize: 15,
+      fontFamily: theme.semiBoldFont,
+      color: PROFILE_CHART_ACCENT,
+      fontWeight: '700',
       letterSpacing: 1,
       textTransform: 'uppercase',
-      marginBottom: 6,
+      lineHeight: 17,
+      marginBottom: 4,
     },
     blogTitle: {
       fontSize: TYPOGRAPHY.h3,

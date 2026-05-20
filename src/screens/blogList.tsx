@@ -5,12 +5,15 @@ import {
   ScrollView,
   TouchableOpacity,
   Image,
+  Text as RNText,
 } from 'react-native'
+import { androidLabelStyle, STABLE_TEXT_PROPS } from '../utils/layoutHelpers'
 import { useNavigation } from '@react-navigation/native'
 import { NativeStackNavigationProp } from '@react-navigation/native-stack'
 import Ionicons from '@expo/vector-icons/Ionicons'
 import { ThemeContext } from '../context'
-import { SPACING, TYPOGRAPHY, RADIUS } from '../constants/layout'
+import { SPACING, TYPOGRAPHY, RADIUS, PROFILE_CHART_ACCENT, LISTING_TILE_BORDER } from '../constants/layout'
+import { Text } from '../components/ui/text'
 import { ThemedText } from '../components/ui/ThemedText'
 import { BLOG_POSTS } from '../data/blogPosts'
 import type { BlogStackParams } from './blogPost'
@@ -62,22 +65,20 @@ function BlogList() {
               />
             </View>
             <View style={styles.listBody}>
-              <ThemedText style={styles.listCategory}>{post.category}</ThemedText>
+              <RNText style={styles.listCategory} {...STABLE_TEXT_PROPS}>
+                {post.category}
+              </RNText>
               <ThemedText style={styles.listTitle} numberOfLines={2}>
                 {post.title}
               </ThemedText>
-              <ThemedText style={styles.listDescription} numberOfLines={2}>
+              <Text style={styles.listDescription} numberOfLines={3}>
                 {post.description}
-              </ThemedText>
+              </Text>
               <ThemedText style={styles.listMeta}>
                 {post.publishedAt} · {post.readTimeMinutes} min read
               </ThemedText>
             </View>
-            <Ionicons
-              name="chevron-forward"
-              size={20}
-              color={theme.mutedForegroundColor || 'rgba(255, 255, 255, 0.45)'}
-            />
+            <Ionicons name="chevron-forward" size={20} color="#FFFFFF" />
           </TouchableOpacity>
         ))}
       </ScrollView>
@@ -124,9 +125,9 @@ const getStyles = (theme: any) =>
       gap: SPACING.sm,
       padding: SPACING.sm,
       borderRadius: RADIUS.lg,
-      borderWidth: 1,
-      borderColor: theme.borderColor || 'rgba(255, 255, 255, 0.08)',
-      backgroundColor: theme.cardBackground || 'rgba(255, 255, 255, 0.04)',
+      borderWidth: 2,
+      borderColor: LISTING_TILE_BORDER,
+      backgroundColor: theme.cardBackground || '#000000',
     },
     listImageWrap: {
       width: 80,
@@ -144,23 +145,32 @@ const getStyles = (theme: any) =>
       minWidth: 0,
     },
     listCategory: {
-      fontSize: TYPOGRAPHY.label,
-      fontFamily: theme.regularFont,
-      color: theme.mutedForegroundColor || 'rgba(255, 255, 255, 0.55)',
+      fontSize: 15,
+      fontFamily: theme.semiBoldFont,
+      color: PROFILE_CHART_ACCENT,
+      fontWeight: '700',
       textTransform: 'uppercase',
-      letterSpacing: 0.8,
-      marginBottom: 2,
+      letterSpacing: 1,
+      lineHeight: 17,
+      marginBottom: SPACING.sm,
+      ...androidLabelStyle,
     },
     listTitle: {
       fontSize: TYPOGRAPHY.h4,
-      fontFamily: theme.semiBoldFont,
-      marginBottom: 2,
+      fontFamily: theme.boldFont,
+      fontWeight: '600',
+      color: '#FFFFFF',
+      lineHeight: Math.round(TYPOGRAPHY.h4 * 1.25),
+      marginTop: 0,
+      marginBottom: SPACING.sm,
     },
     listDescription: {
       fontSize: TYPOGRAPHY.bodySmall,
       fontFamily: theme.regularFont,
-      color: theme.mutedForegroundColor || 'rgba(255, 255, 255, 0.65)',
-      marginBottom: 4,
+      color: 'rgba(255, 255, 255, 0.75)',
+      lineHeight: 18,
+      marginTop: 0,
+      marginBottom: SPACING.xs,
     },
     listMeta: {
       fontSize: TYPOGRAPHY.caption,

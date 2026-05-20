@@ -27,7 +27,7 @@ export const BLOG_POSTS: BlogPost[] = [
     readTimeMinutes: 5,
     body: [
       'Professional grading protects your cards and helps buyers trust condition claims. Start by inspecting surface, corners, edges, and centering under good lighting before you submit.',
-      'Clean cards gently—never use harsh chemicals. Sleeve raw cards and use semi-rigid holders for shipping. Document the card with photos before it leaves your hands.',
+      'Clean cards gently; never use harsh chemicals. Sleeve raw cards and use semi-rigid holders for shipping. Document the card with photos before it leaves your hands.',
       'Choose a grading tier that matches your card’s value. High-value chase cards often justify premium service levels; bulk tiers work well for mid-range inventory you move regularly.',
       'On FASAPlayer, verified listings and vaulting work together: grading gives buyers confidence, and our verification flow supports high-value singles when you are ready to sell.',
     ],
@@ -43,9 +43,9 @@ export const BLOG_POSTS: BlogPost[] = [
     publishedAt: '8 Mar 2026',
     readTimeMinutes: 7,
     body: [
-      'Card investing is driven by scarcity, demand, and condition—not hype alone. Focus on proven chase cards, sealed products with thin print runs, and sets with lasting collector interest.',
+      'Card investing is driven by scarcity, demand, and condition, not hype alone. Focus on proven chase cards, sealed products with thin print runs, and sets with lasting collector interest.',
       'Track sold comps and market trends instead of asking prices alone. A card is only worth what someone will pay today; use recent sales to set realistic buy and sell targets.',
-      'Diversify: mix singles, sealed, and graded slabs so you are not overexposed to one set rotation. Liquidity matters—popular modern chase cards often sell faster than obscure promos.',
+      'Diversify: mix singles, sealed, and graded slabs so you are not overexposed to one set rotation. Liquidity matters: popular modern chase cards often sell faster than obscure promos.',
       'Buy with an exit plan. Decide whether you are flipping, holding sealed, or building a graded portfolio, and factor grading fees and shipping into your margin before you list on the marketplace.',
     ],
   },
