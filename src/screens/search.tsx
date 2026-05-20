@@ -21,6 +21,8 @@ import { Section } from '../components/layout/Section'
 import { Card, CardContent } from '../components/ui/card'
 import { SPACING, TYPOGRAPHY, RADIUS } from '../constants/layout'
 import { DOMAIN } from '../../constants'
+import { AppButton } from '../components/ui/AppButton'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 type SearchStackParamList = {
   SearchMain: undefined
@@ -58,6 +60,7 @@ type SearchScreenNavigationProp = NativeStackNavigationProp<SearchStackParamList
 export function Search() {
   const { theme } = useContext(ThemeContext)
   const navigation = useNavigation<SearchScreenNavigationProp>()
+  const insets = useSafeAreaInsets()
   const styles = getStyles(theme)
 
   // Featured data with actual images and names
@@ -401,16 +404,15 @@ export function Search() {
                     />
                   </View>
                   {type === 'featured' && (
-                    <TouchableOpacity 
-                      style={styles.tournamentButton}
-                      activeOpacity={0.7}
-                      onPress={() => {
-                        // TODO: Handle tournament navigation
-                      }}
-                    >
-                      <Ionicons name="trophy-outline" size={14} color="#000000" />
-                      <Text style={styles.tournamentButtonText}>Tournaments</Text>
-                    </TouchableOpacity>
+                    <View style={styles.tournamentButtonWrap}>
+                      <AppButton
+                        variant="filled"
+                        size="sm"
+                        icon="trophy-outline"
+                        label="Tournaments"
+                        onPress={() => {}}
+                      />
+                    </View>
                   )}
                 </CardContent>
               </Card>
@@ -522,7 +524,7 @@ export function Search() {
   return (
     <View style={styles.container}>
       {/* Search Bar - Fixed at top */}
-      <View style={styles.topSearchBarContainer}>
+      <View style={[styles.topSearchBarContainer, { paddingTop: insets.top + SPACING.sm }]}>
         <View style={styles.searchBar}>
           <Ionicons
             name="search-outline"
@@ -555,10 +557,11 @@ export function Search() {
           <FlatList
             data={searchSuggestions}
             keyExtractor={(item) => item.id}
+            ItemSeparatorComponent={() => <View style={{ height: SPACING.stackGap }} />}
             ListHeaderComponent={
               storesLoading ? (
                 <View style={styles.suggestionLoadingRow}>
-                  <ActivityIndicator size="small" color={theme.tintColor || '#73EC8B'} />
+                  <ActivityIndicator size="small" color={theme.textColor} />
                   <Text style={styles.suggestionLoadingText}>Searching for stores…</Text>
                 </View>
               ) : null
@@ -566,7 +569,7 @@ export function Search() {
             ListEmptyComponent={
               storesLoading ? (
                 <View style={styles.suggestionLoadingRow}>
-                  <ActivityIndicator size="small" color={theme.tintColor || '#73EC8B'} />
+                  <ActivityIndicator size="small" color={theme.textColor} />
                   <Text style={styles.suggestionLoadingText}>Searching for stores…</Text>
                 </View>
               ) : null
@@ -637,16 +640,15 @@ export function Search() {
                           </View>
                         )}
                       </View>
-                      <TouchableOpacity 
-                        style={styles.tournamentButton}
-                        activeOpacity={0.7}
-                        onPress={() => {
-                          // TODO: Handle tournament navigation
-                        }}
-                      >
-                        <Ionicons name="trophy-outline" size={14} color="#000000" />
-                        <Text style={styles.tournamentButtonText}>Tournaments</Text>
-                      </TouchableOpacity>
+                      <View style={styles.tournamentButtonWrap}>
+                        <AppButton
+                          variant="filled"
+                          size="sm"
+                          icon="trophy-outline"
+                          label="Tournaments"
+                          onPress={() => {}}
+                        />
+                      </View>
                     </CardContent>
                   </Card>
                   <View style={styles.itemNameContainer}>
@@ -665,8 +667,8 @@ export function Search() {
                 </View>
               )
             }}
-            itemWidth={280}
-            itemHeight={280}
+            itemWidth={220}
+            itemHeight={200}
             itemSpacing={12}
             onItemPress={(item) => {
               // All featured items navigate to Pokemon category page
@@ -734,8 +736,8 @@ export function Search() {
                 </View>
               )
             }}
-            itemWidth={280}
-            itemHeight={250}
+            itemWidth={220}
+            itemHeight={180}
             itemSpacing={12}
             onItemPress={(item) => {
               navigation.navigate('SetProducts', {
@@ -815,8 +817,8 @@ export function Search() {
                 </View>
               )
             }}
-            itemWidth={280}
-            itemHeight={250}
+            itemWidth={220}
+            itemHeight={180}
             itemSpacing={12}
             onItemPress={(item, index) => {
               navigation.navigate('Product', {
@@ -880,8 +882,8 @@ export function Search() {
                 </View>
               )
             }}
-            itemWidth={280}
-            itemHeight={250}
+            itemWidth={220}
+            itemHeight={180}
             itemSpacing={12}
             onItemPress={(item) => {
               navigation.navigate('Product', {
@@ -907,14 +909,14 @@ const getStyles = (theme: any) => StyleSheet.create({
   scrollContentContainer: {
     paddingHorizontal: SPACING.containerPadding,
     paddingTop: SPACING.md,
-    paddingBottom: SPACING['4xl'],
+    paddingBottom: SPACING.screenBottom,
   },
   topSearchBarContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: SPACING.containerPadding,
-    paddingTop: SPACING.md,
-    paddingBottom: SPACING.md,
+    paddingTop: SPACING.sm,
+    paddingBottom: SPACING.sm,
     backgroundColor: theme.backgroundColor,
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(255, 255, 255, 0.08)',
@@ -1047,11 +1049,11 @@ const getStyles = (theme: any) => StyleSheet.create({
   suggestionItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: SPACING.lg,
-    paddingVertical: SPACING.md,
+    paddingHorizontal: SPACING.sm,
+    paddingVertical: SPACING.xs,
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(255, 255, 255, 0.06)',
-    minHeight: 48,
+    minHeight: 36,
   },
   suggestionItemLast: {
     borderBottomWidth: 0,
@@ -1059,15 +1061,15 @@ const getStyles = (theme: any) => StyleSheet.create({
   suggestionLoadingRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: SPACING.lg,
-    paddingVertical: SPACING.md,
-    gap: SPACING.sm,
+    paddingHorizontal: SPACING.sm,
+    paddingVertical: SPACING.sm,
+    gap: SPACING.xs,
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(255, 255, 255, 0.06)',
-    minHeight: 48,
+    minHeight: 36,
   },
   suggestionLoadingText: {
-    fontSize: TYPOGRAPHY.body,
+    fontSize: TYPOGRAPHY.bodySmall,
     fontFamily: theme.regularFont,
     color: 'rgba(255, 255, 255, 0.6)',
   },
@@ -1136,36 +1138,20 @@ const getStyles = (theme: any) => StyleSheet.create({
     fontFamily: theme.regularFont,
     color: 'rgba(255, 255, 255, 0.6)',
   },
-  tournamentButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: theme.tintColor || '#73EC8B',
-    paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.sm,
-    borderRadius: RADIUS.full,
+  tournamentButtonWrap: {
     margin: SPACING.sm,
-    borderWidth: 1,
-    borderColor: theme.tintColor || '#73EC8B',
-    gap: SPACING.xs,
-    flexShrink: 0,
-  },
-  tournamentButtonText: {
-    fontSize: TYPOGRAPHY.bodySmall,
-    fontFamily: theme.semiBoldFont,
-    color: '#000000',
-    fontWeight: '600',
+    alignSelf: 'flex-start',
   },
   itemNameContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginTop: SPACING.sm,
-    paddingHorizontal: SPACING.xs,
+    marginTop: SPACING.xs,
+    paddingHorizontal: 0,
     width: '100%',
   },
   itemNameText: {
-    fontSize: TYPOGRAPHY.body,
+    fontSize: TYPOGRAPHY.bodySmall,
     fontFamily: theme.regularFont,
     color: '#FFFFFF',
     flex: 1,
@@ -1194,12 +1180,14 @@ const getStyles = (theme: any) => StyleSheet.create({
   expandedGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    marginTop: SPACING.md,
+    marginTop: SPACING.sm,
     justifyContent: 'space-between',
+    gap: SPACING.gridColumnGap,
+    rowGap: SPACING.gridRowGap,
   },
   expandedItem: {
     width: '48%',
-    marginBottom: SPACING.lg,
+    marginBottom: 0,
   },
   expandedCard: {
     backgroundColor: theme.cardBackground || '#000000',

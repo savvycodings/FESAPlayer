@@ -6,6 +6,7 @@ import * as ImagePicker from 'expo-image-picker'
 import { Text } from '../ui/text'
 import Ionicons from '@expo/vector-icons/Ionicons'
 import { ThemeContext } from '../../context'
+import { AppButton } from '../ui/AppButton'
 import { SPACING, TYPOGRAPHY, RADIUS } from '../../constants/layout'
 
 interface ListItemModalProps {
@@ -14,9 +15,16 @@ interface ListItemModalProps {
   productImage?: any
   onClose: () => void
   /** Called with price and the selected listing photo URI (required for new listings; omitted when editing). Can return a Promise so the modal waits and shows loading. */
-  onList: (price: number, listingImageUri?: string, listingPhotos?: { front: string; back: string; close: string }) => void | Promise<void>
+  onList: (
+    price: number,
+    listingImageUri?: string,
+    listingPhotos?: { front: string; back: string; close: string },
+    quantity?: number
+  ) => void | Promise<void>
   initialPrice?: number
   initialDescription?: string
+  initialQuantity?: number
+  maxQuantity?: number
   /** When set, shows a "Remove listing" button at the bottom (for your store edit only). */
   onRemoveListing?: () => void | Promise<void>
   /** Minimum listing price (ZAR) = 80% of market price (from Pokedata/card_prices, converted to ZAR). When set, user cannot list below this. */
@@ -33,6 +41,8 @@ export function ListItemModal({
   onList,
   initialPrice,
   initialDescription,
+  initialQuantity,
+  maxQuantity,
   onRemoveListing,
   minPriceFromMarketZar,
   minPriceFromMarketUsd,
@@ -41,6 +51,7 @@ export function ListItemModal({
   const insets = useSafeAreaInsets()
   const styles = getStyles(theme)
   const [price, setPrice] = useState('')
+  const [quantity, setQuantity] = useState('1')
   const [description, setDescription] = useState('')
   const [frontUri, setFrontUri] = useState<string | null>(null)
   const [backUri, setBackUri] = useState<string | null>(null)
@@ -62,19 +73,30 @@ export function ListItemModal({
       } else {
         setDescription('')
       }
+      if (initialQuantity != null && initialQuantity > 0) {
+        setQuantity(String(Math.floor(initialQuantity)))
+      } else {
+        setQuantity('1')
+      }
       if (!isEditing) {
         setFrontUri(null)
         setBackUri(null)
         setCloseUri(null)
       }
     }
-  }, [visible, initialPrice, initialDescription, isEditing])
+  }, [visible, initialPrice, initialDescription, initialQuantity, isEditing])
 
   const minZar = minPriceFromMarketZar ?? (minPriceFromMarketUsd != null && minPriceFromMarketUsd > 0 ? minPriceFromMarketUsd * (Number(process.env.EXPO_PUBLIC_USD_TO_ZAR) || 17) : undefined)
   const hasRequiredImages = isEditing || (!!frontUri && !!backUri && !!closeUri)
+  const parsedQty = () => {
+    const n = parseInt(quantity.replace(/\D/g, ''), 10)
+    return Number.isFinite(n) && n > 0 ? n : 0
+  }
   const isValid = () => {
     const numericPrice = parseFloat(price.replace(/[^0-9.]/g, ''))
-    if (numericPrice <= 0 || description.trim().length === 0 || !hasRequiredImages) return false
+    const qty = parsedQty()
+    if (numericPrice <= 0 || qty < 1 || description.trim().length === 0 || !hasRequiredImages) return false
+    if (maxQuantity != null && maxQuantity > 0 && qty > maxQuantity) return false
     if (minZar != null && minZar > 0 && numericPrice < minZar) return false
     return true
   }
@@ -140,8 +162,9 @@ export function ListItemModal({
     try {
       const primaryUri = frontUri ?? undefined
       const listingPhotos = frontUri && backUri && closeUri ? { front: frontUri, back: backUri, close: closeUri } : undefined
-      await Promise.resolve(onList(numericPrice, primaryUri, listingPhotos))
+      await Promise.resolve(onList(numericPrice, primaryUri, listingPhotos, parsedQty()))
       setPrice('')
+      setQuantity('1')
       setDescription('')
       setFrontUri(null)
       setBackUri(null)
@@ -156,6 +179,7 @@ export function ListItemModal({
 
   const handleClose = () => {
     setPrice('')
+    setQuantity('1')
     setDescription('')
     setFrontUri(null)
     setBackUri(null)
@@ -275,6 +299,44 @@ export function ListItemModal({
               </View>
             )}
 
+            {/* Quantity for sale */}
+            <View style={styles.inputSection}>
+              <Text style={styles.inputLabel}>Quantity for sale</Text>
+              {maxQuantity != null && maxQuantity > 0 ? (
+                <Text style={styles.inputHint}>You have up to {maxQuantity} in your collection</Text>
+              ) : null}
+              <View style={styles.quantityRow}>
+                <TouchableOpacity
+                  style={styles.quantityStep}
+                  onPress={() => {
+                    const n = parsedQty()
+                    if (n > 1) setQuantity(String(n - 1))
+                  }}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons name="remove" size={20} color={theme.textColor} />
+                </TouchableOpacity>
+                <TextInput
+                  style={styles.quantityInput}
+                  value={quantity}
+                  onChangeText={(t) => setQuantity(t.replace(/\D/g, '').slice(0, 3))}
+                  keyboardType="number-pad"
+                  maxLength={3}
+                />
+                <TouchableOpacity
+                  style={styles.quantityStep}
+                  onPress={() => {
+                    const n = parsedQty()
+                    const cap = maxQuantity != null && maxQuantity > 0 ? maxQuantity : 999
+                    if (n < cap) setQuantity(String(n + 1))
+                  }}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons name="add" size={20} color={theme.textColor} />
+                </TouchableOpacity>
+              </View>
+            </View>
+
             {/* Price Input Section */}
             <View style={styles.inputSection}>
               <Text style={styles.inputLabel}>Set Your Price</Text>
@@ -314,22 +376,23 @@ export function ListItemModal({
               />
             </View>
 
-            {/* Footer Button */}
-            <TouchableOpacity
-              style={[styles.listButton, (!isValid() || submitting) && styles.listButtonDisabled]}
+            <AppButton
+              variant="filled"
+              size="lg"
+              icon={isEditing ? 'save-outline' : 'pricetag-outline'}
+              label={
+                submitting
+                  ? isEditing
+                    ? 'Saving…'
+                    : 'Listing…'
+                  : isEditing
+                    ? 'Save Changes'
+                    : 'List Item'
+              }
+              fullWidth
               onPress={handleList}
-              activeOpacity={0.8}
               disabled={!isValid() || submitting}
-            >
-              {submitting ? (
-                <View style={styles.listButtonContent}>
-                  <ActivityIndicator size="small" color={theme.tintColor || '#73EC8B'} />
-                  <Text style={styles.listButtonText}>{isEditing ? 'Saving…' : 'Listing…'}</Text>
-                </View>
-              ) : (
-                <Text style={styles.listButtonText}>{isEditing ? 'Save Changes' : 'List Item'}</Text>
-              )}
-            </TouchableOpacity>
+            />
 
             {/* Remove listing (only when editing your own store) */}
             {isEditing && onRemoveListing && (
@@ -479,6 +542,36 @@ const getStyles = (theme: any) =>
       fontFamily: theme.semiBoldFont,
       color: theme.tintColor || '#73EC8B',
       marginTop: SPACING.xs,
+    },
+    quantityRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: SPACING.sm,
+    },
+    quantityStep: {
+      width: 40,
+      height: 40,
+      borderRadius: RADIUS.md,
+      backgroundColor: 'rgba(255, 255, 255, 0.08)',
+      borderWidth: 1,
+      borderColor: 'rgba(255, 255, 255, 0.12)',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    quantityInput: {
+      minWidth: 56,
+      textAlign: 'center',
+      fontSize: TYPOGRAPHY.h3,
+      fontFamily: theme.boldFont,
+      color: theme.textColor,
+      fontWeight: '600',
+      paddingVertical: SPACING.sm,
+      paddingHorizontal: SPACING.md,
+      backgroundColor: theme.cardBackground || '#000000',
+      borderRadius: RADIUS.md,
+      borderWidth: 1,
+      borderColor: 'rgba(255, 255, 255, 0.1)',
     },
     priceInputContainer: {
       flexDirection: 'row',

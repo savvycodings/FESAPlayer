@@ -1,4 +1,5 @@
-import { View, StyleSheet, Platform } from 'react-native'
+import { View, StyleSheet } from 'react-native'
+import { androidLabelStyle } from '../../../utils/platformHelpers'
 import { useContext } from 'react'
 import Ionicons from '@expo/vector-icons/Ionicons'
 import { ThemeContext } from '../../../context'
@@ -10,12 +11,13 @@ import { RADIUS } from '../../../constants/layout'
  */
 export function TrustedBadge() {
   const { theme } = useContext(ThemeContext)
-  const tint = theme.tintColor || '#73EC8B'
+  const stroke = theme.buttonOutlineBorder || 'rgba(255,255,255,0.7)'
+  const fg = theme.textColor || '#FFFFFF'
 
   return (
-    <View style={[styles.badge, { borderColor: tint }]}>
-      <Ionicons name="shield-checkmark" size={11} color={tint} style={styles.icon} />
-      <ThemedText style={[styles.label, { color: tint, fontFamily: theme.semiBoldFont }]}>
+    <View style={[styles.badge, { borderColor: stroke }]}>
+      <Ionicons name="shield-checkmark" size={9} color={fg} style={styles.icon} />
+      <ThemedText style={[styles.label, { color: fg, fontFamily: theme.semiBoldFont }]}>
         Trusted
       </ThemedText>
     </View>
@@ -25,23 +27,24 @@ export function TrustedBadge() {
 const styles = StyleSheet.create({
   badge: {
     flexDirection: 'row',
+    flexWrap: 'nowrap',
     alignItems: 'center',
     justifyContent: 'center',
-    height: 20,
-    paddingHorizontal: 7,
+    height: 16,
+    minWidth: 52,
+    paddingHorizontal: 5,
     borderRadius: RADIUS.full,
     borderWidth: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.65)',
+    backgroundColor: 'rgba(0, 0, 0, 0.75)',
   },
   icon: {
-    marginRight: 3,
+    marginRight: 2,
+    flexShrink: 0,
   },
   label: {
-    fontSize: 10,
-    lineHeight: Platform.OS === 'android' ? 12 : 11,
+    fontSize: 9,
+    lineHeight: 11,
     letterSpacing: 0.15,
-    ...(Platform.OS === 'android'
-      ? { includeFontPadding: false, textAlignVertical: 'center' as const }
-      : {}),
+    ...androidLabelStyle,
   },
 })

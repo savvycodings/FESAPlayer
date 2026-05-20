@@ -3,6 +3,7 @@ import { Modal, View, StyleSheet, TouchableOpacity, TextInput, ActivityIndicator
 import Ionicons from '@expo/vector-icons/Ionicons'
 import { Text } from '../ui/text'
 import { ThemeContext } from '../../context'
+import { AppButton } from '../ui/AppButton'
 import { SPACING, TYPOGRAPHY, RADIUS } from '../../constants/layout'
 
 interface LeaveReviewModalProps {
@@ -77,7 +78,7 @@ export function LeaveReviewModal({ visible, onClose, onSubmit }: LeaveReviewModa
                 <Ionicons
                   name={value <= rating ? 'star' : 'star-outline'}
                   size={24}
-                  color={theme.tintColor || '#73EC8B'}
+                  color={theme.buttonFilledBg || '#FFFFFF'}
                   style={styles.starIcon}
                 />
               </TouchableOpacity>
@@ -95,26 +96,22 @@ export function LeaveReviewModal({ visible, onClose, onSubmit }: LeaveReviewModa
           />
 
           <View style={styles.actionsRow}>
-            <TouchableOpacity
-              style={[styles.button, styles.cancelButton]}
+            <AppButton
+              variant="outline"
+              size="md"
+              icon="close-outline"
+              label="Not now"
               onPress={handleClose}
-              activeOpacity={0.8}
               disabled={submitting}
-            >
-              <Text style={styles.cancelText}>Not now</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.button, styles.submitButton]}
+            />
+            <AppButton
+              variant="filled"
+              size="md"
+              icon="checkmark-outline"
+              label={submitting ? 'Submitting…' : 'Submit'}
               onPress={handleSubmit}
-              activeOpacity={0.8}
               disabled={submitting}
-            >
-              {submitting ? (
-                <ActivityIndicator size="small" color="#000000" />
-              ) : (
-                <Text style={styles.submitText}>Submit</Text>
-              )}
-            </TouchableOpacity>
+            />
           </View>
         </View>
       </View>
@@ -185,31 +182,6 @@ const getStyles = (theme: any) => StyleSheet.create({
     justifyContent: 'flex-end',
     alignItems: 'center',
     gap: SPACING.sm,
-  },
-  button: {
-    height: 40,
-    paddingHorizontal: SPACING.lg,
-    borderRadius: RADIUS.full,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  cancelButton: {
-    backgroundColor: 'transparent',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
-  },
-  submitButton: {
-    backgroundColor: theme.tintColor || '#73EC8B',
-  },
-  cancelText: {
-    fontSize: TYPOGRAPHY.bodySmall,
-    fontFamily: theme.regularFont,
-    color: 'rgba(255, 255, 255, 0.8)',
-  },
-  submitText: {
-    fontSize: TYPOGRAPHY.bodySmall,
-    fontFamily: theme.boldFont,
-    color: '#000000',
   },
 })
 

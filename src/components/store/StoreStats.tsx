@@ -2,7 +2,7 @@ import { View, StyleSheet } from 'react-native'
 import { useContext } from 'react'
 import { Text } from '../ui/text'
 import { ThemeContext } from '../../context'
-import { SPACING, TYPOGRAPHY, RADIUS } from '../../constants/layout'
+import { SPACING, TYPOGRAPHY } from '../../constants/layout'
 
 interface StoreStatsProps {
   totalSales: number
@@ -21,74 +21,55 @@ export function StoreStats({
   const styles = getStyles(theme)
 
   return (
-    <View style={styles.statsWrapper}>
-      <View style={styles.statBlock}>
-        <Text style={styles.statValue}>{totalSales}</Text>
-        <Text style={styles.statLabel}>Sales</Text>
-      </View>
-      <View style={styles.statDivider} />
-      <View style={styles.statBlock}>
-        <Text style={styles.revenueValue}>R{Number(totalRevenue).toLocaleString('en-ZA')}</Text>
-        <Text style={styles.statLabel}>Revenue</Text>
-      </View>
-      <View style={styles.statDivider} />
-      <View style={styles.statBlock}>
-        <Text style={styles.statValue}>{responseTime}</Text>
-        <Text style={styles.statLabel}>Response</Text>
-      </View>
-      <View style={styles.statDivider} />
-      <View style={styles.statBlock}>
-        <Text style={styles.statValue}>{reviewPercentage}%</Text>
-        <Text style={styles.statLabel}>Rating</Text>
-      </View>
+    <View style={styles.statsRow}>
+      <Text style={styles.statInline}>
+        <Text style={styles.statNum}>{totalSales}</Text>
+        <Text style={styles.statLabel}> Sales</Text>
+      </Text>
+      <Text style={styles.dot}>·</Text>
+      <Text style={styles.statInline}>
+        <Text style={styles.statNum}>R{Number(totalRevenue).toLocaleString('en-ZA')}</Text>
+        <Text style={styles.statLabel}> Rev</Text>
+      </Text>
+      <Text style={styles.dot}>·</Text>
+      <Text style={styles.statInline}>
+        <Text style={styles.statNum}>{responseTime}</Text>
+        <Text style={styles.statLabel}> Resp</Text>
+      </Text>
+      <Text style={styles.dot}>·</Text>
+      <Text style={styles.statInline}>
+        <Text style={styles.statNum}>{reviewPercentage}%</Text>
+        <Text style={styles.statLabel}> Rating</Text>
+      </Text>
     </View>
   )
 }
 
 const getStyles = (theme: any) => StyleSheet.create({
-  statsWrapper: {
+  statsRow: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     alignItems: 'center',
-    justifyContent: 'space-around',
-    paddingVertical: SPACING.xl,
-    paddingHorizontal: SPACING.md,
-    marginTop: SPACING.xs,
-    marginBottom: SPACING.md,
-    backgroundColor: 'rgba(255, 255, 255, 0.04)',
-    borderRadius: RADIUS.lg,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.06)',
+    gap: SPACING.xs,
+    marginBottom: SPACING.xs,
   },
-  statBlock: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
+  statInline: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
   },
-  statDivider: {
-    width: 1,
-    height: 32,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    borderRadius: 1,
-  },
-  statValue: {
-    fontSize: TYPOGRAPHY.h4,
-    fontFamily: theme.boldFont,
+  statNum: {
+    fontSize: TYPOGRAPHY.bodySmall,
+    fontFamily: theme.semiBoldFont,
     color: theme.textColor,
     fontWeight: '600',
-    marginBottom: 4,
   },
   statLabel: {
-    fontSize: 11,
+    fontSize: TYPOGRAPHY.label,
     fontFamily: theme.regularFont,
-    color: 'rgba(255, 255, 255, 0.5)',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
+    color: 'rgba(255, 255, 255, 0.45)',
   },
-  revenueValue: {
-    fontSize: TYPOGRAPHY.h4,
-    fontFamily: theme.boldFont,
-    color: theme.tintColor || '#73EC8B',
-    fontWeight: '600',
-    marginBottom: 4,
+  dot: {
+    fontSize: TYPOGRAPHY.label,
+    color: 'rgba(255, 255, 255, 0.2)',
   },
 })

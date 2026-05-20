@@ -141,21 +141,19 @@ export function PriceChart({
     })
   ).current
 
-  const handleTouch = (x: number) => {
+  const handleTouch = (locationX: number) => {
     if (!hasData || normalizedPoints.length === 0) {
       setSelectedPoint(null)
       return
     }
-    const chartX = x - yAxisWidth - chartPaddingLeft
-    if (chartX < 0 || chartX > graphWidth) {
+    const touchX = locationX
+    if (touchX < chartPaddingLeft - 12 || touchX > chartPaddingLeft + graphWidth + 12) {
       setSelectedPoint(null)
       return
     }
-    const closest = normalizedPoints.reduce((prev, curr) => {
-      const prevDist = Math.abs(prev.x - chartX)
-      const currDist = Math.abs(curr.x - chartX)
-      return currDist < prevDist ? curr : prev
-    }, normalizedPoints[0])
+    const closest = normalizedPoints.reduce((prev, curr) =>
+      Math.abs(curr.x - touchX) < Math.abs(prev.x - touchX) ? curr : prev
+    )
     setSelectedPoint({ x: closest.x, value: closest.value, index: closest.index })
   }
 
@@ -242,7 +240,7 @@ export function PriceChart({
                     stroke={displayColor}
                     strokeWidth={1}
                     strokeOpacity={0.5}
-                    strokeDasharray="4,4"
+                    strokeDasharray={[4, 4]}
                   />
                 )}
                 {selectedPoint && normalizedPoints[selectedPoint.index] && (
@@ -252,8 +250,16 @@ export function PriceChart({
                   <Circle key={i} cx={point.x} cy={point.y} r={5} fill={displayColor} stroke="#000" strokeWidth={2} />
                 ))}
               </Svg>
-              {selectedPoint && (
-                <View style={[styles.tooltip, { left: Math.max(0, Math.min(selectedPoint.x - 40, svgWidth - 100)) }]}>
+              {selectedPoint && normalizedPoints[selectedPoint.index] && (
+                <View
+                  style={[
+                    styles.tooltip,
+                    {
+                      left: Math.max(4, Math.min(selectedPoint.x - 44, svgWidth - 92)),
+                      top: Math.max(4, normalizedPoints[selectedPoint.index].y - 52),
+                    },
+                  ]}
+                >
                   <Text style={styles.tooltipDate}>
                     {formatDisplayDate(dates?.[selectedPoint.index], selectedPoint.index, data.length)}
                   </Text>
@@ -331,7 +337,7 @@ const getStyles = (theme: any, chartColor: string) =>
     changeText: { fontSize: TYPOGRAPHY.caption, fontFamily: theme.semiBoldFont, fontWeight: '600' },
     changeTextPositive: { color: '#10B981' },
     changeTextNegative: { color: '#EF4444' },
-    chartSection: { width: '100%', paddingVertical: SPACING.sm },
+    chartSection: { width: '100%', paddingVertical: SPACING.sm, overflow: 'visible' },
     chartWrapper: { flexDirection: 'row', width: '100%', alignItems: 'flex-start' },
     yAxisContainer: {
       width: 50,
@@ -354,7 +360,7 @@ const getStyles = (theme: any, chartColor: string) =>
     },
     tooltip: {
       position: 'absolute',
-      top: -10,
+      zIndex: 10,
       backgroundColor: 'rgba(0, 0, 0, 0.85)',
       paddingHorizontal: SPACING.sm,
       paddingVertical: SPACING.xs / 2,

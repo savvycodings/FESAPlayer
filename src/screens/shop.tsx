@@ -312,13 +312,13 @@ export function Shop() {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            tintColor={theme.tintColor || '#73EC8B'}
+            tintColor={theme.textColor}
           />
         }
       >
         <PromoCarousel items={promoItems} onButtonPress={handlePromoButtonPress} />
 
-        <Section title="Verified User Stores">
+        <Section title="Verified User Stores" compact>
           {verifiedStoresLoading ? (
             <View style={[styles.recentListingsPlaceholder, { paddingVertical: SPACING.lg }]}>
               <Text style={[styles.recentListingsPlaceholderText, { color: theme.mutedForegroundColor }]}>
@@ -348,9 +348,9 @@ export function Shop() {
         </Section>
 
         <View ref={recentListingsSectionRef} onLayout={captureRecentListingsY}>
-          <Section title="Recent Listings">
+          <Section title="Recent Listings" compact>
             {recentListingsLoading ? (
-              <View style={[styles.recentListingsPlaceholder, { paddingVertical: SPACING['2xl'] }]}>
+              <View style={[styles.recentListingsPlaceholder, { paddingVertical: SPACING.lg }]}>
                 <Text style={[styles.recentListingsPlaceholderText, { color: theme.mutedForegroundColor }]}>
                   Loading listings...
                 </Text>
@@ -363,7 +363,7 @@ export function Shop() {
 
         <VaultingSection />
 
-        <Section title="Blog" showSeeAll onSeeAllPress={() => {}}>
+        <Section title="Blog" compact showSeeAll onSeeAllPress={() => {}}>
           <BlogCarousel items={blogItems} />
           </Section>
         </ScrollView>
@@ -388,8 +388,8 @@ const getStyles = (theme: any) => StyleSheet.create({
   },
   scrollContentContainer: {
     paddingHorizontal: SPACING.containerPadding,
-    paddingTop: SPACING.lg,
-    paddingBottom: SPACING['4xl'],
+    paddingTop: SPACING.sm,
+    paddingBottom: SPACING.screenBottom,
   },
   recentListingsPlaceholder: {
     alignItems: 'center',

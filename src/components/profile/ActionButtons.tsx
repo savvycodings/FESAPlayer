@@ -1,14 +1,14 @@
-import { View, StyleSheet, TouchableOpacity } from 'react-native'
-import { useContext } from 'react'
-import { Text } from '../ui/text'
+import { View, StyleSheet } from 'react-native'
+import type { ComponentProps } from 'react'
 import Ionicons from '@expo/vector-icons/Ionicons'
-import { ThemeContext } from '../../context'
-import { SPACING, TYPOGRAPHY, RADIUS } from '../../constants/layout'
+import { AppButton } from '../ui/AppButton'
+import { SPACING } from '../../constants/layout'
 
 interface ActionButton {
   label: string
-  icon: string
+  icon: ComponentProps<typeof Ionicons>['name']
   onPress?: () => void
+  variant?: 'filled' | 'outline'
 }
 
 interface ActionButtonsProps {
@@ -16,69 +16,31 @@ interface ActionButtonsProps {
 }
 
 export function ActionButtons({ buttons }: ActionButtonsProps) {
-  const { theme } = useContext(ThemeContext)
-  const styles = getStyles(theme)
-
   return (
     <View style={styles.container}>
       {buttons.map((button, index) => (
-        <TouchableOpacity
-          key={index}
-          style={styles.button}
-          activeOpacity={0.7}
+        <AppButton
+          key={`${button.label}-${index}`}
+          variant={button.variant ?? (index === 0 ? 'filled' : 'outline')}
+          size="sm"
+          icon={button.icon}
+          label={button.label}
           onPress={button.onPress}
-        >
-          <View style={styles.buttonContent}>
-            <View style={styles.iconContainer}>
-              <Ionicons
-                name={button.icon as any}
-                size={20}
-                color="#FFFFFF"
-              />
-            </View>
-            <Text style={styles.buttonLabel}>{button.label}</Text>
-          </View>
-        </TouchableOpacity>
+          style={styles.buttonFlex}
+        />
       ))}
     </View>
   )
 }
 
-const getStyles = (theme: any) => StyleSheet.create({
+const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: SPACING.md,
-    gap: SPACING.lg,
+    marginBottom: SPACING.sm,
+    gap: SPACING.sm,
   },
-  button: {
+  buttonFlex: {
     flex: 1,
     minWidth: 0,
-    backgroundColor: theme.buttonBackground || 'rgba(0, 0, 0, 0.8)',
-    borderRadius: RADIUS.md,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
-    paddingVertical: SPACING.md,
-    paddingHorizontal: SPACING.sm,
-  },
-  buttonContent: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  iconContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: RADIUS.md,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: SPACING.xs,
-  },
-  buttonLabel: {
-    fontSize: TYPOGRAPHY.caption,
-    fontFamily: theme.semiBoldFont,
-    color: theme.textColor,
-    fontWeight: '600',
-    textAlign: 'center',
   },
 })

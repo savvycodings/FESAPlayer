@@ -87,8 +87,8 @@ export function VaultingBadge({ status, size = 'md', muted, textOnly }: Vaulting
 }
 
 const getStyles = (theme: any, size: 'sm' | 'md' | 'lg') => {
-  const padding = size === 'sm' ? 6 : size === 'md' ? 8 : 10
-  const fontSize = size === 'sm' ? TYPOGRAPHY.label : size === 'md' ? TYPOGRAPHY.caption : TYPOGRAPHY.bodySmall
+  const padding = size === 'sm' ? 4 : size === 'md' ? 6 : 8
+  const fontSize = size === 'sm' ? 9 : size === 'md' ? TYPOGRAPHY.label : TYPOGRAPHY.caption
 
   return StyleSheet.create({
     badge: {

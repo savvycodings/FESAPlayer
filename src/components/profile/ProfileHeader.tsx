@@ -1,13 +1,22 @@
-import { View, StyleSheet, TouchableOpacity, Dimensions, LayoutChangeEvent, PanResponder, Image, Platform } from 'react-native'
+import { View, StyleSheet, TouchableOpacity, Dimensions, LayoutChangeEvent, PanResponder, Image } from 'react-native'
+import { androidLabelStyle, compactLevelLineHeight } from '../../utils/platformHelpers'
 import { useContext, useState, useMemo, useRef } from 'react'
 import { Text } from '../ui/text'
 import Ionicons from '@expo/vector-icons/Ionicons'
 import Svg, { Circle, Path, Line } from 'react-native-svg'
 import { ThemeContext } from '../../context'
-import { SPACING, TYPOGRAPHY, RADIUS, STORE_COLORS } from '../../constants/layout'
+import {
+  SPACING,
+  TYPOGRAPHY,
+  RADIUS,
+  STORE_COLORS,
+  PROFILE_CHART_ACCENT,
+  LISTING_TILE_BORDER,
+} from '../../constants/layout'
 import { ProgressBars } from '../store'
 import { LevelRewardModal } from '../store/LevelRewardModal'
 import { TrustedBadge } from '../ui/TrustedBadge'
+import { FocalBrackets } from '../ui/FocalBrackets'
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window')
 
@@ -76,15 +85,26 @@ export function ProfileHeader({
   const [modalVisible, setModalVisible] = useState(false)
   const [selectedLevel, setSelectedLevel] = useState<number | null>(null)
 
-  // Use portfolioData prop if provided, otherwise show empty
+  const chartAccent = PROFILE_CHART_ACCENT
+
+  const portfolioValueZar = useMemo(() => {
+    const n = parseFloat(String(portfolioValue).replace(/[^0-9.]/g, ''))
+    return Number.isFinite(n) ? n : 0
+  }, [portfolioValue])
+
+  // Use API history when present; otherwise flat line at current portfolio value
   const chartData = useMemo(() => {
-    // If portfolioData is provided and has data, use it
     if (portfolioData && portfolioData.length > 0) {
       return portfolioData
     }
-    // Otherwise return empty array (will show empty state)
-    return []
-  }, [portfolioData])
+    const pointCount = 7
+    return Array.from({ length: pointCount }, (_, i) => ({
+      x: i,
+      y: portfolioValueZar,
+    }))
+  }, [portfolioData, portfolioValueZar])
+
+  const hasHistory = portfolioData && portfolioData.length > 1
 
   // Chart calculations - professional TradingView style
   const chartHeight = 200
@@ -99,8 +119,7 @@ export function ProfileHeader({
   const graphWidth = Math.max(0, svgWidth - chartPaddingLeft - chartPaddingRight)
   const graphHeight = Math.max(0, chartHeight - chartPaddingTop - chartPaddingBottom)
 
-  // Handle empty data
-  const hasData = chartData && chartData.length > 0
+  const hasData = chartData.length > 0
 
   // Round to nice numbers for better Y-axis labels
   const roundToNiceNumber = (num: number, roundUp: boolean = false) => {
@@ -172,6 +191,12 @@ export function ProfileHeader({
     }, '')
   })() : ''
 
+  const chartPathValid = Boolean(
+    chartPathData &&
+      !/NaN|Infinity/i.test(chartPathData) &&
+      normalizedPoints.every((p) => Number.isFinite(p.x) && Number.isFinite(p.y))
+  )
+
   // For area fill: use chart edges (left/right) so single-point doesn't form a triangle
   const fillLeftX = hasData && normalizedPoints.length > 0
     ? (normalizedPoints.length === 1 ? chartPaddingLeft : normalizedPoints[0].x)
@@ -237,22 +262,21 @@ export function ProfileHeader({
     })
   ).current
 
-  const handleTouch = (x: number) => {
-    if (!hasData) {
+  const handleTouch = (locationX: number) => {
+    if (!hasData || normalizedPoints.length === 0) {
       setSelectedPoint(null)
       return
     }
-    const chartX = x - yAxisWidth - chartPaddingLeft
-    if (chartX < 0 || chartX > graphWidth) {
+    // locationX is relative to chartSvgContainer (y-axis is a sibling, not inside this view)
+    const touchX = locationX
+    if (touchX < chartPaddingLeft - 12 || touchX > chartPaddingLeft + graphWidth + 12) {
       setSelectedPoint(null)
       return
     }
 
-    const closestPoint = normalizedPoints.reduce((prev, curr, index) => {
-      const prevDist = Math.abs(prev.x - chartX)
-      const currDist = Math.abs(curr.x - chartX)
-      return currDist < prevDist ? { ...curr, index } : { ...prev, index: prev.index }
-    }, { ...normalizedPoints[0], index: 0 })
+    const closestPoint = normalizedPoints.reduce((prev, curr) =>
+      Math.abs(curr.x - touchX) < Math.abs(prev.x - touchX) ? curr : prev
+    )
 
     setSelectedPoint({
       x: closestPoint.x,
@@ -330,7 +354,7 @@ export function ProfileHeader({
                   />
                 ) : (
                   <View style={styles.profileImageEmpty}>
-                    <Ionicons name="person-outline" size={44} color="rgba(255, 255, 255, 0.35)" />
+                    <Ionicons name="person-outline" size={28} color="rgba(255, 255, 255, 0.35)" />
                     <Text style={styles.profileImageEmptyText}>Add photo</Text>
                   </View>
                 )}
@@ -369,216 +393,215 @@ export function ProfileHeader({
             </View>
           </View>
 
-          {/* Stats Section - Below Profile Picture */}
-          <View style={styles.statsSection}>
-            <View style={styles.profileStatItem}>
-              <Text style={styles.profileStatNumber}>
+          <View style={styles.statsRow}>
+            <Text style={styles.statInline}>
+              <Text style={styles.statInlineNum}>
                 {productsCount >= 1000 ? `${(productsCount / 1000).toFixed(1)}K` : productsCount}
               </Text>
-              <Text style={styles.profileStatLabel}> Products</Text>
-            </View>
-            <View style={styles.statSeparator} />
-            <View style={styles.profileStatItem}>
-              <Text style={styles.profileStatNumber}>
+              <Text style={styles.statInlineLabel}> Products</Text>
+            </Text>
+            <Text style={styles.statDot}>·</Text>
+            <Text style={styles.statInline}>
+              <Text style={styles.statInlineNum}>
                 {followersCount >= 1000 ? `${(followersCount / 1000).toFixed(1)}K` : followersCount}
               </Text>
-              <Text style={styles.profileStatLabel}> Followers</Text>
-            </View>
-            <View style={styles.statSeparator} />
-            <View style={styles.profileStatItem}>
-              <Text style={styles.profileStatNumber}>
+              <Text style={styles.statInlineLabel}> Followers</Text>
+            </Text>
+            <Text style={styles.statDot}>·</Text>
+            <Text style={styles.statInline}>
+              <Text style={styles.statInlineNum}>
                 {salesCount >= 1000 ? `${(salesCount / 1000).toFixed(1)}K` : salesCount}
               </Text>
-              <Text style={styles.profileStatLabel}> Sales</Text>
-            </View>
+              <Text style={styles.statInlineLabel}> Sales</Text>
+            </Text>
           </View>
         </View>
 
-        {/* Level Progress Bar */}
-        {level !== undefined && currentXP !== undefined && xpToNextLevel !== undefined && (
-          <View style={styles.progressContainer}>
-            <View style={styles.levelBadgesRow}>
-              {nextReward && (
-                <TouchableOpacity
-                  style={styles.nextLevelBadge}
-                  activeOpacity={0.7}
-                  onPress={() => handleLevelPress(level! + 1)}
-                >
+        <View style={styles.portfolioValueSection}>
+            <Text style={styles.portfolioLabel}>Portfolio Value</Text>
+            <View style={styles.portfolioValueRow}>
+              <Text style={[styles.portfolioValue, { color: chartAccent }]}>{portfolioValue}</Text>
+              {change !== 0 && hasHistory && (
+                <View style={[styles.changeBadge, change >= 0 ? styles.changePositive : styles.changeNegative]}>
                   <Ionicons
-                    name={nextReward.icon}
-                    size={14}
-                    color={nextReward.color}
-                    style={styles.rewardIcon}
+                    name={change >= 0 ? 'arrow-up' : 'arrow-down'}
+                    size={10}
+                    color={change >= 0 ? '#10B981' : '#EF4444'}
                   />
-                  <Text style={[styles.rewardText, { color: nextReward.color }]}>
-                    Lv {level! + 1}
+                  <Text style={[styles.changeText, change >= 0 ? styles.changeTextPositive : styles.changeTextNegative]}>
+                    {Math.abs(parseFloat(changePercent))}%
                   </Text>
-                </TouchableOpacity>
+                </View>
               )}
             </View>
-            <ProgressBars
-              level={level}
-              currentXP={currentXP}
-              xpToNextLevel={xpToNextLevel}
-              showVertical={false}
-              profileImage={profileImage}
-              showNextLevelBadge={false}
-            />
           </View>
-        )}
 
-        {/* Portfolio Value - Prominent */}
-        <View style={styles.portfolioValueSection}>
-          <Text style={styles.portfolioLabel}>Portfolio Value</Text>
-          <View style={styles.portfolioValueRow}>
-            <Text style={styles.portfolioValue}>{portfolioValue}</Text>
-            {change !== 0 && (
-              <View style={[styles.changeBadge, change >= 0 ? styles.changePositive : styles.changeNegative]}>
-                <Ionicons
-                  name={change >= 0 ? 'arrow-up' : 'arrow-down'}
-                  size={10}
-                  color={change >= 0 ? '#10B981' : '#EF4444'}
-                />
-                <Text style={[styles.changeText, change >= 0 ? styles.changeTextPositive : styles.changeTextNegative]}>
-                  {Math.abs(parseFloat(changePercent))}%
-                </Text>
-              </View>
-            )}
-          </View>
-        </View>
-
-        {/* Portfolio Growth Chart - Professional TradingView style */}
-        {hasData && chartPathData ? (
-          <View style={styles.chartSection} onLayout={handleChartLayout}>
-            <View style={styles.chartWrapper}>
-              {/* Y-axis labels - highest at top */}
-              <View style={styles.yAxisContainer}>
-                {[...gridLines].reverse().map((grid, index) => (
-                  <Text 
-                    key={index} 
-                    style={[
-                      styles.yAxisLabel, 
-                      { 
-                        position: 'absolute',
-                        top: grid.y - 6,
-                      }
-                    ]}
+          {level !== undefined && currentXP !== undefined && xpToNextLevel !== undefined && (
+            <View style={styles.progressContainer}>
+              {nextReward ? (
+                <View style={styles.levelBadgesRow}>
+                  <TouchableOpacity
+                    style={styles.nextLevelBadge}
+                    activeOpacity={0.7}
+                    onPress={() => handleLevelPress(level! + 1)}
                   >
-                    R{grid.value.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
-                  </Text>
-                ))}
-              </View>
+                    <Ionicons
+                      name={nextReward.icon}
+                      size={14}
+                      color={nextReward.color}
+                      style={styles.rewardIcon}
+                    />
+                    <Text style={[styles.rewardText, { color: nextReward.color }]}>
+                      Lv {level! + 1}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              ) : null}
+              <ProgressBars
+                level={level}
+                currentXP={currentXP}
+                xpToNextLevel={xpToNextLevel}
+                showVertical={false}
+                profileImage={profileImage}
+                showNextLevelBadge={false}
+              />
+            </View>
+          )}
 
-              {/* Chart SVG - Professional financial chart style */}
-              <View 
-                style={styles.chartSvgContainer}
-                ref={chartContainerRef}
-                {...panResponder.panHandlers}
-              >
-                <Svg width={svgWidth} height={chartHeight}>
-                  {/* Grid lines - professional and visible */}
-                  {gridLines.map((grid, index) => {
-                    const isBottomLine = index === 0
-                    return (
-                      <Line
+          {hasData && chartPathValid ? (
+            <FocalBrackets
+              accentColor={chartAccent}
+              bracketLength={16}
+              bracketThickness={2}
+              offset={2}
+              style={styles.chartFocalFrame}
+            >
+              <View style={styles.chartSection} onLayout={handleChartLayout}>
+                <View style={styles.chartWrapper}>
+                  <View style={styles.yAxisContainer}>
+                    {[...gridLines].reverse().map((grid, index) => (
+                      <Text
                         key={index}
-                        x1={chartPaddingLeft}
-                        y1={grid.y}
-                        x2={chartPaddingLeft + graphWidth}
-                        y2={grid.y}
-                        stroke={isBottomLine ? 'rgba(255, 255, 255, 0.15)' : 'rgba(255, 255, 255, 0.08)'}
-                        strokeWidth={1}
-                      />
-                    )
-                  })}
-
-                  {/* Filled area - from line down to bottom (use chart edges so single point = rectangle, not triangle) */}
-                  {normalizedPoints.length > 0 && (
-                    <Path
-                      d={`${chartPathData} L ${fillRightX} ${fillBottomY} L ${fillLeftX} ${fillBottomY} Z`}
-                      fill={theme.tintColor || '#73EC8B'}
-                      fillOpacity={0.1}
-                    />
-                  )}
-
-                  {/* Main chart line - sharp and professional */}
-                  <Path
-                    d={chartPathData}
-                    stroke={theme.tintColor || '#73EC8B'}
-                    strokeWidth={2.5}
-                    fill="none"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-
-                  {/* Vertical crosshair line when touching */}
-                  {selectedPoint && (
-                    <Line
-                      x1={selectedPoint.x}
-                      y1={chartPaddingTop}
-                      x2={selectedPoint.x}
-                      y2={chartHeight - chartPaddingBottom}
-                      stroke={theme.tintColor || '#73EC8B'}
-                      strokeWidth={1}
-                      strokeOpacity={0.5}
-                      strokeDasharray="4,4"
-                    />
-                  )}
-
-                  {/* Data point circle when touching */}
-                  {selectedPoint && normalizedPoints[selectedPoint.index] && (
-                    <Circle
-                      cx={selectedPoint.x}
-                      cy={normalizedPoints[selectedPoint.index].y}
-                      r={4}
-                      fill={theme.tintColor || '#73EC8B'}
-                      stroke="#000"
-                      strokeWidth={1}
-                    />
-                  )}
-                  
-                  {/* Show data points for single-day view (single point) */}
-                  {normalizedPoints.length === 1 && normalizedPoints.map((point, index) => (
-                    <Circle
-                      key={index}
-                      cx={point.x}
-                      cy={point.y}
-                      r={5}
-                      fill={theme.tintColor || '#73EC8B'}
-                      stroke="#000"
-                      strokeWidth={2}
-                    />
-                  ))}
-                </Svg>
-
-                {/* Tooltip - positioned at top left of chart */}
-                {selectedPoint && (
-                  <View style={[styles.tooltip, { left: Math.max(0, Math.min(selectedPoint.x - 40, svgWidth - 100)) }]}>
-                    <Text style={styles.tooltipDate}>
-                      {formatDate(selectedPoint.index, chartData.length, selectedPeriod)}
-                    </Text>
-                    <Text style={styles.tooltipPrice}>
-                      R{selectedPoint.value.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
-                    </Text>
+                        style={[
+                          styles.yAxisLabel,
+                          {
+                            position: 'absolute',
+                            top: Number.isFinite(grid.y) ? Math.max(0, grid.y - 6) : 0,
+                          },
+                        ]}
+                      >
+                        R{grid.value.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+                      </Text>
+                    ))}
                   </View>
-                )}
-              </View>
-            </View>
-          </View>
-        ) : (
-          <View style={styles.chartSection}>
-            <View style={styles.emptyChartContainer}>
-              <Ionicons name="trending-up-outline" size={48} color="rgba(255, 255, 255, 0.3)" />
-              <Text style={styles.emptyChartText}>No portfolio data yet</Text>
-              <Text style={styles.emptyChartSubtext}>
-                Add items to your collection to track portfolio growth
-              </Text>
-            </View>
-          </View>
-        )}
 
-        {/* Time Period Filters - Only show if we have historical data (more than just current value) */}
-        {hasData && chartData.length > 7 && (
+                  <View
+                    style={styles.chartSvgContainer}
+                    ref={chartContainerRef}
+                    {...panResponder.panHandlers}
+                  >
+                    <Svg width={svgWidth} height={chartHeight}>
+                      {gridLines.map((grid, index) => {
+                        const isBottomLine = index === 0
+                        return (
+                          <Line
+                            key={index}
+                            x1={chartPaddingLeft}
+                            y1={grid.y}
+                            x2={chartPaddingLeft + graphWidth}
+                            y2={grid.y}
+                            stroke={isBottomLine ? 'rgba(255, 255, 255, 0.22)' : 'rgba(255, 255, 255, 0.1)'}
+                            strokeWidth={1}
+                          />
+                        )
+                      })}
+
+                      {normalizedPoints.length > 0 && (
+                        <Path
+                          d={`${chartPathData} L ${fillRightX} ${fillBottomY} L ${fillLeftX} ${fillBottomY} Z`}
+                          fill={chartAccent}
+                          fillOpacity={0.12}
+                        />
+                      )}
+
+                      <Path
+                        d={chartPathData}
+                        stroke={chartAccent}
+                        strokeWidth={2.5}
+                        fill="none"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+
+                      {selectedPoint && (
+                        <Line
+                          x1={selectedPoint.x}
+                          y1={chartPaddingTop}
+                          x2={selectedPoint.x}
+                          y2={chartHeight - chartPaddingBottom}
+                          stroke={chartAccent}
+                          strokeWidth={1}
+                          strokeOpacity={0.5}
+                          strokeDasharray={[4, 4]}
+                        />
+                      )}
+
+                      {selectedPoint && normalizedPoints[selectedPoint.index] && (
+                        <Circle
+                          cx={selectedPoint.x}
+                          cy={normalizedPoints[selectedPoint.index].y}
+                          r={4}
+                          fill={chartAccent}
+                          stroke="#000"
+                          strokeWidth={1}
+                        />
+                      )}
+
+                      {normalizedPoints.length === 1 &&
+                        normalizedPoints.map((point, index) => (
+                          <Circle
+                            key={index}
+                            cx={point.x}
+                            cy={point.y}
+                            r={5}
+                            fill={chartAccent}
+                            stroke="#000"
+                            strokeWidth={2}
+                          />
+                        ))}
+                    </Svg>
+
+                    {selectedPoint && normalizedPoints[selectedPoint.index] && (
+                      <View
+                        style={[
+                          styles.tooltip,
+                          {
+                            left: Math.max(
+                              4,
+                              Math.min(selectedPoint.x - 44, svgWidth - 92)
+                            ),
+                            top: Math.max(
+                              4,
+                              normalizedPoints[selectedPoint.index].y - 52
+                            ),
+                          },
+                        ]}
+                      >
+                        <Text style={styles.tooltipDate}>
+                          {formatDate(selectedPoint.index, chartData.length, selectedPeriod)}
+                        </Text>
+                        <Text style={[styles.tooltipPrice, { color: chartAccent }]}>
+                          R{selectedPoint.value.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+                        </Text>
+                      </View>
+                    )}
+                  </View>
+                </View>
+              </View>
+            </FocalBrackets>
+          ) : null}
+
+        {hasHistory && chartData.length > 7 && (
           <View style={styles.periodSelectorContainer}>
             <View style={styles.periodSelector}>
               {(['1M', '3M', '6M', '1Y'] as const).map((period) => (
@@ -628,8 +651,8 @@ const getStyles = (theme: any) => StyleSheet.create({
   },
   headerSection: {
     backgroundColor: theme.backgroundColor,
-    paddingTop: SPACING.lg,
-    paddingBottom: SPACING.xl,
+    paddingTop: SPACING.sm,
+    paddingBottom: SPACING.sm,
   },
   headerTop: {
     flexDirection: 'row',
@@ -638,47 +661,39 @@ const getStyles = (theme: any) => StyleSheet.create({
     marginBottom: SPACING.md,
   },
   profilePictureContainer: {
-    marginBottom: SPACING.sm,
+    marginBottom: SPACING.xs,
   },
   profileAndNameRow: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
-    marginBottom: SPACING.md,
-    gap: SPACING.md,
-  },
-  statsSection: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'stretch',
-    width: '100%',
-    borderWidth: 1.5,
-    borderColor: 'rgba(0, 0, 0, 0.3)',
-    borderRadius: RADIUS.md,
-    paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.xs,
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-  },
-  profileStatItem: {
-    flexDirection: 'row',
     alignItems: 'center',
-    flex: 1,
-    justifyContent: 'center',
+    marginBottom: SPACING.xs,
+    gap: SPACING.sm,
   },
-  profileStatNumber: {
-    fontSize: TYPOGRAPHY.h3,
-    fontFamily: theme.boldFont,
+  statsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    gap: SPACING.xs,
+    marginBottom: SPACING.xs,
+  },
+  statInline: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+  },
+  statInlineNum: {
+    fontSize: TYPOGRAPHY.bodySmall,
+    fontFamily: theme.semiBoldFont,
     color: theme.textColor,
-    fontWeight: '700',
+    fontWeight: '600',
   },
-  profileStatLabel: {
-    fontSize: TYPOGRAPHY.caption,
+  statInlineLabel: {
+    fontSize: TYPOGRAPHY.label,
     fontFamily: theme.regularFont,
-    color: 'rgba(255, 255, 255, 0.6)',
+    color: 'rgba(255, 255, 255, 0.5)',
   },
-  statSeparator: {
-    width: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.3)',
-    marginHorizontal: SPACING.xs,
+  statDot: {
+    fontSize: TYPOGRAPHY.label,
+    color: 'rgba(255, 255, 255, 0.25)',
   },
   headerLeft: {
     flex: 1,
@@ -694,57 +709,57 @@ const getStyles = (theme: any) => StyleSheet.create({
     letterSpacing: -0.2,
   },
   premiumBadge: {
-    backgroundColor: theme.buttonBackground || 'rgba(0, 0, 0, 0.8)',
-    paddingHorizontal: SPACING.sm,
-    paddingVertical: SPACING.xs / 2,
-    borderRadius: RADIUS.sm,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    paddingHorizontal: SPACING.pillPaddingH,
+    height: SPACING.pillHeight,
+    borderRadius: RADIUS.full,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.15)',
+    borderColor: 'rgba(255, 255, 255, 0.12)',
+    justifyContent: 'center',
   },
   premiumText: {
     color: theme.textColor,
     fontFamily: theme.semiBoldFont,
-    fontSize: TYPOGRAPHY.caption,
+    fontSize: TYPOGRAPHY.label,
     fontWeight: '600',
-    letterSpacing: 0.3,
+    letterSpacing: 0.2,
   },
   profileIconWrapper: {
     position: 'relative',
-    width: 108,
-    height: 108,
+    width: SPACING.avatarProfile + 4,
+    height: SPACING.avatarProfile + 4,
     justifyContent: 'center',
     alignItems: 'center',
     overflow: 'visible',
-    marginBottom: 4,
   },
   profileIcon: {
-    width: 100,
-    height: 100,
+    width: SPACING.avatarProfile,
+    height: SPACING.avatarProfile,
     borderRadius: RADIUS.full,
-    backgroundColor: theme.textColor,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 2,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
+    borderColor: LISTING_TILE_BORDER,
     position: 'relative',
     overflow: 'hidden',
     zIndex: 2,
   },
   ringOuter: {
     position: 'absolute',
-    width: 108,
-    height: 108,
-    borderRadius: 54,
-    borderWidth: 3,
+    width: SPACING.avatarProfile + 4,
+    height: SPACING.avatarProfile + 4,
+    borderRadius: (SPACING.avatarProfile + 4) / 2,
+    borderWidth: 2,
     opacity: 0.8,
     zIndex: 1,
   },
   ringInner: {
     position: 'absolute',
-    width: 104,
-    height: 104,
-    borderRadius: 52,
-    borderWidth: 2,
+    width: SPACING.avatarProfile + 2,
+    height: SPACING.avatarProfile + 2,
+    borderRadius: (SPACING.avatarProfile + 2) / 2,
+    borderWidth: 1,
     opacity: 0.6,
     zIndex: 1,
   },
@@ -773,30 +788,28 @@ const getStyles = (theme: any) => StyleSheet.create({
   },
   trustedBadgeAnchor: {
     position: 'absolute',
-    bottom: -2,
+    bottom: -4,
     left: 0,
     right: 0,
     alignItems: 'center',
     zIndex: 4,
   },
   progressContainer: {
-    marginBottom: SPACING.md,
+    marginBottom: SPACING.xs,
     marginTop: SPACING.xs,
   },
   levelBadgesRow: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
     alignItems: 'center',
-    marginBottom: SPACING.sm,
+    marginBottom: SPACING.xs,
     width: '100%',
   },
   levelBadge: {
-    backgroundColor: theme.tintColor || '#73EC8B',
-    paddingHorizontal: 10,
-    paddingVertical: 0,
-    height: 22,
-    borderRadius: RADIUS.sm,
-    marginTop: 0,
+    backgroundColor: theme.buttonFilledBg || '#FFFFFF',
+    paddingHorizontal: SPACING.pillPaddingH,
+    height: SPACING.pillHeight,
+    borderRadius: RADIUS.full,
     alignSelf: 'flex-start',
     justifyContent: 'center',
     alignItems: 'center',
@@ -804,12 +817,12 @@ const getStyles = (theme: any) => StyleSheet.create({
   nextLevelBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    paddingHorizontal: SPACING.sm,
-    paddingVertical: SPACING.xs / 2,
-    borderRadius: RADIUS.sm,
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+    paddingHorizontal: SPACING.pillPaddingH,
+    height: SPACING.pillHeight,
+    borderRadius: RADIUS.full,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.15)',
+    borderColor: 'rgba(255, 255, 255, 0.12)',
   },
   rewardIcon: {
     marginRight: 4,
@@ -820,61 +833,69 @@ const getStyles = (theme: any) => StyleSheet.create({
     fontWeight: '600',
   },
   levelText: {
-    fontSize: 12,
-    lineHeight: Platform.OS === 'android' ? 16 : 14,
+    fontSize: TYPOGRAPHY.label,
+    lineHeight: compactLevelLineHeight,
     fontFamily: theme.boldFont,
-    color: '#000000',
-    ...(Platform.OS === 'android'
-      ? { includeFontPadding: false, textAlignVertical: 'center' as const }
-      : {}),
+    color: theme.buttonFilledFg || '#000000',
+    ...androidLabelStyle,
   },
   portfolioValueSection: {
-    marginBottom: SPACING.md,
-    paddingBottom: SPACING.md,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255, 255, 255, 0.08)',
+    marginTop: SPACING.xs,
+    marginBottom: 0,
+    paddingBottom: 0,
+  },
+  chartFocalFrame: {
+    width: '100%',
+    marginTop: SPACING.sm,
+    padding: SPACING.xs,
+    overflow: 'visible',
   },
   portfolioValueRow: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: SPACING.sm,
-    marginTop: SPACING.xs / 2,
+    alignItems: 'baseline',
+    flexWrap: 'wrap',
+    gap: SPACING.xs,
+    marginTop: 0,
   },
   portfolioLabel: {
-    fontSize: TYPOGRAPHY.h2,
-    fontFamily: theme.boldFont,
-    color: theme.textColor,
-    marginBottom: SPACING.sm,
-    fontWeight: '600',
-    letterSpacing: -0.3,
+    fontSize: TYPOGRAPHY.caption,
+    fontFamily: theme.regularFont,
+    color: 'rgba(255, 255, 255, 0.55)',
+    marginBottom: 0,
+    fontWeight: '500',
+    letterSpacing: 0.2,
+    lineHeight: TYPOGRAPHY.caption * 1.2,
   },
   portfolioValue: {
-    fontSize: TYPOGRAPHY.h1 * 1.5,
+    fontSize: TYPOGRAPHY.h4,
     fontFamily: theme.boldFont,
-    color: theme.tintColor || '#73EC8B',
+    color: theme.textColor,
     fontWeight: '700',
-    letterSpacing: -0.5,
+    letterSpacing: -0.2,
+    lineHeight: TYPOGRAPHY.h4 * 1.05,
+    marginTop: 0,
   },
   periodSelectorContainer: {
     width: '100%',
-    marginBottom: SPACING.lg,
-    marginTop: -SPACING['2xl'],
+    marginBottom: SPACING.xs,
+    marginTop: SPACING.xs,
     alignItems: 'center',
   },
   periodSelector: {
     flexDirection: 'row',
     backgroundColor: 'rgba(255, 255, 255, 0.04)',
-    borderRadius: RADIUS.md,
-    padding: 3,
+    borderRadius: RADIUS.full,
+    padding: 2,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.08)',
-    gap: 4,
+    gap: 2,
   },
   periodOption: {
-    paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.xs,
-    borderRadius: RADIUS.sm,
-    minWidth: 50,
+    paddingHorizontal: SPACING.sm,
+    paddingVertical: 2,
+    borderRadius: RADIUS.full,
+    minWidth: 36,
+    height: SPACING.pillHeight,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -882,9 +903,9 @@ const getStyles = (theme: any) => StyleSheet.create({
     backgroundColor: theme.textColor,
   },
   periodOptionText: {
-    fontSize: TYPOGRAPHY.caption,
+    fontSize: TYPOGRAPHY.label,
     fontFamily: theme.semiBoldFont,
-    color: 'rgba(255, 255, 255, 0.6)',
+    color: 'rgba(255, 255, 255, 0.55)',
     fontWeight: '600',
   },
   periodOptionTextActive: {
@@ -892,9 +913,11 @@ const getStyles = (theme: any) => StyleSheet.create({
   },
   chartSection: {
     width: '100%',
+    marginTop: 0,
     marginBottom: 0,
-    paddingVertical: SPACING.sm,
+    paddingTop: SPACING.xs,
     paddingBottom: 0,
+    overflow: 'visible',
   },
   chartWrapper: {
     flexDirection: 'row',
@@ -919,13 +942,12 @@ const getStyles = (theme: any) => StyleSheet.create({
   chartSvgContainer: {
     flex: 1,
     height: 200,
-    // Prevent chart (and its tooltips) from overflowing off the right edge of the screen
-    overflow: 'hidden',
+    overflow: 'visible',
     position: 'relative',
   },
   tooltip: {
     position: 'absolute',
-    top: -10,
+    zIndex: 10,
     backgroundColor: 'rgba(0, 0, 0, 0.85)',
     paddingHorizontal: SPACING.sm,
     paddingVertical: SPACING.xs / 2,
@@ -972,42 +994,11 @@ const getStyles = (theme: any) => StyleSheet.create({
   changeTextNegative: {
     color: '#EF4444',
   },
-  statsPillContainer: {
-    borderWidth: 1.5,
-    borderColor: 'rgba(0, 0, 0, 0.3)',
-    borderRadius: RADIUS.full,
-    paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.xs,
-    marginBottom: SPACING.md,
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-  },
-  statsGrid: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  statItem: {
-    alignItems: 'center',
-    flex: 1,
-  },
-  statValue: {
-    fontSize: TYPOGRAPHY.body,
-    fontFamily: theme.boldFont,
-    color: theme.textColor,
-    fontWeight: '600',
-    marginBottom: 2,
-    letterSpacing: -0.2,
-  },
-  statLabel: {
-    fontSize: 10,
-    fontFamily: theme.regularFont,
-    color: 'rgba(255, 255, 255, 0.5)',
-    letterSpacing: 0.2,
-  },
   userNameContainer: {
     flex: 1,
-    minHeight: 108,
     justifyContent: 'center',
     gap: 2,
+    minWidth: 0,
   },
   userNameRow: {
     flexDirection: 'row',
@@ -1016,12 +1007,12 @@ const getStyles = (theme: any) => StyleSheet.create({
     flexShrink: 1,
   },
   userNameLarge: {
-    fontSize: TYPOGRAPHY.h1 * 1.2,
+    fontSize: TYPOGRAPHY.h3,
     fontFamily: theme.boldFont,
     color: theme.textColor,
-    letterSpacing: -0.3,
-    lineHeight: Math.round(TYPOGRAPHY.h1 * 1.2),
-    ...(Platform.OS === 'android' ? { includeFontPadding: false } : {}),
+    letterSpacing: -0.2,
+    lineHeight: Math.round(TYPOGRAPHY.h3 * 1.1),
+    ...androidLabelStyle,
   },
   emptyChartContainer: {
     padding: SPACING['2xl'],

@@ -18,6 +18,7 @@ import { Text } from '../components/ui/text'
 import { Card, CardContent } from '../components/ui/card'
 import { SPACING, TYPOGRAPHY, RADIUS } from '../constants/layout'
 import { DOMAIN } from '../../constants'
+import { AppButton } from '../components/ui/AppButton'
 
 type MarketSet = {
   id: number
@@ -182,15 +183,13 @@ export function Market() {
 
       {loading && sets.length === 0 ? (
         <View style={styles.centered}>
-          <ActivityIndicator size="large" color={theme.tintColor || '#73EC8B'} />
+          <ActivityIndicator size="large" color={theme.textColor} />
         </View>
       ) : error && sets.length === 0 ? (
         <View style={styles.centered}>
           <Ionicons name="cloud-offline-outline" size={40} color="rgba(255,255,255,0.35)" />
           <Text style={styles.errorText}>{error}</Text>
-          <TouchableOpacity style={styles.retryBtn} onPress={() => fetchSets()}>
-            <Text style={styles.retryText}>Try again</Text>
-          </TouchableOpacity>
+          <AppButton variant="outline" size="sm" label="Try again" onPress={() => fetchSets()} />
         </View>
       ) : (
         <FlatList
@@ -199,9 +198,10 @@ export function Market() {
           renderItem={renderItem}
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
-          refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.tintColor} />
+            refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.textColor} />
           }
+          ItemSeparatorComponent={() => <View style={{ height: SPACING.stackGap }} />}
           ListEmptyComponent={
             !loading ? <Text style={styles.emptyText}>No sets match your search.</Text> : null
           }
@@ -260,8 +260,8 @@ const getStyles = (theme: {
     listContent: {
       paddingHorizontal: SPACING.containerPadding,
       paddingTop: SPACING.md,
-      paddingBottom: SPACING['4xl'],
-      gap: SPACING.sm,
+      paddingBottom: SPACING.screenBottom,
+      gap: SPACING.stackGap,
     },
     setCard: {
       backgroundColor: theme.cardBackground || '#000000',
@@ -273,21 +273,21 @@ const getStyles = (theme: {
       opacity: 0.55,
     },
     setCardContent: {
-      paddingVertical: SPACING.md,
-      paddingHorizontal: SPACING.md,
+      paddingVertical: SPACING.xs,
+      paddingHorizontal: SPACING.xs,
     },
     setRow: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: SPACING.md,
+      gap: SPACING.sm,
     },
     rowPressed: {
       opacity: 0.85,
     },
     setIconWrap: {
-      width: 40,
-      height: 40,
-      borderRadius: RADIUS.md,
+      width: 32,
+      height: 32,
+      borderRadius: RADIUS.sm,
       backgroundColor: 'rgba(255, 255, 255, 0.06)',
       alignItems: 'center',
       justifyContent: 'center',
@@ -297,10 +297,10 @@ const getStyles = (theme: {
       minWidth: 0,
     },
     setName: {
-      fontSize: TYPOGRAPHY.h4,
+      fontSize: TYPOGRAPHY.bodySmall,
       fontWeight: '600',
       color: theme.textColor || '#fff',
-      marginBottom: 2,
+      marginBottom: 0,
     },
     setMeta: {
       fontSize: TYPOGRAPHY.caption,
@@ -316,13 +316,13 @@ const getStyles = (theme: {
       paddingHorizontal: SPACING.sm,
       paddingVertical: 4,
       borderRadius: RADIUS.full,
-      backgroundColor: 'rgba(115, 236, 139, 0.15)',
+      backgroundColor: 'rgba(255, 255, 255, 0.1)',
       alignItems: 'center',
     },
     countPillText: {
       fontSize: TYPOGRAPHY.bodySmall,
       fontWeight: '700',
-      color: theme.tintColor || '#73EC8B',
+      color: theme.textColor,
     },
     soonLabel: {
       fontSize: TYPOGRAPHY.caption,
@@ -338,18 +338,6 @@ const getStyles = (theme: {
     errorText: {
       color: 'rgba(255,255,255,0.65)',
       textAlign: 'center',
-      fontSize: TYPOGRAPHY.body,
-    },
-    retryBtn: {
-      marginTop: SPACING.sm,
-      paddingHorizontal: SPACING.xl,
-      paddingVertical: SPACING.sm,
-      borderRadius: RADIUS.full,
-      backgroundColor: theme.tintColor || '#73EC8B',
-    },
-    retryText: {
-      color: '#000',
-      fontWeight: '600',
       fontSize: TYPOGRAPHY.body,
     },
     emptyText: {

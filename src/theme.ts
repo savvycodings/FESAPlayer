@@ -9,6 +9,23 @@ const colors = {
   lightPink: '#F7B5CD'
 }
 
+/** Global CTA tokens — filled white / outline white on dark surfaces */
+const darkButtonTokens = {
+  buttonFilledBg: colors.white,
+  buttonFilledFg: colors.black,
+  buttonOutlineBorder: 'rgba(255, 255, 255, 0.85)',
+  buttonOutlineFg: colors.white,
+  priceAccent: colors.white,
+}
+
+const lightButtonTokens = {
+  buttonFilledBg: colors.black,
+  buttonFilledFg: colors.white,
+  buttonOutlineBorder: 'rgba(0, 0, 0, 0.35)',
+  buttonOutlineFg: colors.black,
+  priceAccent: colors.black,
+}
+
 // Paragraph/body font: Google Sans (replaces Courier family)
 const fonts = {
   ultraLightFont: 'GoogleSans_400Regular',
@@ -24,12 +41,14 @@ const fonts = {
 
 const lightTheme = {
   ...fonts,
+  ...lightButtonTokens,
   name: 'Light',
   label: 'light',
   textColor: colors.black,
   secondaryTextColor: colors.white,
   mutedForegroundColor: colors.gray,
   backgroundColor: colors.white,
+  cardBackground: '#000000',
   placeholderTextColor: colors.gray,
   secondaryBackgroundColor: colors.black,
   borderColor: 'rgba(0, 0, 0, .15)',
@@ -41,6 +60,7 @@ const lightTheme = {
 
 const darkTheme = {
   ...fonts,
+  ...darkButtonTokens,
   name: 'Dark',
   label: 'dark',
   textColor: colors.white,

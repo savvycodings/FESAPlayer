@@ -6,11 +6,13 @@ import { Text } from '../components/ui/text'
 import { ThemedText } from '../components/ui/ThemedText'
 import { ThemeContext } from '../context'
 import { SPACING, TYPOGRAPHY, RADIUS } from '../constants/layout'
+import { isAndroid } from '../utils/platformHelpers'
 import Ionicons from '@expo/vector-icons/Ionicons'
 import { ProfileHeader, ProductGrid, ListItemModal, AddCardModal, BulkVaultingModal } from '../components/profile'
 import { PayFastPayment } from '../components/payment'
 import { SkeletonBox } from '../components/layout/SkeletonBox'
 import { Section } from '../components/layout/Section'
+import { AppButton } from '../components/ui/AppButton'
 import { DOMAIN } from '../../constants'
 import { CARD_PLACEHOLDER_IMAGE } from '../constants/cardPlaceholder'
 import * as ImagePicker from 'expo-image-picker'
@@ -142,18 +144,7 @@ export function Profile() {
         }))
         setSetDistribution(distribution)
 
-        // Portfolio graph data - show current portfolio value if available
-        // For single-day view, show just one point representing today
-        if (data.portfolioValue > 0) {
-          // Show current value as a single point (today only)
-          // When historical data is added, this will expand to show trends
-          setPortfolioData([
-            { x: 0, y: data.portfolioValue },
-          ])
-        } else {
-          // No portfolio value - empty array (will show empty state)
-          setPortfolioData([])
-        }
+        // Portfolio chart history comes from fetchPortfolioHistory only
       } else {
         console.error('Error fetching collections:', data.message)
         // Set defaults on error
@@ -194,7 +185,6 @@ export function Profile() {
       }
       const history = data.history as { date?: string; totalMarketPriceUsd?: number | null }[]
       if (history.length === 0) {
-        setPortfolioData([])
         return
       }
       const points = history.map((h, index) => {
@@ -310,7 +300,8 @@ export function Profile() {
     cardImage?: any,
     cardId?: string,
     collectionId?: number,
-    listingPhotos?: { front: string; back: string; close: string }
+    listingPhotos?: { front: string; back: string; close: string },
+    quantity?: number
   ) => {
     try {
       const session = await authClient.getSession()
@@ -377,6 +368,7 @@ export function Profile() {
           ...(imageCloseUrl && { cardImageClose: imageCloseUrl }),
           ...(cardId && { cardId }),
           ...(collectionId != null && { collectionId }),
+          quantity: quantity != null && quantity > 0 ? Math.floor(quantity) : 1,
         }),
       })
 
@@ -543,8 +535,36 @@ export function Profile() {
       ? Math.round(primaryUsd * USD_TO_ZAR)
       : parseFloat(collection.estimatedValue || collection.purchasePrice || '0') || 0
     const ebayZar = ebayNum != null ? Math.round(ebayNum * USD_TO_ZAR) : null
-    const priceStr = valueZar > 0 ? `R${valueZar.toLocaleString('en-ZA')}` : 'R0'
-    console.log('[Profile] product price —', collection.name, '| marketPrice (USD):', marketNum, '| ebayLastSold (USD):', ebayNum, '| valueZar:', valueZar, '| priceStr:', priceStr)
+    const priceStr =
+      valueZar > 0 ? `R${valueZar.toLocaleString('en-ZA')} ZAR` : 'R0'
+    let priceChangeZar: number | null = null
+    let priceChangePercent: number | null = null
+    if (
+      valueZar > 0 &&
+      ebayZar != null &&
+      ebayZar > 0 &&
+      valueZar !== ebayZar
+    ) {
+      priceChangeZar = valueZar - ebayZar
+      priceChangePercent = (priceChangeZar / ebayZar) * 100
+    }
+    const setLabel = collection.set?.trim() || undefined
+    const cardNum = collection.cardNumber ?? collection.number
+    const cardNumberLabel =
+      cardNum != null && String(cardNum).trim() !== '' ? String(cardNum).trim() : undefined
+    const metaParts: string[] = []
+    if (collection.type === 'slab' && collection.grade != null) {
+      metaParts.push(`PSA ${collection.grade}`)
+    } else if (collection.type && collection.type !== 'card') {
+      metaParts.push(collection.type.charAt(0).toUpperCase() + collection.type.slice(1))
+    }
+    const metaLine = metaParts.length > 0 ? metaParts.join(' • ') : undefined
+    const finishLabel =
+      collection.type === 'slab'
+        ? 'Slab'
+        : collection.type === 'sealed'
+          ? 'Sealed'
+          : undefined
     // Same logic for every card: prefer server cardImageUrl (API or cached), then built URL only when set is on CDN, then cardId-based URL.
     const cardImageUrl = collection.cardImageUrl ?? null
     const setForBuild = collection.set ?? collection.setId ?? collection.set_id
@@ -569,6 +589,14 @@ export function Profile() {
       cardId: collection.cardId ?? undefined,
       set: collection.set ?? undefined,
       marketPriceUsd: primaryUsd ?? undefined,
+      setName: setLabel,
+      cardNumber: cardNumberLabel,
+      metaLine,
+      condition: collection.condition ?? undefined,
+      finishLabel,
+      quantity: 1,
+      priceChangeZar,
+      priceChangePercent,
     }
   })
 
@@ -594,7 +622,7 @@ export function Profile() {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            tintColor={theme.tintColor || '#73EC8B'}
+            tintColor={theme.textColor}
           />
         }
       >
@@ -655,26 +683,20 @@ export function Profile() {
               <ThemedText style={styles.sectionTitle}>Your Products</ThemedText>
             </View>
             <View style={styles.sectionHeaderActions}>
-              <TouchableOpacity
-                style={styles.actionButton}
+              <AppButton
+                variant="accent"
+                size="sm"
+                icon="add"
+                label="Add Card"
                 onPress={() => setIsAddCardModalVisible(true)}
-                activeOpacity={0.7}
-              >
-                <View style={styles.actionButtonIcon}>
-                  <Ionicons name="add" size={16} color={theme.tintColor || '#73EC8B'} />
-                </View>
-                <ThemedText style={styles.actionButtonText}>Add Card</ThemedText>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.actionButton}
+              />
+              <AppButton
+                variant="outline"
+                size="sm"
+                icon="lock-closed-outline"
+                label="Verify"
                 onPress={() => setIsBulkVaultingModalVisible(true)}
-                activeOpacity={0.7}
-              >
-                <View style={styles.actionButtonIcon}>
-                  <Ionicons name="lock-closed-outline" size={16} color={theme.tintColor || '#73EC8B'} />
-                </View>
-                <ThemedText style={styles.actionButtonText}>Verify</ThemedText>
-              </TouchableOpacity>
+              />
             </View>
           </View>
 
@@ -682,7 +704,7 @@ export function Profile() {
             {loading ? (
               <>
                 <View style={styles.skeletonLoadingLabel}>
-                  <ActivityIndicator size="small" color={theme.tintColor || '#73EC8B'} />
+                  <ActivityIndicator size="small" color={theme.textColor} />
                   <Text style={styles.skeletonLoadingText}>Loading your collection…</Text>
                 </View>
                 <View style={styles.statsPillContainer}>
@@ -698,7 +720,7 @@ export function Profile() {
                 <View style={styles.skeletonCardsRow}>
                   {[1, 2, 3].map((i) => (
                     <View key={i} style={styles.skeletonCard}>
-                      <SkeletonBox width="100%" height={120} borderRadius={RADIUS.md} style={{ marginBottom: SPACING.sm }} />
+                      <SkeletonBox width="100%" height={96} borderRadius={RADIUS.md} style={{ marginBottom: SPACING.xs }} />
                       <SkeletonBox width={60} height={14} borderRadius={4} style={{ marginBottom: 4 }} />
                       <SkeletonBox width="90%" height={12} borderRadius={4} />
                     </View>
@@ -708,27 +730,25 @@ export function Profile() {
             ) : (
               <>
                 <View style={styles.statsPillContainer}>
-                  <View style={styles.statsGrid}>
-                    <View style={styles.statItem}>
-                      <Text style={styles.statValue}>{stats.cards}</Text>
-                      <Text style={styles.statLabel}>Cards</Text>
-                    </View>
-                    <View style={styles.statSeparator} />
-                    <View style={styles.statItem}>
-                      <Text style={styles.statValue}>{stats.sealed}</Text>
-                      <Text style={styles.statLabel}>Sealed</Text>
-                    </View>
-                    <View style={styles.statSeparator} />
-                    <View style={styles.statItem}>
-                      <Text style={styles.statValue}>{stats.slabs}</Text>
-                      <Text style={styles.statLabel}>Slabs</Text>
-                    </View>
-                    <View style={styles.statSeparator} />
-                    <View style={styles.statItem}>
-                      <Text style={styles.statValue}>{stats.total}</Text>
-                      <Text style={styles.statLabel}>Total</Text>
-                    </View>
-                  </View>
+                  <Text style={styles.statInline}>
+                    <Text style={styles.statInlineNum}>{stats.cards}</Text>
+                    <Text style={styles.statInlineLabel}> Cards</Text>
+                  </Text>
+                  <Text style={styles.statDot}>·</Text>
+                  <Text style={styles.statInline}>
+                    <Text style={styles.statInlineNum}>{stats.sealed}</Text>
+                    <Text style={styles.statInlineLabel}> Sealed</Text>
+                  </Text>
+                  <Text style={styles.statDot}>·</Text>
+                  <Text style={styles.statInline}>
+                    <Text style={styles.statInlineNum}>{stats.slabs}</Text>
+                    <Text style={styles.statInlineLabel}> Slabs</Text>
+                  </Text>
+                  <Text style={styles.statDot}>·</Text>
+                  <Text style={styles.statInline}>
+                    <Text style={styles.statInlineNum}>{stats.total}</Text>
+                    <Text style={styles.statInlineLabel}> Total</Text>
+                  </Text>
                 </View>
                 {products.length > 0 ? (
               <ProductGrid
@@ -746,7 +766,7 @@ export function Profile() {
                       category: 'product',
                       price: price,
                       ebayPrice: ebayPrice != null ? ebayPrice : undefined,
-                      description: `Premium ${product.name}. Authentic and verified with secure shipping.`,
+                      description: product.name,
                       set: set,
                       fromProfile: true,
                     })
@@ -796,12 +816,20 @@ export function Profile() {
             setIsListItemModalVisible(false)
             setSelectedProduct(null)
           }}
-          onList={async (price, listingImageUri, listingPhotos) => {
+          onList={async (price, listingImageUri, listingPhotos, quantity) => {
             if (!listingImageUri || !listingPhotos) {
               Alert.alert('Photos required', 'Please add all 3 photos (front, back, up close) to list your card.')
               return
             }
-            await createListing(selectedProduct.name, price, { uri: listingImageUri }, selectedProduct.cardId, selectedProduct.id, listingPhotos)
+            await createListing(
+              selectedProduct.name,
+              price,
+              { uri: listingImageUri },
+              selectedProduct.cardId,
+              selectedProduct.id,
+              listingPhotos,
+              quantity
+            )
             setIsListItemModalVisible(false)
             setSelectedProduct(null)
           }}
@@ -899,7 +927,7 @@ const getStyles = (theme: any) => StyleSheet.create({
   },
   settingsButton: {
     position: 'absolute',
-    top: SPACING.lg,
+    top: SPACING.md,
     right: SPACING.containerPadding,
     width: 32,
     height: 32,
@@ -909,23 +937,41 @@ const getStyles = (theme: any) => StyleSheet.create({
     zIndex: 1,
   },
   scrollContentContainer: {
-    paddingBottom: SPACING['4xl'],
+    paddingBottom: SPACING.screenBottom,
   },
   contentWrapper: {
     backgroundColor: theme.backgroundColor,
     paddingHorizontal: SPACING.containerPadding,
+    marginTop: SPACING.xs,
   },
   productsBlock: {
-    marginTop: SPACING.sm,
+    marginTop: 0,
   },
   statsPillContainer: {
-    borderWidth: 1.5,
-    borderColor: 'rgba(0, 0, 0, 0.3)',
-    borderRadius: RADIUS.full,
-    paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.xs,
-    marginBottom: SPACING.md,
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    gap: SPACING.xs,
+    marginBottom: SPACING.sm,
+  },
+  statInline: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+  },
+  statInlineNum: {
+    fontSize: TYPOGRAPHY.bodySmall,
+    fontFamily: theme.semiBoldFont,
+    color: theme.textColor,
+    fontWeight: '600',
+  },
+  statInlineLabel: {
+    fontSize: TYPOGRAPHY.label,
+    fontFamily: theme.regularFont,
+    color: 'rgba(255, 255, 255, 0.5)',
+  },
+  statDot: {
+    fontSize: TYPOGRAPHY.label,
+    color: 'rgba(255, 255, 255, 0.25)',
   },
   placeholderContainer: {
     padding: SPACING['2xl'],
@@ -953,18 +999,15 @@ const getStyles = (theme: any) => StyleSheet.create({
     marginHorizontal: SPACING.xs,
   },
   statValue: {
-    fontSize: TYPOGRAPHY.body,
-    fontFamily: theme.boldFont,
+    fontSize: TYPOGRAPHY.bodySmall,
+    fontFamily: theme.semiBoldFont,
     color: theme.textColor,
     fontWeight: '600',
-    marginBottom: 2,
-    letterSpacing: -0.2,
   },
   statLabel: {
-    fontSize: 10,
+    fontSize: TYPOGRAPHY.label,
     fontFamily: theme.regularFont,
     color: 'rgba(255, 255, 255, 0.5)',
-    letterSpacing: 0.2,
   },
   skeletonCardsRow: {
     flexDirection: 'row',
@@ -987,7 +1030,7 @@ const getStyles = (theme: any) => StyleSheet.create({
     color: theme.mutedForegroundColor || 'rgba(255, 255, 255, 0.5)',
   },
   emptyContainer: {
-    padding: SPACING['2xl'],
+    padding: SPACING.lg,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -1000,58 +1043,31 @@ const getStyles = (theme: any) => StyleSheet.create({
   },
   sectionHeader: {
     flexDirection: 'row',
+    flexWrap: 'nowrap',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: SPACING.sm,
+    marginBottom: SPACING.xs,
     marginTop: 0,
-    gap: SPACING.md,
+    gap: SPACING.sm,
   },
   sectionHeaderLeft: {
     flex: 1,
     minWidth: 0,
   },
   sectionTitle: {
-    fontSize: TYPOGRAPHY.h2,
-    lineHeight: Math.round(TYPOGRAPHY.h2 * 1.2),
+    fontSize: TYPOGRAPHY.h4,
+    lineHeight: Math.round(TYPOGRAPHY.h4 * 1.15),
     fontFamily: theme.boldFont,
     color: theme.textColor,
-    letterSpacing: 0.15,
-    ...(Platform.OS === 'android' ? { includeFontPadding: false } : {}),
+    letterSpacing: 0.1,
+    ...(isAndroid ? { includeFontPadding: false } : {}),
   },
   sectionHeaderActions: {
     flexDirection: 'row',
+    flexWrap: 'nowrap',
     alignItems: 'center',
     gap: SPACING.sm,
     flexShrink: 0,
-  },
-  actionButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    height: 32,
-    paddingHorizontal: SPACING.md,
-    paddingVertical: 0,
-    borderRadius: RADIUS.md,
-    backgroundColor: 'rgba(115, 236, 139, 0.1)',
-    borderWidth: 1,
-    borderColor: theme.tintColor || '#73EC8B',
-    flexShrink: 0,
-    gap: 6,
-  },
-  actionButtonIcon: {
-    width: 16,
-    height: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  actionButtonText: {
-    fontSize: TYPOGRAPHY.bodySmall,
-    lineHeight: Platform.OS === 'android' ? 16 : 15,
-    fontFamily: theme.semiBoldFont,
-    color: theme.tintColor || '#73EC8B',
-    ...(Platform.OS === 'android'
-      ? { includeFontPadding: false, textAlignVertical: 'center' as const }
-      : {}),
   },
   seeAllText: {
     fontSize: TYPOGRAPHY.bodySmall,

@@ -13,12 +13,22 @@ export const SPACING = {
   '3xl': 32,
   '4xl': 40,
   
-  // Semantic spacing
-  sectionGap: 24,        // Space between major sections
-  sectionTitleBottom: 12, // Space below section titles
-  cardPadding: 16,       // Padding inside cards
-  containerPadding: 16,   // Horizontal padding for containers
-  headerPadding: 12,     // Vertical padding for headers
+  // Semantic spacing (info-dense screens)
+  sectionGap: 10,        // Space between major sections
+  sectionTitleBottom: 4, // Space below section titles
+  cardPadding: 8,        // Padding inside cards
+  containerPadding: 12,  // Horizontal padding for containers
+  headerPadding: 8,      // Vertical padding for headers
+  stackGap: 6,           // Vertical stacks (label → value)
+  inlineGap: 4,          // Icon + label in buttons
+  gridRowGap: 8,         // Card grid rows
+  gridColumnGap: 6,      // Card grid columns
+  screenBottom: 16,      // ScrollView content bottom inset
+
+  // Compact UI (pills, inline stats, profile chrome)
+  pillHeight: 18,
+  pillPaddingH: 6,
+  avatarProfile: 72,
 } as const
 
 /**
@@ -52,6 +62,37 @@ export const RADIUS = {
   lg: 16,
   xl: 20,
   full: 9999,
+} as const
+
+/** Listing tiles on dark screens — visible stroke around card */
+export const LISTING_TILE_BORDER = 'rgba(255, 255, 255, 0.22)'
+
+/** Profile portfolio chart line / focal accent (green) */
+export const PROFILE_CHART_ACCENT = '#73EC8B'
+
+/** Profile “Add Card” CTA — green fill + visible stroke, light label for contrast */
+export const BUTTON_ACCENT = {
+  background: PROFILE_CHART_ACCENT,
+  /** Outer stroke ring (solid so it shows on Android + light/dark backgrounds) */
+  border: '#FFFFFF',
+  borderWidth: 2,
+  foreground: '#FFFFFF',
+} as const
+
+/**
+ * Fixed colors for black listing/product tiles (do not follow light-theme text/button tokens).
+ */
+export const CARD_SURFACE = {
+  background: '#000000',
+  border: LISTING_TILE_BORDER,
+  textPrimary: '#FFFFFF',
+  textSecondary: 'rgba(255, 255, 255, 0.88)',
+  textMuted: 'rgba(255, 255, 255, 0.45)',
+  price: '#FFFFFF',
+  buttonFilledBg: '#FFFFFF',
+  buttonFilledFg: '#000000',
+  buttonOutlineBorder: 'rgba(255, 255, 255, 0.85)',
+  buttonOutlineFg: '#FFFFFF',
 } as const
 
 /**

@@ -5,7 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Text } from '../ui/text'
 import Ionicons from '@expo/vector-icons/Ionicons'
 import { ThemeContext } from '../../context'
-import { SPACING, TYPOGRAPHY, RADIUS } from '../../constants/layout'
+import { SPACING, TYPOGRAPHY, RADIUS, BUTTON_ACCENT } from '../../constants/layout'
 import * as ImagePicker from 'expo-image-picker'
 import * as FileSystem from 'expo-file-system'
 import { getPokemonTcgImageUrlFromSetNumber, getPokemonTcgImageUrlFromSetNumberIfOnCdn } from '../../utils/pokemonTcgImages'
@@ -801,20 +801,28 @@ export function AddCardModal({
         )}
 
         <View style={[styles.actions, { paddingBottom: Math.max(insets.bottom, SPACING.md) }]}>
-          <TouchableOpacity
-            style={[styles.button, styles.buttonPrimary, (!isValid() || isUploading) && styles.buttonDisabled]}
-            onPress={handleAdd}
-            disabled={!isValid() || isUploading}
+          <View
+            style={[
+              styles.buttonAccentStroke,
+              (!isValid() || isUploading) && styles.buttonDisabled,
+            ]}
           >
-            {isUploading ? (
-              <View style={styles.loadingContainer}>
-                <ActivityIndicator size="small" color="#000" />
-                <Text style={[styles.buttonTextPrimary, { marginLeft: SPACING.xs }]}>Uploading...</Text>
-              </View>
-            ) : (
-              <Text style={styles.buttonTextPrimary}>Add Card</Text>
-            )}
-          </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.button, styles.buttonPrimary, (!isValid() || isUploading) && styles.buttonDisabled]}
+              onPress={handleAdd}
+              disabled={!isValid() || isUploading}
+              activeOpacity={0.85}
+            >
+              {isUploading ? (
+                <View style={styles.loadingContainer}>
+                  <ActivityIndicator size="small" color={BUTTON_ACCENT.foreground} />
+                  <Text style={[styles.buttonTextPrimary, { marginLeft: SPACING.xs }]}>Uploading...</Text>
+                </View>
+              ) : (
+                <Text style={styles.buttonTextPrimary}>Add Card</Text>
+              )}
+            </TouchableOpacity>
+          </View>
         </View>
       </View>
     </Modal>
@@ -1223,8 +1231,16 @@ const getStyles = (theme: any) => StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.1)',
   },
+  buttonAccentStroke: {
+    width: '100%',
+    borderRadius: RADIUS.md,
+    borderWidth: BUTTON_ACCENT.borderWidth,
+    borderColor: BUTTON_ACCENT.border,
+    overflow: 'hidden',
+  },
   buttonPrimary: {
-    backgroundColor: theme.tintColor || '#73EC8B',
+    backgroundColor: BUTTON_ACCENT.background,
+    borderWidth: 0,
   },
   buttonDisabled: {
     opacity: 0.5,
@@ -1238,7 +1254,7 @@ const getStyles = (theme: any) => StyleSheet.create({
   buttonTextPrimary: {
     fontSize: TYPOGRAPHY.body,
     fontFamily: theme.semiBoldFont,
-    color: '#000',
+    color: BUTTON_ACCENT.foreground,
     fontWeight: '600',
   },
   vaultingOption: {

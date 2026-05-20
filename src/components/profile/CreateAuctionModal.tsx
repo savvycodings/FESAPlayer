@@ -1,9 +1,10 @@
 import { useState, useContext } from 'react'
-import { View, StyleSheet, Modal, TouchableOpacity, TextInput } from 'react-native'
+import { View, StyleSheet, Modal, TouchableOpacity, TextInput, Platform } from 'react-native'
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller'
 import { Text } from '../ui/text'
 import Ionicons from '@expo/vector-icons/Ionicons'
 import { ThemeContext } from '../../context'
+import { AppButton } from '../ui/AppButton'
 import { SPACING, TYPOGRAPHY, RADIUS } from '../../constants/layout'
 import DateTimePicker from '@react-native-community/datetimepicker'
 
@@ -293,23 +294,22 @@ export function CreateAuctionModal({
           </KeyboardAwareScrollView>
 
           <View style={styles.modalActions}>
-            <TouchableOpacity
-              style={[styles.cancelButton, { borderColor: theme.borderColor }]}
+            <AppButton
+              variant="outline"
+              size="md"
+              icon="close-outline"
+              label="Cancel"
               onPress={handleClose}
-              activeOpacity={0.7}
-            >
-              <Text style={styles.cancelButtonText}>Cancel</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.createButton, { backgroundColor: theme.tintColor || '#73EC8B' }]}
+              style={styles.modalActionButton}
+            />
+            <AppButton
+              variant="filled"
+              size="md"
+              icon="gift-outline"
+              label="Create Auction"
               onPress={handleCreate}
-              activeOpacity={0.7}
-            >
-              <Ionicons name="gift-outline" size={18} color={theme.tintTextColor || '#000000'} />
-              <Text style={[styles.createButtonText, { color: theme.tintTextColor || '#000000' }]}>
-                Create Auction
-              </Text>
-            </TouchableOpacity>
+              style={styles.modalActionButton}
+            />
           </View>
         </View>
       </View>
@@ -451,32 +451,7 @@ const getStyles = (theme: any) => StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: theme.borderColor || 'rgba(255, 255, 255, 0.08)',
   },
-  cancelButton: {
+  modalActionButton: {
     flex: 1,
-    paddingVertical: SPACING.md,
-    borderRadius: RADIUS.md,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-  },
-  cancelButtonText: {
-    fontSize: TYPOGRAPHY.body,
-    fontFamily: theme.semiBoldFont,
-    color: theme.textColor,
-    fontWeight: '600',
-  },
-  createButton: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: SPACING.md,
-    borderRadius: RADIUS.md,
-    gap: SPACING.xs,
-  },
-  createButtonText: {
-    fontSize: TYPOGRAPHY.body,
-    fontFamily: theme.semiBoldFont,
-    fontWeight: '600',
   },
 })

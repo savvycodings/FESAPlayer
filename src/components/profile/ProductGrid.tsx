@@ -1,12 +1,14 @@
-import { View, StyleSheet, Image, TouchableOpacity } from 'react-native'
+import { View, StyleSheet } from 'react-native'
 import { useContext } from 'react'
 import { useNavigation } from '@react-navigation/native'
 import { NativeStackNavigationProp } from '@react-navigation/native-stack'
 import { Text } from '../ui/text'
-import { Card, CardContent } from '../ui/card'
+import { AppButton } from '../ui/AppButton'
+import { PortfolioCardTile } from './PortfolioCardTile'
+import { ListingTileGrid } from '../ui/ListingTileGrid'
 import Ionicons from '@expo/vector-icons/Ionicons'
 import { ThemeContext } from '../../context'
-import { SPACING, TYPOGRAPHY, RADIUS } from '../../constants/layout'
+import { SPACING, TYPOGRAPHY, CARD_SURFACE } from '../../constants/layout'
 
 type ProfileStackParamList = {
   ProfileMain: undefined
@@ -32,6 +34,14 @@ interface Product {
   isListed?: boolean
   cardId?: string
   ebayPrice?: number
+  setName?: string
+  cardNumber?: string
+  metaLine?: string
+  condition?: string
+  finishLabel?: string
+  quantity?: number
+  priceChangeZar?: number | null
+  priceChangePercent?: number | null
 }
 
 interface ProductGridProps {
@@ -41,10 +51,15 @@ interface ProductGridProps {
   onQuickListPress?: (product: Product) => void
 }
 
-export function ProductGrid({ products, columns = 3, onProductPress, onQuickListPress }: ProductGridProps) {
+export function ProductGrid({
+  products,
+  columns: columnsProp = 2,
+  onProductPress,
+  onQuickListPress,
+}: ProductGridProps) {
   const { theme } = useContext(ThemeContext)
   const navigation = useNavigation<ProductGridNavigationProp>()
-  const styles = getStyles(theme, columns)
+  const styles = getStyles(theme)
 
   const parsePrice = (priceString: string): number => {
     const numericValue = priceString.replace(/[^0-9.]/g, '')
@@ -61,7 +76,7 @@ export function ProductGrid({ products, columns = 3, onProductPress, onQuickList
         image: product.image,
         category: 'product',
         price: price,
-        description: `Premium ${product.name}. Authentic and verified with secure shipping.`,
+        description: product.name,
         ...(product.cardId && { cardId: product.cardId }),
         ...(product.ebayPrice != null && { ebayPrice: product.ebayPrice }),
       })
@@ -69,148 +84,64 @@ export function ProductGrid({ products, columns = 3, onProductPress, onQuickList
   }
 
   return (
-    <View style={styles.container}>
-      {products.map((product) => {
+    <ListingTileGrid
+      data={products}
+      columns={columnsProp}
+      keyExtractor={(product) => String(product.id)}
+      renderItem={(product) => {
+        const footer =
+          onQuickListPress && !product.isListed ? (
+            <AppButton
+              variant="filled"
+              size="sm"
+              tile
+              label="List"
+              fullWidth
+              onPress={() => onQuickListPress(product)}
+            />
+          ) : product.isListed ? (
+            <View style={styles.listedBadge}>
+              <Ionicons name="checkmark-circle" size={14} color={CARD_SURFACE.textPrimary} />
+              <Text style={styles.listedText}>Listed</Text>
+            </View>
+          ) : null
+
         return (
-          <View key={product.id} style={styles.productCard}>
-            <Card style={styles.card}>
-              <CardContent style={styles.productContent}>
-                <TouchableOpacity
-                  onPress={() => handleProductPress(product)}
-                  activeOpacity={0.8}
-                >
-                  <View style={styles.imageContainer}>
-                    {product.image ? (
-                      <Image
-                        source={product.image}
-                        style={styles.productImage}
-                        resizeMode="contain"
-                      />
-                    ) : (
-                      <View style={styles.imagePlaceholder}>
-                        <Ionicons
-                          name="image-outline"
-                          size={32}
-                          color="rgba(255, 255, 255, 0.3)"
-                        />
-                      </View>
-                    )}
-                  </View>
-                  <View style={styles.infoSection}>
-                    <Text style={styles.productPrice}>{product.price}</Text>
-                    <Text style={styles.productName} numberOfLines={1} ellipsizeMode="tail">
-                      {product.name}
-                    </Text>
-                  </View>
-                </TouchableOpacity>
-                {onQuickListPress && !product.isListed && (
-                  <TouchableOpacity
-                    style={styles.quickListButton}
-                    onPress={() => onQuickListPress(product)}
-                    activeOpacity={0.8}
-                  >
-                    <Text style={styles.quickListButtonText}>Quick List</Text>
-                  </TouchableOpacity>
-                )}
-                {product.isListed && (
-                  <View style={styles.listedBadge}>
-                    <Ionicons name="checkmark-circle" size={14} color={theme.tintColor || '#73EC8B'} />
-                    <Text style={styles.listedText}>Listed</Text>
-                  </View>
-                )}
-              </CardContent>
-            </Card>
-          </View>
+          <PortfolioCardTile
+            title={product.name}
+            setName={product.setName}
+            cardNumber={product.cardNumber}
+            metaLine={product.metaLine}
+            condition={product.condition}
+            finishLabel={product.finishLabel}
+            quantity={product.quantity ?? 1}
+            price={product.price}
+            priceChangeZar={product.priceChangeZar}
+            priceChangePercent={product.priceChangePercent}
+            image={product.image}
+            onPress={() => handleProductPress(product)}
+            footer={footer}
+          />
         )
-      })}
-    </View>
+      }}
+    />
   )
 }
 
-const getStyles = (theme: any, columns: number) => StyleSheet.create({
-  container: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'center',
-    width: '100%',
-    columnGap: SPACING.sm,
-    rowGap: SPACING.lg,
-  },
-  productCard: {
-    width: `${(100 - (columns - 1) * 4) / columns}%`,
-    marginBottom: 0,
-  },
-  card: {
-    backgroundColor: theme.cardBackground || '#000000',
-    borderRadius: RADIUS.md,
-    borderWidth: 1,
-    borderColor: theme.borderColor || 'rgba(255, 255, 255, 0.08)',
-    overflow: 'hidden',
-  },
-  productContent: {
-    padding: 0,
-    paddingTop: SPACING.md,
-    paddingBottom: SPACING.sm,
-  },
-  imageContainer: {
-    width: '100%',
-    aspectRatio: 1,
-    backgroundColor: theme.cardBackground || '#000000',
-    overflow: 'hidden',
-  },
-  productImage: {
-    width: '100%',
-    height: '100%',
-  },
-  imagePlaceholder: {
-    width: '100%',
-    height: '100%',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  infoSection: {
-    padding: SPACING.sm,
-  },
-  productPrice: {
-    fontSize: TYPOGRAPHY.h4,
-    fontFamily: theme.boldFont,
-    color: theme.tintColor || '#73EC8B',
-    fontWeight: '600',
-    marginBottom: SPACING.xs / 2,
-  },
-  productName: {
-    fontSize: TYPOGRAPHY.caption,
-    fontFamily: theme.regularFont,
-    color: 'rgba(255, 255, 255, 0.8)',
-    lineHeight: 16,
-  },
-  quickListButton: {
-    backgroundColor: theme.tintColor || '#73EC8B',
-    borderRadius: RADIUS.sm,
-    paddingVertical: SPACING.xs,
-    paddingHorizontal: SPACING.sm,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: SPACING.xs,
-  },
-  quickListButtonText: {
-    fontSize: TYPOGRAPHY.caption,
-    fontFamily: theme.semiBoldFont,
-    color: '#000000',
-    fontWeight: '600',
-  },
-  listedBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: SPACING.xs / 2,
-    marginTop: SPACING.xs,
-    paddingVertical: SPACING.xs / 2,
-  },
-  listedText: {
-    fontSize: TYPOGRAPHY.caption,
-    fontFamily: theme.semiBoldFont,
-    color: theme.tintColor || '#73EC8B',
-    fontWeight: '600',
-  },
-})
+const getStyles = (theme: { textColor?: string; semiBoldFont?: string }) =>
+  StyleSheet.create({
+    listedBadge: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 4,
+      marginTop: 0,
+      marginBottom: 0,
+    },
+    listedText: {
+      fontSize: TYPOGRAPHY.caption,
+      fontFamily: theme.semiBoldFont,
+      color: CARD_SURFACE.textPrimary,
+      fontWeight: '600',
+    },
+  })

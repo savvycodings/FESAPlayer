@@ -4,10 +4,10 @@ import {
   StyleSheet,
   Image,
   TouchableOpacity,
-  Dimensions,
   ScrollView,
   TextInput,
   Platform,
+  useWindowDimensions,
 } from 'react-native'
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native'
 import { NativeStackNavigationProp } from '@react-navigation/native-stack'
@@ -16,6 +16,7 @@ import Ionicons from '@expo/vector-icons/Ionicons'
 import { Text } from '../components/ui/text'
 import { Card, CardContent } from '../components/ui/card'
 import { SPACING, TYPOGRAPHY, RADIUS } from '../constants/layout'
+import { ListingTile } from '../components/ui/ListingTile'
 
 type SetProductsStackParamList = {
   SetProducts: {
@@ -42,8 +43,11 @@ type SetProductsStackParamList = {
 type SetProductsScreenRouteProp = RouteProp<SetProductsStackParamList, 'SetProducts'>
 type SetProductsScreenNavigationProp = NativeStackNavigationProp<SetProductsStackParamList, 'SetProducts'>
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window')
-const PRODUCT_CARD_WIDTH = (SCREEN_WIDTH - 50) / 3 // 3 columns with padding
+function gridColumns(width: number): number {
+  if (width >= 720) return 5
+  if (width >= 600) return 4
+  return 3
+}
 
 // Helper function to determine set from product name
 function getSetFromProductName(productName: string): string | null {
@@ -106,6 +110,10 @@ export function SetProducts() {
   const navigation = useNavigation<SetProductsScreenNavigationProp>()
   const route = useRoute<SetProductsScreenRouteProp>()
   const { setName, setImage } = route.params || { setName: '', setImage: null }
+  const { width } = useWindowDimensions()
+  const columns = gridColumns(width)
+  const gap = SPACING.gridColumnGap
+  const tileWidth = (width - SPACING.containerPadding * 2 - gap * (columns - 1)) / columns
   const styles = getStyles(theme)
   const [searchQuery, setSearchQuery] = useState('')
 
@@ -267,49 +275,26 @@ export function SetProducts() {
             <View style={styles.productsGrid}>
               {setProducts.map((product, index) => {
                 const formattedName = formatName(product.name)
-                const isLastInRow = (index + 1) % 3 === 0
                 const randomPrice = parseFloat((Math.random() * (500 - 25) + 25).toFixed(2))
                 return (
-                  <TouchableOpacity
-                    key={index}
-                    style={[
-                      styles.productCardContainer,
-                      isLastInRow && styles.productCardLast
-                    ]}
+                  <ListingTile
+                    key={`${product.name}-${index}`}
+                    style={{ width: tileWidth }}
+                    title={formattedName}
+                    price={`$${randomPrice.toFixed(2)}`}
+                    subtitle="Product"
+                    image={product.image}
+                    imageResizeMode="cover"
                     onPress={() => {
                       navigation.navigate('Product', {
                         name: product.name,
                         image: product.image,
                         category: 'product',
                         price: randomPrice,
-                        description: `Premium ${formattedName} product. Authentic and verified with secure shipping.`,
+                        description: formattedName,
                       })
                     }}
-                    activeOpacity={0.8}
-                  >
-                    <Card style={styles.productCard}>
-                      <CardContent style={styles.productCardContent}>
-                        <View style={styles.productImageContainer}>
-                          <Image
-                            source={product.image}
-                            style={styles.productImage}
-                            resizeMode="contain"
-                          />
-                        </View>
-                        <View style={styles.productTextContainer}>
-                          <View>
-                            <Text style={styles.productCardTitle} numberOfLines={2}>
-                              {formattedName}
-                            </Text>
-                            <Text style={styles.productCardSubText}>Product</Text>
-                          </View>
-                          <Text style={styles.productCardPrice}>
-                            ${randomPrice.toFixed(2)}
-                          </Text>
-                        </View>
-                      </CardContent>
-                    </Card>
-                  </TouchableOpacity>
+                  />
                 )
               })}
             </View>
@@ -340,15 +325,15 @@ const getStyles = (theme: any) => StyleSheet.create({
     left: 0,
     right: 0,
     zIndex: 100,
-    paddingTop: SPACING.lg,
+    paddingTop: SPACING.sm,
     paddingLeft: SPACING.containerPadding,
     paddingRight: SPACING.containerPadding,
     backgroundColor: 'transparent',
   },
   scrollContent: {
     paddingHorizontal: SPACING.containerPadding,
-    paddingTop: SPACING['3xl'] + 40, // Extra padding to account for back button (28px icon + 12px padding)
-    paddingBottom: SPACING['4xl'],
+    paddingTop: SPACING.xl + 36,
+    paddingBottom: SPACING.screenBottom,
   },
   logoCard: {
     backgroundColor: '#FFFFFF',
@@ -469,59 +454,8 @@ const getStyles = (theme: any) => StyleSheet.create({
   productsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    justifyContent: 'flex-start',
-  },
-  productCardContainer: {
-    width: PRODUCT_CARD_WIDTH,
-    marginBottom: SPACING.lg,
-    marginRight: 5,
-  },
-  productCardLast: {
-    marginRight: 0,
-  },
-  productCard: {
-    backgroundColor: theme.cardBackground || '#000000',
-    borderRadius: RADIUS.md,
-    borderWidth: 1,
-    borderColor: theme.borderColor || 'rgba(255, 255, 255, 0.08)',
-    overflow: 'hidden',
-  },
-  productCardContent: {
-    padding: 0,
-  },
-  productImageContainer: {
-    width: '100%',
-    aspectRatio: 1,
-    backgroundColor: '#FFFFFF',
-    overflow: 'hidden',
-  },
-  productImage: {
-    width: '100%',
-    height: '100%',
-  },
-  productTextContainer: {
-    padding: SPACING.sm,
-    backgroundColor: theme.cardBackground || '#000000',
-  },
-  productCardTitle: {
-    fontSize: TYPOGRAPHY.bodySmall,
-    fontFamily: theme.semiBoldFont,
-    color: theme.textColor,
-    fontWeight: '600',
-    marginBottom: SPACING.xs / 2,
-    minHeight: 32,
-  },
-  productCardSubText: {
-    fontSize: TYPOGRAPHY.caption,
-    fontFamily: theme.regularFont,
-    color: 'rgba(255, 255, 255, 0.6)',
-    marginBottom: SPACING.sm,
-  },
-  productCardPrice: {
-    fontSize: TYPOGRAPHY.h4,
-    fontFamily: theme.boldFont,
-    color: theme.tintColor || '#73EC8B',
-    fontWeight: '600',
+    gap: SPACING.gridColumnGap,
+    rowGap: SPACING.gridRowGap,
   },
   noProductsCard: {
     backgroundColor: theme.cardBackground || '#000000',

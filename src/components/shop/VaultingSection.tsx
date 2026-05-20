@@ -57,12 +57,12 @@ const getStyles = (theme: any) => StyleSheet.create({
     marginBottom: SPACING.xs,
   },
   vaultingTitle: {
-    fontSize: TYPOGRAPHY.h2,
+    fontSize: TYPOGRAPHY.body,
     fontFamily: theme.boldFont,
     color: theme.textColor,
-    fontWeight: '700',
-    lineHeight: 32,
-    letterSpacing: -0.5,
+    fontWeight: '600',
+    lineHeight: TYPOGRAPHY.body * 1.25,
+    letterSpacing: -0.2,
     marginBottom: 0,
   },
   vaultingImageContainer: {
@@ -73,10 +73,10 @@ const getStyles = (theme: any) => StyleSheet.create({
   },
   vaultingImage: {
     width: '100%',
-    height: 360,
+    height: 140,
   },
   vaultingDescription: {
-    fontSize: TYPOGRAPHY.body,
+    fontSize: TYPOGRAPHY.bodySmall,
     fontFamily: theme.regularFont,
     color: theme.mutedForegroundColor || 'rgba(255, 255, 255, 0.8)',
     lineHeight: 22,

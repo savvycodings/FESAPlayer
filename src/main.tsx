@@ -190,7 +190,7 @@ function MainComponent() {
           component={MyStoreStack}
           options={{
             headerShown: false,
-            tabBarLabel: 'My Store',
+            tabBarLabel: 'Store',
             tabBarIcon: ({ color, size }) => (
               <FeatherIcon
                 name="shopping-bag"

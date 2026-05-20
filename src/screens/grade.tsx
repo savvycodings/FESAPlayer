@@ -13,12 +13,15 @@ import { useState, useRef, useContext } from 'react'
 import { DOMAIN } from '../../constants'
 import { v4 as uuid } from 'uuid'
 import { ThemeContext } from '../context'
+import { SPACING, TYPOGRAPHY } from '../constants/layout'
 import Ionicons from '@expo/vector-icons/Ionicons'
 import MaterialIcons from '@expo/vector-icons/MaterialCommunityIcons'
 import * as ImagePicker from 'expo-image-picker'
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller'
 import * as Clipboard from 'expo-clipboard'
 import { useActionSheet } from '@expo/react-native-action-sheet'
+import { AppButton } from '../components/ui/AppButton'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 const { width } = Dimensions.get('window')
 
@@ -39,6 +42,7 @@ export function Grade() {
   const [loading, setLoading] = useState(false)
   const [processingCard, setProcessingCard] = useState<string | null>(null)
   const { theme } = useContext(ThemeContext)
+  const insets = useSafeAreaInsets()
   const styles = getStyles(theme)
   const scrollViewRef = useRef<ScrollView | null>(null)
   const { showActionSheetWithOptions } = useActionSheet()
@@ -337,7 +341,7 @@ export function Grade() {
   }
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { paddingTop: insets.top }]}>
         <KeyboardAwareScrollView
           contentContainerStyle={cards.length === 0 ? styles.scrollContentContainer : styles.scrollContentContainerWithCards}
           ref={scrollViewRef}
@@ -352,57 +356,40 @@ export function Grade() {
                 <MaterialIcons
                   name="card-search"
                   size={64}
-                  color={theme.tintColor}
+                  color={theme.textColor}
                 />
                 <Text style={styles.emptyStateTitle}>
-                  Scan Your Pokémon Cards
-                </Text>
-                <Text style={styles.description}>
-                  The all-in-one Pokémon TCG app that scans your card, gives an AI grade, checks real prices, and generates a portfolio link you can share with any trader.
+                  Scan your cards
                 </Text>
                 <View style={styles.buttonContainer}>
-                  <TouchableHighlight
+                  <AppButton
+                    variant="filled"
+                    size="lg"
+                    icon="camera-outline"
+                    label="Scan Card"
+                    fullWidth
                     onPress={scanCard}
-                    underlayColor={'transparent'}
-                  >
-                    <View style={styles.primaryButton}>
-                      <Ionicons
-                        name="camera-outline"
-                        size={24}
-                        color={theme.tintTextColor}
-                      />
-                      <Text style={styles.primaryButtonText}>
-                        Scan Card
-                      </Text>
-                    </View>
-                  </TouchableHighlight>
-                  <TouchableHighlight
+                  />
+                  <AppButton
+                    variant="outline"
+                    size="md"
+                    icon="images-outline"
+                    label="Choose from Library"
+                    fullWidth
                     onPress={pickCardFromLibrary}
-                    underlayColor={'transparent'}
-                  >
-                    <View style={styles.secondaryButton}>
-                      <Ionicons
-                        name="images-outline"
-                        size={22}
-                        color={theme.textColor}
-                      />
-                      <Text style={styles.secondaryButtonText}>
-                        Choose from Library
-                      </Text>
-                    </View>
-                  </TouchableHighlight>
+                  />
                 </View>
                 <View style={styles.featuresContainer}>
                   <View style={styles.feature}>
-                    <MaterialIcons name="robot" size={20} color={theme.tintColor} />
+                    <MaterialIcons name="robot" size={20} color={theme.textColor} />
                     <Text style={styles.featureText}>AI Grading</Text>
                   </View>
                   <View style={styles.feature}>
-                    <MaterialIcons name="tag" size={20} color={theme.tintColor} />
+                    <MaterialIcons name="tag" size={20} color={theme.textColor} />
                     <Text style={styles.featureText}>Live Pricing</Text>
                   </View>
                   <View style={styles.feature}>
-                    <MaterialIcons name="link" size={20} color={theme.tintColor} />
+                    <MaterialIcons name="link" size={20} color={theme.textColor} />
                     <Text style={styles.featureText}>Portfolio Link</Text>
                   </View>
                 </View>
@@ -473,21 +460,14 @@ export function Grade() {
                         </View>
                       </View>
                       {card.portfolioLink && (
-                        <TouchableHighlight
+                        <AppButton
+                          variant="filled"
+                          size="md"
+                          icon="link-outline"
+                          label="Share Portfolio Link"
+                          fullWidth
                           onPress={() => sharePortfolioLink(card.portfolioLink!)}
-                          underlayColor={'transparent'}
-                        >
-                          <View style={styles.portfolioButton}>
-                            <MaterialIcons
-                              name="link-variant"
-                              size={20}
-                              color={theme.tintTextColor}
-                            />
-                            <Text style={styles.portfolioButtonText}>
-                              Share Portfolio Link
-                            </Text>
-                          </View>
-                        </TouchableHighlight>
+                        />
                       )}
                     </View>
                   ) : null}
@@ -506,20 +486,15 @@ export function Grade() {
           )}
         </KeyboardAwareScrollView>
         {cards.length > 0 && (
-          <View style={styles.bottomActions}>
-            <TouchableHighlight
+          <View style={[styles.bottomActions, { paddingBottom: insets.bottom + SPACING.sm }]}>
+            <AppButton
+              variant="filled"
+              size="lg"
+              icon="camera-outline"
+              label="Scan Another Card"
+              fullWidth
               onPress={scanCard}
-              underlayColor={'transparent'}
-            >
-              <View style={styles.scanButton}>
-                <Ionicons
-                  name="camera-outline"
-                  size={24}
-                  color={theme.tintTextColor}
-                />
-                <Text style={styles.scanButtonText}>Scan Another Card</Text>
-              </View>
-            </TouchableHighlight>
+            />
           </View>
         )}
     </View>
@@ -552,62 +527,23 @@ const getStyles = (theme: any) => StyleSheet.create({
     maxWidth: 400,
   },
   emptyStateTitle: {
-    fontSize: 28,
+    fontSize: TYPOGRAPHY.h4,
     fontFamily: theme.boldFont,
     color: theme.textColor,
-    marginTop: 20,
-    marginBottom: 15,
+    marginTop: SPACING.sm,
+    marginBottom: SPACING.sm,
     textAlign: 'center',
-  },
-  description: {
-    fontSize: 16,
-    fontFamily: theme.regularFont,
-    color: theme.mutedForegroundColor,
-    textAlign: 'center',
-    lineHeight: 24,
-    marginBottom: 30,
   },
   buttonContainer: {
     width: '100%',
-    gap: 12,
-  },
-  primaryButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 16,
-    paddingHorizontal: 24,
-    borderRadius: 12,
-    backgroundColor: theme.tintColor,
-    gap: 10,
-  },
-  primaryButtonText: {
-    color: theme.tintTextColor,
-    fontFamily: theme.boldFont,
-    fontSize: 18,
-  },
-  secondaryButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 14,
-    paddingHorizontal: 24,
-    borderRadius: 12,
-    borderWidth: 2,
-    borderColor: theme.borderColor,
-    gap: 10,
-  },
-  secondaryButtonText: {
-    color: theme.textColor,
-    fontFamily: theme.semiBoldFont,
-    fontSize: 16,
+    gap: SPACING.xs,
   },
   featuresContainer: {
     flexDirection: 'row',
     justifyContent: 'space-around',
     width: '100%',
-    marginTop: 40,
-    paddingTop: 30,
+    marginTop: SPACING.md,
+    paddingTop: SPACING.sm,
     borderTopWidth: 1,
     borderTopColor: theme.borderColor,
   },
@@ -621,12 +557,12 @@ const getStyles = (theme: any) => StyleSheet.create({
     color: theme.textColor,
   },
   cardContainer: {
-    marginBottom: 20,
-    marginHorizontal: 10,
-    padding: 15,
+    marginBottom: SPACING.sm,
+    marginHorizontal: SPACING.sm,
+    padding: SPACING.sm,
     borderWidth: 1,
     borderColor: theme.borderColor,
-    borderRadius: 12,
+    borderRadius: 8,
     backgroundColor: theme.backgroundColor,
   },
   cardHeader: {
@@ -731,22 +667,6 @@ const getStyles = (theme: any) => StyleSheet.create({
     fontFamily: theme.boldFont,
     color: theme.textColor,
   },
-  portfolioButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 14,
-    paddingHorizontal: 20,
-    borderRadius: 8,
-    backgroundColor: theme.tintColor,
-    gap: 10,
-    marginTop: 8,
-  },
-  portfolioButtonText: {
-    color: theme.tintTextColor,
-    fontFamily: theme.boldFont,
-    fontSize: 16,
-  },
   clearButtonContainer: {
     marginHorizontal: 10,
     marginTop: 10,
@@ -764,21 +684,6 @@ const getStyles = (theme: any) => StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: theme.borderColor,
     backgroundColor: theme.backgroundColor,
-  },
-  scanButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 14,
-    paddingHorizontal: 20,
-    borderRadius: 8,
-    backgroundColor: theme.tintColor,
-    gap: 10,
-  },
-  scanButtonText: {
-    color: theme.tintTextColor,
-    fontFamily: theme.boldFont,
-    fontSize: 16,
   },
 })
 

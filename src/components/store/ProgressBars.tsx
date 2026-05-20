@@ -3,7 +3,7 @@ import { useContext, useState } from 'react'
 import { Text } from '../ui/text'
 import Ionicons from '@expo/vector-icons/Ionicons'
 import { ThemeContext } from '../../context'
-import { SPACING, TYPOGRAPHY, RADIUS, STORE_COLORS } from '../../constants/layout'
+import { SPACING, TYPOGRAPHY, RADIUS, STORE_COLORS, PROFILE_CHART_ACCENT } from '../../constants/layout'
 import { FocalBrackets } from '../ui/FocalBrackets'
 import { LevelRewardModal } from './LevelRewardModal'
 
@@ -152,16 +152,16 @@ const getStyles = (theme: any) => StyleSheet.create({
   },
   horizontalBar: {
     height: 8,
-    backgroundColor: theme.buttonBackground || 'rgba(0, 0, 0, 0.8)',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
     borderRadius: RADIUS.sm,
     overflow: 'hidden',
-    marginBottom: SPACING.xs,
+    marginBottom: 4,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
+    borderColor: 'rgba(255, 255, 255, 0.28)',
   },
   horizontalFill: {
     height: '100%',
-    backgroundColor: theme.tintColor || '#73EC8B',
+    backgroundColor: PROFILE_CHART_ACCENT,
   },
   xpTextContainer: {
     flexDirection: 'row',

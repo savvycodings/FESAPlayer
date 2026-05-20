@@ -127,7 +127,7 @@ export function EditProfile() {
 
   const handleChangeBanner = async () => {
     if (!store) {
-      Alert.alert('No store', 'Create your store from the My Store tab first, then you can set a banner here.')
+      Alert.alert('No store', 'Create your store from the Store tab first, then you can set a banner here.')
       return
     }
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync()

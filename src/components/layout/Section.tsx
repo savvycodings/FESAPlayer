@@ -13,6 +13,8 @@ interface SectionProps {
   rightContent?: React.ReactNode
   children: React.ReactNode
   style?: ViewStyle
+  /** Tighter vertical rhythm for info-dense screens */
+  compact?: boolean
 }
 
 export function Section({ 
@@ -22,10 +24,11 @@ export function Section({
   onSeeAllPress,
   rightContent,
   children,
-  style 
+  style,
+  compact = true,
 }: SectionProps) {
   const { theme } = useContext(ThemeContext)
-  const styles = getStyles(theme)
+  const styles = getStyles(theme, compact)
   const hideHeader = title === 'In Search Of' || title === 'Reviews'
   
   return (
@@ -50,9 +53,9 @@ export function Section({
   )
 }
 
-const getStyles = (theme: any) => StyleSheet.create({
+const getStyles = (theme: any, compact: boolean) => StyleSheet.create({
   container: {
-    marginTop: SPACING.sectionGap,
+    marginTop: compact ? SPACING.stackGap : SPACING.sectionGap,
     marginBottom: 0,
   },
   header: {
@@ -60,7 +63,7 @@ const getStyles = (theme: any) => StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     marginBottom: SPACING.sectionTitleBottom,
-    minHeight: 28,
+    minHeight: 20,
   },
   headerRight: {
     flexDirection: 'row',
@@ -68,11 +71,12 @@ const getStyles = (theme: any) => StyleSheet.create({
     gap: SPACING.sm,
   },
   title: {
-    fontSize: TYPOGRAPHY.h2,
+    fontSize: TYPOGRAPHY.body,
     fontFamily: theme.boldFont,
     color: theme.textColor,
-    letterSpacing: 0.15,
-    lineHeight: TYPOGRAPHY.h2 * 1.2,
+    letterSpacing: 0.05,
+    lineHeight: TYPOGRAPHY.body * 1.2,
+    fontWeight: '600',
   },
   seeAll: {
     fontSize: TYPOGRAPHY.bodySmall,

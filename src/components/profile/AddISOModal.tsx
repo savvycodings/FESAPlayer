@@ -3,6 +3,7 @@ import { useContext, useState, useEffect, useMemo, useRef } from 'react'
 import { Text } from '../ui/text'
 import Ionicons from '@expo/vector-icons/Ionicons'
 import { ThemeContext } from '../../context'
+import { AppButton } from '../ui/AppButton'
 import { SPACING, TYPOGRAPHY, RADIUS } from '../../constants/layout'
 import { getPokemonTcgImageUrlFromSetNumberIfOnCdn } from '../../utils/pokemonTcgImages'
 
@@ -313,14 +314,15 @@ export function AddISOModal({
               )}
             </View>
 
-            <TouchableOpacity
-              style={[styles.addButton, !isValid() && styles.addButtonDisabled]}
+            <AppButton
+              variant="filled"
+              size="lg"
+              icon="add-circle-outline"
+              label="Add to ISO"
+              fullWidth
               onPress={handleAdd}
-              activeOpacity={0.8}
               disabled={!isValid()}
-            >
-              <Text style={styles.addButtonText}>Add to ISO</Text>
-            </TouchableOpacity>
+            />
           </ScrollView>
         </View>
       </View>

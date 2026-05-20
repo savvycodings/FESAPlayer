@@ -5,6 +5,7 @@ import { Carousel } from '../Carousel'
 import Ionicons from '@expo/vector-icons/Ionicons'
 import { ThemeContext } from '../../context'
 import { SPACING, TYPOGRAPHY, RADIUS } from '../../constants/layout'
+import { AppButton } from '../ui/AppButton'
 
 export interface Auction {
   id: string
@@ -38,7 +39,7 @@ export function AuctionSection({
   const createAuctionItem = {
     id: 'create',
     title: 'Create New Auction',
-    description: 'Start an auction to sell your cards. Set your own terms and watch bids roll in.',
+    description: 'Sell cards on your terms.',
     status: 'starting' as const,
     buttonText: 'Create Auction',
   }
@@ -80,7 +81,9 @@ export function AuctionSection({
       items={displayAuctions}
       renderItem={(item, index) => {
         const isCreateCard = item.id === 'create'
-        const statusColor = isCreateCard ? theme.tintColor || '#73EC8B' : getStatusColor(item.status)
+        const statusColor = isCreateCard
+          ? (theme.buttonFilledBg || '#FFFFFF')
+          : getStatusColor(item.status)
         
         return (
           <TouchableOpacity
@@ -111,7 +114,7 @@ export function AuctionSection({
                 )}
                 {isCreateCard && (
                   <View style={[styles.statusBadge, { backgroundColor: statusColor }]}>
-                    <Ionicons name="add-circle-outline" size={14} color="#000000" />
+                    <Ionicons name="add-circle-outline" size={14} color={theme.buttonFilledFg || '#000000'} />
                   </View>
                 )}
                 <Text style={styles.auctionTitle}>{item.title}</Text>
@@ -137,8 +140,11 @@ export function AuctionSection({
                       )}
                     </View>
                   )}
-                  <TouchableOpacity
-                    style={[styles.auctionButton, { backgroundColor: statusColor }]}
+                  <AppButton
+                    variant={isCreateCard ? 'filled' : 'outline'}
+                    size="sm"
+                    icon={isCreateCard ? 'add-circle-outline' : 'gift-outline'}
+                    label={isCreateCard ? 'Create Auction' : 'View Auction'}
                     onPress={() => {
                       if (isCreateCard && onCreateAuction) {
                         onCreateAuction()
@@ -146,18 +152,7 @@ export function AuctionSection({
                         onAuctionPress(item)
                       }
                     }}
-                    activeOpacity={0.7}
-                  >
-                    <Ionicons
-                      name={isCreateCard ? "add-circle-outline" : "gift-outline"}
-                      size={16}
-                      color={isCreateCard ? "#000000" : "#FFFFFF"}
-                      style={styles.buttonIcon}
-                    />
-                    <Text style={[styles.auctionButtonText, { color: isCreateCard ? "#000000" : "#FFFFFF" }]}>
-                      {isCreateCard ? 'Create Auction' : 'View Auction'}
-                    </Text>
-                  </TouchableOpacity>
+                  />
                 </View>
               </View>
             </View>

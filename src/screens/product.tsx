@@ -19,6 +19,7 @@ import { Card, CardContent } from '../components/ui/card'
 import { SPACING, TYPOGRAPHY, RADIUS } from '../constants/layout'
 import { CardPriceSection } from '../components/card/CardPriceSection'
 import { PayFastPayment } from '../components/payment'
+import { AppButton } from '../components/ui/AppButton'
 import { authClient } from '../lib/auth-client'
 import { DOMAIN } from '../../constants'
 type ProductRouteParams = {
@@ -412,18 +413,16 @@ export function Product() {
         {fromProfile && id ? (
           <Card style={styles.aboutCard}>
             <CardContent style={styles.aboutContent}>
-              <TouchableOpacity
-                style={[styles.removeFromCollectionButton, removing && { opacity: 0.7 }]}
+              <AppButton
+                variant="outline"
+                size="md"
+                icon="trash-outline"
+                label={removing ? 'Removing…' : 'Remove from collection'}
+                fullWidth
                 onPress={handleRemoveFromCollection}
-                activeOpacity={0.8}
                 disabled={removing}
-              >
-                {removing ? (
-                  <ActivityIndicator size="small" color="#000000" />
-                ) : (
-                  <Text style={styles.removeFromCollectionButtonText}>Remove from collection</Text>
-                )}
-              </TouchableOpacity>
+                style={styles.removeFromCollectionButton}
+              />
             </CardContent>
           </Card>
         ) : (
@@ -450,25 +449,23 @@ export function Product() {
       {!fromProfile && (
         <View style={styles.bottomActionBar}>
           {allowsBid && (
-            <TouchableOpacity
-              style={styles.bidNowButton}
+            <AppButton
+              variant="outline"
+              size="lg"
+              icon="hammer-outline"
+              label={`Bid R${minBidPrice.toLocaleString('en-ZA')}`}
               onPress={() => openPaymentModal('bid')}
-              activeOpacity={0.8}
-            >
-              <Ionicons name="hand-left-outline" size={20} color={theme.textColor} style={styles.bidIcon} />
-              <Text style={styles.bidNowButtonText}>Bid at</Text>
-              <Text style={styles.bidNowButtonPrice}>R{minBidPrice.toLocaleString('en-ZA')}</Text>
-            </TouchableOpacity>
+              style={styles.bottomBarButton}
+            />
           )}
-          <TouchableOpacity
-            style={styles.buyNowButton}
+          <AppButton
+            variant="filled"
+            size="lg"
+            icon="flash-outline"
+            label={`Buy R${buyNowPrice.toLocaleString('en-ZA')}`}
             onPress={() => openPaymentModal('buy')}
-            activeOpacity={0.8}
-          >
-            <Ionicons name="flash-outline" size={20} color={theme.tintTextColor || '#000000'} style={styles.buyIcon} />
-            <Text style={styles.buyNowButtonText}>Buy Now</Text>
-            <Text style={styles.buyNowButtonPrice}>R{buyNowPrice.toLocaleString('en-ZA')}</Text>
-          </TouchableOpacity>
+            style={styles.bottomBarButton}
+          />
         </View>
       )}
 
@@ -528,8 +525,8 @@ const getStyles = (theme: any, tintColor: string) => StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: SPACING.containerPadding,
-    paddingTop: SPACING.lg,
-    paddingBottom: SPACING.md,
+    paddingTop: SPACING.sm,
+    paddingBottom: SPACING.sm,
     backgroundColor: theme.backgroundColor,
   },
   backButton: {
@@ -740,17 +737,6 @@ const getStyles = (theme: any, tintColor: string) => StyleSheet.create({
   },
   removeFromCollectionButton: {
     marginTop: SPACING.lg,
-    backgroundColor: theme.destructiveColor || '#ef4444',
-    borderRadius: RADIUS.md,
-    paddingVertical: SPACING.md,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  removeFromCollectionButtonText: {
-    fontSize: TYPOGRAPHY.body,
-    fontFamily: theme.semiBoldFont,
-    color: '#000000',
-    fontWeight: '600',
   },
   bidsCard: {
     backgroundColor: theme.cardBackground || '#000000',
@@ -819,62 +805,13 @@ const getStyles = (theme: any, tintColor: string) => StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: SPACING.containerPadding,
     paddingVertical: SPACING.md,
-    paddingBottom: SPACING['3xl'],
+    paddingBottom: SPACING.screenBottom,
     backgroundColor: theme.backgroundColor,
     borderTopWidth: 1,
     borderTopColor: 'rgba(255, 255, 255, 0.08)',
     gap: SPACING.sm,
   },
-  bidNowButton: {
+  bottomBarButton: {
     flex: 1,
-    backgroundColor: theme.buttonBackground || 'rgba(0, 0, 0, 0.8)',
-    borderRadius: RADIUS.md,
-    paddingVertical: SPACING.md,
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: theme.borderColor || 'rgba(255, 255, 255, 0.1)',
-    gap: SPACING.xs,
-  },
-  bidIcon: {
-    marginRight: 0,
-  },
-  bidNowButtonText: {
-    fontSize: TYPOGRAPHY.body,
-    fontFamily: theme.boldFont,
-    color: theme.textColor,
-    fontWeight: '600',
-  },
-  bidNowButtonPrice: {
-    fontSize: TYPOGRAPHY.body,
-    fontFamily: theme.semiBoldFont,
-    color: 'rgba(255, 255, 255, 0.8)',
-    fontWeight: '600',
-  },
-  buyNowButton: {
-    flex: 1,
-    backgroundColor: tintColor,
-    borderRadius: RADIUS.md,
-    paddingVertical: SPACING.md,
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: SPACING.xs,
-  },
-  buyIcon: {
-    marginRight: 0,
-  },
-  buyNowButtonText: {
-    fontSize: TYPOGRAPHY.body,
-    fontFamily: theme.boldFont,
-    color: theme.tintTextColor || '#000000',
-    fontWeight: '600',
-  },
-  buyNowButtonPrice: {
-    fontSize: TYPOGRAPHY.body,
-    fontFamily: theme.semiBoldFont,
-    color: theme.tintTextColor ? `${theme.tintTextColor}CC` : 'rgba(0, 0, 0, 0.8)',
-    fontWeight: '600',
   },
 })

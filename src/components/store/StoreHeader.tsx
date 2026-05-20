@@ -1,4 +1,5 @@
-import { View, StyleSheet, Image, TouchableOpacity, Linking, Platform } from 'react-native'
+import { View, StyleSheet, Image, TouchableOpacity, Linking } from 'react-native'
+import { androidLabelStyle, compactLevelLineHeight } from '../../utils/platformHelpers'
 import { useContext, useState } from 'react'
 import { Text } from '../ui/text'
 import { ThemedText } from '../ui/ThemedText'
@@ -102,7 +103,7 @@ export function StoreHeader({
                     </View>
                   )}
                 </View>
-                <VerificationRings salesCount={salesCount} size={108} />
+                <VerificationRings salesCount={salesCount} size={SPACING.avatarProfile + 4} />
                 <View style={styles.trustedBadgeAnchor}>
                   <TrustedBadge />
                 </View>
@@ -188,11 +189,11 @@ export function StoreHeader({
 const getStyles = (theme: any) => StyleSheet.create({
   container: {
     width: '100%',
-    marginBottom: SPACING.xl,
+    marginBottom: SPACING.md,
   },
   bannerContainer: {
     width: '100%',
-    height: 220,
+    height: 168,
     borderRadius: RADIUS.lg,
     overflow: 'hidden',
     marginBottom: 0,
@@ -261,14 +262,12 @@ const getStyles = (theme: any) => StyleSheet.create({
   bannerInfoSection: {
     flex: 1,
     paddingLeft: SPACING.xs,
-    minHeight: 108,
+    minHeight: SPACING.avatarProfile,
     justifyContent: 'flex-start',
   },
   storeInfoStack: {
-    gap: SPACING.sm,
-    // Shift stack so Lv badge vertical center lines up with profile image center (108px).
-    paddingTop:
-      108 / 2 - (26 + SPACING.sm + 22 / 2),
+    gap: SPACING.xs,
+    paddingTop: 0,
   },
   progressWrap: {
     width: '100%',
@@ -278,16 +277,15 @@ const getStyles = (theme: any) => StyleSheet.create({
   },
   profileWrapper: {
     position: 'relative',
-    width: 108,
-    height: 108,
+    width: SPACING.avatarProfile + 4,
+    height: SPACING.avatarProfile + 4,
     justifyContent: 'center',
     alignItems: 'center',
     overflow: 'visible',
-    marginBottom: 4,
   },
   profileIcon: {
-    width: 108,
-    height: 108,
+    width: SPACING.avatarProfile,
+    height: SPACING.avatarProfile,
     borderRadius: RADIUS.full,
     backgroundColor: theme.textColor,
     justifyContent: 'center',
@@ -331,8 +329,8 @@ const getStyles = (theme: any) => StyleSheet.create({
     flexGrow: 1,
     flexShrink: 1,
     minWidth: 0,
-    fontSize: 22,
-    lineHeight: 26,
+    fontSize: TYPOGRAPHY.h3,
+    lineHeight: TYPOGRAPHY.h3 * 1.15,
     fontFamily: theme.boldFont,
     color: theme.textColor,
     marginRight: SPACING.sm,
@@ -351,11 +349,10 @@ const getStyles = (theme: any) => StyleSheet.create({
     padding: SPACING.xs,
   },
   levelBadge: {
-    backgroundColor: theme.tintColor || '#73EC8B',
-    paddingHorizontal: 10,
-    paddingVertical: 0,
-    height: 22,
-    borderRadius: RADIUS.sm,
+    backgroundColor: theme.buttonFilledBg || '#FFFFFF',
+    paddingHorizontal: SPACING.pillPaddingH,
+    height: SPACING.pillHeight,
+    borderRadius: RADIUS.full,
     marginTop: 0,
     alignSelf: 'flex-start',
     justifyContent: 'center',
@@ -363,12 +360,10 @@ const getStyles = (theme: any) => StyleSheet.create({
   },
   levelText: {
     fontSize: 12,
-    lineHeight: Platform.OS === 'android' ? 16 : 14,
+    lineHeight: compactLevelLineHeight,
     fontFamily: theme.boldFont,
-    color: '#000000',
-    ...(Platform.OS === 'android'
-      ? { includeFontPadding: false, textAlignVertical: 'center' as const }
-      : {}),
+    color: theme.buttonFilledFg || '#000000',
+    ...androidLabelStyle,
   },
   featuresContainer: {
     flexDirection: 'row',

@@ -115,9 +115,9 @@ export function Category() {
                 </Card>
               )
             }}
-            itemWidth={280}
-            itemHeight={200}
-            itemSpacing={SPACING.md}
+            itemWidth={220}
+            itemHeight={160}
+            itemSpacing={SPACING.sm}
             onItemPress={(item) => {
               if (categoryType === 'set') {
                 navigation.navigate('SetProducts', {
@@ -223,7 +223,7 @@ const getStyles = (theme: any) => StyleSheet.create({
   scrollContent: {
     paddingHorizontal: SPACING.containerPadding,
     paddingTop: SPACING.md,
-    paddingBottom: SPACING['4xl'],
+    paddingBottom: SPACING.screenBottom,
   },
   carouselCard: {
     backgroundColor: theme.cardBackground || '#000000',

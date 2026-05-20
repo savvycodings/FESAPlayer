@@ -1,8 +1,9 @@
 # Design System Documentation
 
 This document outlines the design system used throughout the SA Player app to maintain consistency in spacing, typography, and component usage.
-.
+
 ## Table of Contents
+- [AppButton](#appbutton-global-cta)
 - [Layout Constants](#layout-constants)
 - [Section Component](#section-component)
 - [Typography Guidelines](#typography-guidelines)
@@ -10,6 +11,26 @@ This document outlines the design system used throughout the SA Player app to ma
 - [Component Organization](#component-organization)
 - [Usage Examples](#usage-examples)
 - [Best Practices](#best-practices)
+
+---
+
+## AppButton (global CTA)
+
+Use **`AppButton`** (`app/src/components/ui/AppButton.tsx`) for all primary/secondary actions. Do not use green tint buttons or one-off `TouchableOpacity` CTAs.
+
+| Variant | Use |
+|---------|-----|
+| `filled` | White background, black text/icon (primary) |
+| `outline` | White border (2px), white text/icon (secondary) |
+| `accent` | Green fill + green stroke (`BUTTON_ACCENT`), white text — profile **Add Card** only |
+
+Sizes: `sm` (32px, profile header), `md` (40px), `lg` (48px).
+
+Theme tokens: `buttonFilledBg`, `buttonFilledFg`, `buttonOutlineBorder`, `buttonOutlineFg`, `priceAccent`.
+
+**Black listing tiles** use fixed `CARD_SURFACE` in `layout.ts` (white price/text, white-outline border). `AppButton` with `tile` or `onDarkSurface` uses white fill on those cards — required or buttons vanish on light theme.
+
+**Do not** use `theme.tintColor` (#73EC8B) for generic buttons or card prices—use `variant="accent"` for the profile Add Card CTA, or reserve green for verified/vault badges elsewhere.
 
 ---
 
@@ -39,9 +60,13 @@ SPACING = {
   '4xl': 40,  // Maximum spacing
   
   // Semantic spacing (use these for specific purposes)
-  sectionGap: 24,        // Space between major sections
-  sectionTitleBottom: 12, // Space below section titles
-  cardPadding: 16,       // Padding inside cards
+  sectionGap: 16,        // Space between major sections
+  sectionTitleBottom: 8, // Space below section titles
+  cardPadding: 12,       // Padding inside cards
+  stackGap: 8,           // Label → value vertical gap
+  inlineGap: 6,          // Icon + label in buttons
+  gridRowGap: 10,        // Card grid rows
+  gridColumnGap: 8,      // Card grid columns
   containerPadding: 16,   // Horizontal padding for containers
   headerPadding: 12,     // Vertical padding for headers
 }

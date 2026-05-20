@@ -269,7 +269,7 @@ const getStyles = (theme: any) => StyleSheet.create({
   priceText: {
     fontSize: TYPOGRAPHY.h4,
     fontFamily: theme.boldFont,
-    color: theme.tintColor || '#73EC8B',
+    color: theme.textColor,
     fontWeight: '600',
   },
   expandedSection: {

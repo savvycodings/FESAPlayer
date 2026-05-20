@@ -10,6 +10,7 @@ import Ionicons from '@expo/vector-icons/Ionicons'
 import { Card, CardContent } from '../components/ui/card'
 import { AuctionSection, CreateAuctionModal, type Auction, OrderCard, type Order, ListItemModal, AddISOModal } from '../components/profile'
 import { Section } from '../components/layout/Section'
+import { AppButton } from '../components/ui/AppButton'
 import { SkeletonBox } from '../components/layout/SkeletonBox'
 import {
   StoreHeader,
@@ -17,7 +18,9 @@ import {
   StoreListings,
   SafetyFilter,
   ShareLinkButton,
+  CreateStoreModal,
 } from '../components/store'
+import { IsoListItem } from '../components/store/IsoListItem'
 import { type StoreListing } from '../components/store/StoreListings'
 import { DOMAIN } from '../../constants'
 import * as ImagePicker from 'expo-image-picker'
@@ -71,7 +74,7 @@ export function MyStore() {
   const { theme } = useContext(ThemeContext)
   const navigation = useNavigation<MyStoreScreenNavigationProp>()
   const styles = getStyles(theme)
-  const [activeTab, setActiveTab] = useState('MY STORE')
+  const [activeTab, setActiveTab] = useState('STORE')
   const [vaultedOnly, setVaultedOnly] = useState(false)
   const [isListItemModalVisible, setIsListItemModalVisible] = useState(false)
   const [selectedProduct, setSelectedProduct] = useState<{ name: string; image?: any } | null>(null)
@@ -153,12 +156,18 @@ export function MyStore() {
       if (response.ok) {
         if (data.store) {
           setStore(data.store)
+          setIsCreateStoreModalVisible(false)
         } else {
-          // Store doesn't exist - show creation modal
+          setStore(null)
           setIsCreateStoreModalVisible(true)
         }
       } else {
-        Alert.alert('Error', data.message || 'Failed to fetch store')
+        setStore(null)
+        if (response.status === 404) {
+          setIsCreateStoreModalVisible(true)
+        } else {
+          Alert.alert('Error', data.message || 'Failed to fetch store')
+        }
       }
     } catch (error: any) {
       console.error('Error fetching store:', error)
@@ -378,6 +387,8 @@ export function MyStore() {
           cardImage: listing.cardImage ? { uri: listing.cardImage } : require('../../assets/singles/Shining_Charizard_Secret.jpg'),
           cardId: listing.cardId || undefined,
           price: parseFloat(listing.price || '0'),
+          quantity:
+            listing.quantity != null ? Math.max(1, Math.floor(Number(listing.quantity))) : 1,
           vaultingStatus: listing.vaultingStatus || 'seller-has',
           purchaseType: listing.purchaseType || 'both',
           currentBid: listing.currentBid ? parseFloat(listing.currentBid) : undefined,
@@ -527,7 +538,13 @@ export function MyStore() {
   }
 
   // Create listing (optionally with 3 photos: front, back, up close)
-  const createListing = async (cardName: string, price: number, cardImage?: any, listingPhotos?: { front: string; back: string; close: string }) => {
+  const createListing = async (
+    cardName: string,
+    price: number,
+    cardImage?: any,
+    listingPhotos?: { front: string; back: string; close: string },
+    quantity?: number
+  ) => {
     try {
       const token = await getSessionToken()
       if (!token) {
@@ -593,6 +610,7 @@ export function MyStore() {
           cardImage: imageUrl,
           ...(imageBackUrl && { cardImageBack: imageBackUrl }),
           ...(imageCloseUrl && { cardImageClose: imageCloseUrl }),
+          quantity: quantity != null && quantity > 0 ? Math.floor(quantity) : 1,
         }),
       })
 
@@ -632,6 +650,7 @@ export function MyStore() {
         body: JSON.stringify({
           price: updates.price,
           cardName: updates.cardName,
+          ...(updates.quantity != null && { quantity: updates.quantity }),
         }),
       })
 
@@ -786,7 +805,7 @@ export function MyStore() {
     try {
       await fetchStore({ silent: true })
       if (store) {
-        if (activeTab === 'MY STORE') await fetchListings()
+        if (activeTab === 'STORE') await fetchListings()
         else if (activeTab === 'ORDERS') await fetchOrders()
         else if (activeTab === 'AUCTIONS') await fetchAuctions()
         else if (activeTab === 'ISO') await fetchISOItems()
@@ -799,7 +818,7 @@ export function MyStore() {
   // Load data when store is available and tab changes
   useEffect(() => {
     if (store) {
-      if (activeTab === 'MY STORE') {
+      if (activeTab === 'STORE') {
         fetchListings()
       } else if (activeTab === 'ORDERS') {
         fetchOrders()
@@ -830,105 +849,32 @@ export function MyStore() {
     return orders.filter(order => order.status === 'completed')
   }
 
-  const tabs = ['AUCTIONS', 'MY STORE', 'ISO', 'ORDERS']
+  const tabs = ['AUCTIONS', 'STORE', 'ISO', 'ORDERS']
 
   const USD_TO_ZAR = Number(process.env.EXPO_PUBLIC_USD_TO_ZAR) || 17
   const formatIsoPrice = (usd: number) => `R${Math.round(usd * USD_TO_ZAR).toLocaleString('en-ZA')}`
 
-  // Get user info from Better Auth for default values
-  const [userInfo, setUserInfo] = useState<any>(null)
+  // Default store name from session when opening create-store flow
   useEffect(() => {
-    const fetchUser = async () => {
+    const loadDefaultStoreName = async () => {
+      if (store || newStoreName.trim()) return
       try {
         const session = await authClient.getSession()
-        if (session?.data?.user) {
-          setUserInfo(session.data.user)
-        }
-      } catch (error) {
-        console.error('Error fetching user:', error)
+        const user = session?.data?.user as { name?: string; firstName?: string; lastName?: string } | undefined
+        if (!user) return
+        const fromParts = [user.firstName, user.lastName].filter(Boolean).join(' ').trim()
+        const base = fromParts || user.name?.trim() || 'My'
+        setNewStoreName(`${base}'s Card Shop`)
+      } catch {
+        // ignore
       }
     }
-    fetchUser()
-  }, [])
+    if (!store && !storeLoading) {
+      loadDefaultStoreName()
+    }
+  }, [store, storeLoading, newStoreName])
 
-  // No store yet and not loading – show Create Store modal
-  if (!store && !storeLoading) {
-    return (
-      <View style={styles.container}>
-        <Modal
-          visible={true}
-          animationType="slide"
-          transparent={true}
-        >
-          <View style={styles.modalOverlay}>
-            <Card style={styles.modalCard}>
-              <CardContent style={styles.modalContent}>
-                <Text style={styles.modalTitle}>Create Your Store</Text>
-                <Text style={styles.modalSubtitle}>
-                  Get started by creating your own card shop!
-                </Text>
-                <TextInput
-                  style={styles.modalInput}
-                  placeholder="Store name (required)"
-                  placeholderTextColor={theme.mutedForegroundColor || 'rgba(255, 255, 255, 0.6)'}
-                  value={newStoreName}
-                  onChangeText={setNewStoreName}
-                />
-                <View style={styles.modalInputRow}>
-                  <View style={styles.modalInputIcon}>
-                    <Ionicons name="logo-twitch" size={20} color={theme.mutedForegroundColor || 'rgba(255, 255, 255, 0.6)'} />
-                  </View>
-                  <TextInput
-                    style={[styles.modalInput, styles.modalInputInRow]}
-                    placeholder="Twitch URL (optional)"
-                    placeholderTextColor={theme.mutedForegroundColor || 'rgba(255, 255, 255, 0.6)'}
-                    value={newTwitchUrl}
-                    onChangeText={setNewTwitchUrl}
-                    autoCapitalize="none"
-                    keyboardType="url"
-                  />
-                </View>
-                <View style={styles.modalInputRow}>
-                  <View style={styles.modalInputIcon}>
-                    <Ionicons name="logo-youtube" size={20} color={theme.mutedForegroundColor || 'rgba(255, 255, 255, 0.6)'} />
-                  </View>
-                  <TextInput
-                    style={[styles.modalInput, styles.modalInputInRow]}
-                    placeholder="YouTube URL (optional)"
-                    placeholderTextColor={theme.mutedForegroundColor || 'rgba(255, 255, 255, 0.6)'}
-                    value={newYoutubeUrl}
-                    onChangeText={setNewYoutubeUrl}
-                    autoCapitalize="none"
-                    keyboardType="url"
-                  />
-                </View>
-                <View style={styles.modalActions}>
-                  <TouchableOpacity
-                    style={[styles.modalButton, styles.modalButtonSecondary]}
-                    onPress={() => setIsCreateStoreModalVisible(false)}
-                    disabled={creatingStore}
-                  >
-                    <Text style={styles.modalButtonTextSecondary}>Cancel</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[styles.modalButton, styles.modalButtonPrimary, !newStoreName.trim() && styles.modalButtonDisabled]}
-                    onPress={createStore}
-                    disabled={creatingStore || !newStoreName.trim()}
-                  >
-                    {creatingStore ? (
-                      <ActivityIndicator size="small" color="#fff" />
-                    ) : (
-                      <Text style={styles.modalButtonTextPrimary}>Create Store</Text>
-                    )}
-                  </TouchableOpacity>
-                </View>
-              </CardContent>
-            </Card>
-          </View>
-        </Modal>
-      </View>
-    )
-  }
+  const showCreateStoreGate = !store && !storeLoading
 
   // Get store display values (when store is set)
   const storeName = store?.storeName || (store ? `${store.user?.firstName || store.user?.name || 'User'}'s Card Shop` : '')
@@ -941,6 +887,19 @@ export function MyStore() {
 
   return (
     <View style={styles.container}>
+      <CreateStoreModal
+        visible={showCreateStoreGate || isCreateStoreModalVisible}
+        required={showCreateStoreGate}
+        storeName={newStoreName}
+        twitchUrl={newTwitchUrl}
+        youtubeUrl={newYoutubeUrl}
+        creating={creatingStore}
+        onStoreNameChange={setNewStoreName}
+        onTwitchUrlChange={setNewTwitchUrl}
+        onYoutubeUrlChange={setNewYoutubeUrl}
+        onCreate={createStore}
+      />
+      {!showCreateStoreGate ? (
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
@@ -948,7 +907,7 @@ export function MyStore() {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            tintColor={theme.tintColor || '#73EC8B'}
+            tintColor={theme.textColor}
           />
         }
       >
@@ -973,16 +932,16 @@ export function MyStore() {
             </View>
             <View style={styles.contentWrapper}>
               <View style={styles.skeletonLoadingLabel}>
-                <ActivityIndicator size="small" color={theme.tintColor || '#73EC8B'} />
+                <ActivityIndicator size="small" color={theme.textColor} />
                 <Text style={styles.skeletonLoadingText}>Loading your store…</Text>
               </View>
               <SkeletonBox width="100%" height={64} borderRadius={RADIUS.md} style={{ marginBottom: SPACING.lg }} />
               <View style={styles.skeletonListingsRow}>
-                {[1, 2, 3].map((i) => (
+                {[1, 2, 3, 4].map((i) => (
                   <View key={i} style={styles.skeletonListingCard}>
-                    <SkeletonBox width="100%" height={100} borderRadius={RADIUS.md} style={{ marginBottom: SPACING.sm }} />
-                    <SkeletonBox width={60} height={14} borderRadius={4} style={{ marginBottom: 4 }} />
-                    <SkeletonBox width="70%" height={12} borderRadius={4} />
+                    <SkeletonBox width="100%" borderRadius={RADIUS.sm} style={{ aspectRatio: 1, marginBottom: SPACING.xs }} />
+                    <SkeletonBox width={48} height={10} borderRadius={4} style={{ marginBottom: 3 }} />
+                    <SkeletonBox width="85%" height={10} borderRadius={4} />
                   </View>
                 ))}
               </View>
@@ -1034,11 +993,11 @@ export function MyStore() {
 
         <View style={styles.contentWrapper}>
           {activeTab === 'AUCTIONS' && (
-            <Section title="Auctions">
+            <Section title="Auctions" compact>
               {auctionsLoading && !auctionsHasLoadedOnce ? (
                 <>
                   <View style={styles.skeletonLoadingLabel}>
-                    <ActivityIndicator size="small" color={theme.tintColor || '#73EC8B'} />
+                    <ActivityIndicator size="small" color={theme.textColor} />
                     <Text style={styles.skeletonLoadingText}>Loading auctions…</Text>
                   </View>
                   <View style={styles.skeletonAuctionList}>
@@ -1061,106 +1020,60 @@ export function MyStore() {
           )}
 
           {activeTab === 'ISO' && (
-            <Section title="In Search Of" showSeeAll={false}>
-              <Card style={styles.isoCard}>
-                <CardContent style={styles.isoCardContent}>
-                  <TouchableOpacity
-                    style={styles.addISOButton}
-                    onPress={() => setIsAddISOModalVisible(true)}
-                    activeOpacity={0.7}
-                  >
-                    <Ionicons name="add-circle-outline" size={20} color={theme.tintColor || '#73EC8B'} />
-                    <Text style={styles.addISOText}>Add Card to ISO</Text>
-                  </TouchableOpacity>
-                  {isoLoading && !isoHasLoadedOnce ? (
-                    <>
-                      <View style={styles.skeletonLoadingLabel}>
-                        <ActivityIndicator size="small" color={theme.tintColor || '#73EC8B'} />
-                        <Text style={styles.skeletonLoadingText}>Loading ISO list…</Text>
+            <Section title="In Search Of" showSeeAll={false} compact>
+              <AppButton
+                variant="filled"
+                size="sm"
+                icon="add-circle-outline"
+                label="Add to ISO"
+                fullWidth
+                onPress={() => setIsAddISOModalVisible(true)}
+                style={styles.isoAddButton}
+              />
+              {isoLoading && !isoHasLoadedOnce ? (
+                <>
+                  <View style={styles.skeletonLoadingLabel}>
+                    <ActivityIndicator size="small" color={theme.textColor} />
+                    <Text style={styles.skeletonLoadingText}>Loading ISO list…</Text>
+                  </View>
+                  <View style={styles.skeletonIsoList}>
+                    {[1, 2, 3].map((i) => (
+                      <View key={i} style={styles.skeletonIsoRow}>
+                        <SkeletonBox width={40} height={52} borderRadius={RADIUS.sm} />
+                        <View style={{ flex: 1, marginLeft: SPACING.sm }}>
+                          <SkeletonBox width="75%" height={12} borderRadius={4} style={{ marginBottom: 4 }} />
+                          <SkeletonBox width="45%" height={10} borderRadius={4} />
+                        </View>
                       </View>
-                      <View style={styles.skeletonIsoList}>
-                        {[1, 2, 3].map((i) => (
-                          <View key={i} style={styles.skeletonIsoRow}>
-                            <SkeletonBox width={72} height={100} borderRadius={RADIUS.md} />
-                            <View style={{ flex: 1, marginLeft: SPACING.md }}>
-                              <SkeletonBox width="80%" height={16} borderRadius={4} style={{ marginBottom: SPACING.sm }} />
-                              <SkeletonBox width="50%" height={12} borderRadius={4} />
-                            </View>
-                          </View>
-                        ))}
+                    ))}
+                  </View>
+                </>
+              ) : isoItems.length > 0 ? (
+                <View style={styles.isoListWrap}>
+                  {isoItems.map((isoItem, index) => {
+                    const imageUri =
+                      isoItem.image ||
+                      getPokemonTcgImageUrlFromSetNumberIfOnCdn(isoItem.set, isoItem.cardNumber) ||
+                      null
+                    return (
+                      <View key={isoItem.id}>
+                        <IsoListItem
+                          item={isoItem}
+                          imageUri={imageUri}
+                          formatPrice={formatIsoPrice}
+                        />
+                        {index < isoItems.length - 1 ? <View style={styles.isoSeparator} /> : null}
                       </View>
-                    </>
-                  ) : isoItems.length > 0 ? (
-                    <>
-                      <View style={styles.isoSeparator} />
-                      {isoItems.map((isoItem, index) => {
-                        const imageUri = isoItem.image
-                          || getPokemonTcgImageUrlFromSetNumberIfOnCdn(isoItem.set, isoItem.cardNumber)
-                          || null
-                        return (
-                          <View key={isoItem.id}>
-                            <View style={styles.isoItem}>
-                              <View style={styles.isoItemImageWrap}>
-                                {imageUri ? (
-                                  <Image
-                                    source={{ uri: imageUri }}
-                                    style={styles.isoCardImage}
-                                    resizeMode="contain"
-                                  />
-                                ) : (
-                                  <View style={styles.isoCardImagePlaceholder}>
-                                    <Ionicons name="image-outline" size={32} color="rgba(255, 255, 255, 0.4)" />
-                                    <Text style={styles.isoCardImageFallbackText} numberOfLines={2}>{isoItem.cardName}</Text>
-                                  </View>
-                                )}
-                              </View>
-                              <View style={styles.isoItemTextBlock}>
-                                <Text style={styles.isoItemTitle} numberOfLines={1}>
-                                  {isoItem.cardName || 'Unnamed card'}
-                                </Text>
-
-                                <View style={styles.isoDetailRow}>
-                                  <Text style={styles.isoDetailLabel}>Set</Text>
-                                  <Text style={styles.isoDetailValue} numberOfLines={1}>
-                                    {isoItem.set || '—'}
-                                  </Text>
-                                </View>
-
-                                <View style={styles.isoDetailRow}>
-                                  <Text style={styles.isoDetailLabel}>Card #</Text>
-                                  <Text style={styles.isoDetailValue} numberOfLines={1}>
-                                    {isoItem.cardNumber || '—'}
-                                  </Text>
-                                </View>
-
-                                <View style={styles.isoPriceRow}>
-                                  <Text style={styles.isoPriceLabel}>Market</Text>
-                                  <View style={styles.isoPricePill}>
-                                    <Text style={styles.isoPriceText} numberOfLines={1}>
-                                      {isoItem.marketPrice != null
-                                        ? formatIsoPrice(Number(isoItem.marketPrice))
-                                        : '—'}
-                                    </Text>
-                                  </View>
-                                </View>
-                              </View>
-                            </View>
-                            {index < isoItems.length - 1 && <View style={styles.isoSeparator} />}
-                          </View>
-                        )
-                      })}
-                    </>
-                  ) : (
-                    <View style={styles.emptyContainer}>
-                      <Text style={styles.emptyText}>No ISO items yet</Text>
-                    </View>
-                  )}
-                </CardContent>
-              </Card>
+                    )
+                  })}
+                </View>
+              ) : (
+                <Text style={styles.emptyTextCompact}>No ISO items yet</Text>
+              )}
             </Section>
           )}
 
-          {activeTab === 'MY STORE' && (
+          {activeTab === 'STORE' && (
             <>
               <StoreStats
                 totalSales={store.totalSales || 0}
@@ -1171,6 +1084,7 @@ export function MyStore() {
 
               <Section
                 title="My Listings"
+                compact
                 rightContent={
                   <>
                     <SafetyFilter
@@ -1185,15 +1099,15 @@ export function MyStore() {
                 {listingsLoading && !listingsHasLoadedOnce ? (
                   <>
                     <View style={styles.skeletonLoadingLabel}>
-                      <ActivityIndicator size="small" color={theme.tintColor || '#73EC8B'} />
+                      <ActivityIndicator size="small" color={theme.textColor} />
                       <Text style={styles.skeletonLoadingText}>Loading your listings…</Text>
                     </View>
                     <View style={styles.skeletonListingsRow}>
                       {[1, 2, 3, 4].map((i) => (
                         <View key={i} style={styles.skeletonListingCard}>
-                          <SkeletonBox width="100%" height={100} borderRadius={RADIUS.md} style={{ marginBottom: SPACING.sm }} />
-                          <SkeletonBox width={60} height={14} borderRadius={4} style={{ marginBottom: 4 }} />
-                          <SkeletonBox width="70%" height={12} borderRadius={4} />
+                          <SkeletonBox width="100%" borderRadius={RADIUS.sm} style={{ aspectRatio: 1, marginBottom: SPACING.xs }} />
+                          <SkeletonBox width={48} height={10} borderRadius={4} style={{ marginBottom: 3 }} />
+                          <SkeletonBox width="85%" height={10} borderRadius={4} />
                         </View>
                       ))}
                     </View>
@@ -1209,7 +1123,7 @@ export function MyStore() {
                           image: listing.cardImage,
                           category: 'listing',
                           price: listing.price,
-                          description: `Premium ${listing.cardName}. Authentic and verified with secure shipping.`,
+                          description: listing.cardName,
                           storeName,
                           fromMyStore: true,
                           listingId: String(listing.id),
@@ -1237,11 +1151,11 @@ export function MyStore() {
 
           {activeTab === 'ORDERS' && (
             <>
-              <Section title="Ongoing Orders">
+              <Section title="Ongoing Orders" compact>
                 {ordersLoading && !ordersHasLoadedOnce ? (
                   <>
                     <View style={styles.skeletonLoadingLabel}>
-                      <ActivityIndicator size="small" color={theme.tintColor || '#73EC8B'} />
+                      <ActivityIndicator size="small" color={theme.textColor} />
                       <Text style={styles.skeletonLoadingText}>Loading orders…</Text>
                     </View>
                     <View style={styles.skeletonOrdersList}>
@@ -1270,11 +1184,11 @@ export function MyStore() {
                 )}
               </Section>
 
-              <Section title="Completed Orders">
+              <Section title="Completed Orders" compact>
                 {ordersLoading && !ordersHasLoadedOnce ? (
                   <>
                     <View style={styles.skeletonLoadingLabel}>
-                      <ActivityIndicator size="small" color={theme.tintColor || '#73EC8B'} />
+                      <ActivityIndicator size="small" color={theme.textColor} />
                       <Text style={styles.skeletonLoadingText}>Loading orders…</Text>
                     </View>
                     <View style={styles.skeletonOrdersList}>
@@ -1308,6 +1222,7 @@ export function MyStore() {
         </>
         ) : null}
       </ScrollView>
+      ) : null}
 
       {/* List Item Modal */}
       {selectedProduct && (
@@ -1316,21 +1231,25 @@ export function MyStore() {
           productName={selectedProduct.name}
           productImage={selectedProduct.image}
           initialPrice={editingListing?.price}
-          initialDescription={editingListing ? `Premium ${editingListing.cardName}. Authentic and verified with secure shipping.` : undefined}
+          initialDescription={editingListing ? editingListing.cardName : undefined}
           onClose={() => {
             setIsListItemModalVisible(false)
             setSelectedProduct(null)
             setEditingListing(null)
           }}
-          onList={async (price, listingImageUri, listingPhotos) => {
+          initialQuantity={editingListing?.quantity}
+          onList={async (price, listingImageUri, listingPhotos, quantity) => {
             if (editingListing) {
-              await updateListing(editingListing.id, { price })
+              await updateListing(editingListing.id, {
+                price,
+                quantity: quantity ?? editingListing.quantity,
+              })
             } else {
               if (!listingImageUri || !listingPhotos) {
                 Alert.alert('Photos required', 'Please add all 3 photos (front, back, up close) to list your card.')
                 throw new Error('Photos required')
               }
-              await createListing(selectedProduct.name, price, { uri: listingImageUri }, listingPhotos)
+              await createListing(selectedProduct.name, price, { uri: listingImageUri }, listingPhotos, quantity)
             }
             setIsListItemModalVisible(false)
             setSelectedProduct(null)
@@ -1384,7 +1303,7 @@ export function MyStore() {
                 >
                   {avatarUploading ? (
                     <View style={[styles.modalAvatar, styles.modalAvatarUploading]}>
-                      <ActivityIndicator size="small" color={theme.tintColor || '#73EC8B'} />
+                      <ActivityIndicator size="small" color={theme.textColor} />
                     </View>
                   ) : store?.user?.avatar ? (
                     <Image
@@ -1411,7 +1330,7 @@ export function MyStore() {
                 >
                   {bannerUploading ? (
                     <View style={[styles.modalBannerPlaceholder, styles.modalBannerUploading]}>
-                      <ActivityIndicator size="small" color={theme.tintColor || '#73EC8B'} />
+                      <ActivityIndicator size="small" color={theme.textColor} />
                       <Text style={styles.modalBannerPlaceholderText}>Uploading…</Text>
                     </View>
                   ) : (editBannerUrl || store?.bannerUrl) ? (
@@ -1464,24 +1383,24 @@ export function MyStore() {
                 />
               </View>
               <View style={styles.modalActions}>
-                <TouchableOpacity
-                  style={[styles.modalButton, styles.modalButtonSecondary]}
+                <AppButton
+                  variant="outline"
+                  size="md"
+                  label="Cancel"
                   onPress={() => setIsEditStoreModalVisible(false)}
                   disabled={updatingStore}
-                >
-                  <Text style={styles.modalButtonTextSecondary}>Cancel</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.modalButton, styles.modalButtonPrimary, !editStoreName.trim() && styles.modalButtonDisabled]}
+                  onDarkSurface
+                  style={styles.modalActionBtn}
+                />
+                <AppButton
+                  variant="filled"
+                  size="md"
+                  label={updatingStore ? 'Saving…' : 'Save'}
                   onPress={updateStoreDetails}
                   disabled={updatingStore || !editStoreName.trim()}
-                >
-                  {updatingStore ? (
-                    <ActivityIndicator size="small" color="#fff" />
-                  ) : (
-                    <Text style={styles.modalButtonTextPrimary}>Save</Text>
-                  )}
-                </TouchableOpacity>
+                  onDarkSurface
+                  style={styles.modalActionBtn}
+                />
               </View>
             </CardContent>
           </Card>
@@ -1499,42 +1418,43 @@ const getStyles = (theme: any) => StyleSheet.create({
   scrollContent: {
     paddingHorizontal: SPACING.containerPadding,
     paddingTop: SPACING['3xl'],
-    paddingBottom: SPACING['4xl'],
+    paddingBottom: SPACING.screenBottom,
   },
   tabsRow: {
     flexDirection: 'row',
     alignItems: 'stretch',
-    marginTop: SPACING.lg,
-    marginBottom: SPACING['2xl'],
+    marginTop: SPACING.sm,
+    marginBottom: SPACING.md,
     backgroundColor: 'rgba(255, 255, 255, 0.04)',
-    borderRadius: RADIUS.md,
-    padding: 4,
+    borderRadius: RADIUS.full,
+    padding: 2,
     borderWidth: 1,
     borderColor: theme.borderColor || 'rgba(255, 255, 255, 0.08)',
   },
   tabPill: {
     flex: 1,
-    paddingVertical: SPACING.md,
-    paddingHorizontal: SPACING.sm,
-    borderRadius: RADIUS.sm,
+    paddingVertical: SPACING.xs,
+    paddingHorizontal: SPACING.xs,
+    borderRadius: RADIUS.full,
+    minHeight: SPACING.pillHeight + 4,
     alignItems: 'center',
     justifyContent: 'center',
   },
   tabPillActive: {
-    backgroundColor: theme.tintColor || '#73EC8B',
+    backgroundColor: theme.buttonFilledBg || '#FFFFFF',
   },
   tabPillText: {
-    fontSize: TYPOGRAPHY.caption,
+    fontSize: TYPOGRAPHY.label,
     fontFamily: theme.semiBoldFont,
     color: theme.textColor,
     fontWeight: '600',
   },
   tabPillTextActive: {
-    color: '#000000',
+    color: theme.buttonFilledFg || '#000000',
   },
   contentWrapper: {
     width: '100%',
-    paddingTop: SPACING.lg,
+    paddingTop: SPACING.sm,
   },
   skeletonHeader: {
     marginBottom: SPACING.lg,
@@ -1577,7 +1497,20 @@ const getStyles = (theme: any) => StyleSheet.create({
   skeletonIsoRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: SPACING.md,
+    paddingVertical: SPACING.xs,
+  },
+  isoAddButton: {
+    marginBottom: SPACING.sm,
+  },
+  isoListWrap: {
+    marginTop: SPACING.xs,
+  },
+  emptyTextCompact: {
+    fontSize: TYPOGRAPHY.caption,
+    fontFamily: theme.regularFont,
+    color: 'rgba(255, 255, 255, 0.45)',
+    marginTop: SPACING.sm,
+    textAlign: 'center',
   },
   skeletonOrdersList: {
     width: '100%',
@@ -1614,7 +1547,7 @@ const getStyles = (theme: any) => StyleSheet.create({
   },
   isoCard: {
     backgroundColor: theme.cardBackground || '#000000',
-    borderRadius: RADIUS.lg,
+    borderRadius: RADIUS.md,
     borderWidth: 1,
     borderColor: theme.borderColor || 'rgba(255, 255, 255, 0.08)',
   },
@@ -1624,12 +1557,12 @@ const getStyles = (theme: any) => StyleSheet.create({
   isoItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: SPACING.sm,
-    gap: SPACING.md,
+    paddingVertical: SPACING.xs,
+    gap: SPACING.sm,
   },
   isoItemImageWrap: {
-    width: 72,
-    height: 100,
+    width: 56,
+    height: 76,
     borderRadius: RADIUS.md,
     overflow: 'hidden',
     backgroundColor: 'rgba(255, 255, 255, 0.05)',
@@ -1660,10 +1593,10 @@ const getStyles = (theme: any) => StyleSheet.create({
     gap: SPACING.xs,
   },
   isoItemTitle: {
-    fontSize: TYPOGRAPHY.h2,
-    fontFamily: theme.boldFont,
+    fontSize: TYPOGRAPHY.bodySmall,
+    fontFamily: theme.semiBoldFont,
     color: theme.textColor,
-    marginBottom: SPACING.xs,
+    marginBottom: 0,
   },
   isoItemLeft: {
     flex: 1,
@@ -1710,14 +1643,14 @@ const getStyles = (theme: any) => StyleSheet.create({
     paddingHorizontal: SPACING.sm,
     paddingVertical: SPACING.xs,
     borderRadius: 999,
-    backgroundColor: 'rgba(115, 236, 139, 0.1)',
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
     borderWidth: 1,
-    borderColor: theme.tintColor || '#73EC8B',
+    borderColor: theme.borderColor || 'rgba(255, 255, 255, 0.2)',
   },
   isoPriceText: {
     fontSize: TYPOGRAPHY.bodySmall,
     fontFamily: theme.semiBoldFont,
-    color: theme.tintColor || '#73EC8B',
+    color: theme.textColor,
   },
   isoSeparator: {
     height: 1,
@@ -1853,6 +1786,10 @@ const getStyles = (theme: any) => StyleSheet.create({
   modalActions: {
     flexDirection: 'row',
     gap: SPACING.md,
+    marginTop: SPACING.sm,
+  },
+  modalActionBtn: {
+    flex: 1,
   },
   modalButton: {
     flex: 1,
@@ -1862,7 +1799,7 @@ const getStyles = (theme: any) => StyleSheet.create({
     justifyContent: 'center',
   },
   modalButtonPrimary: {
-    backgroundColor: theme.tintColor || '#73EC8B',
+    backgroundColor: theme.buttonFilledBg || '#FFFFFF',
   },
   modalButtonDisabled: {
     opacity: 0.5,
@@ -1875,7 +1812,7 @@ const getStyles = (theme: any) => StyleSheet.create({
   modalButtonTextPrimary: {
     fontSize: TYPOGRAPHY.body,
     fontFamily: theme.semiBoldFont,
-    color: '#000',
+    color: theme.buttonFilledFg || '#000000',
     fontWeight: '600',
   },
   modalButtonTextSecondary: {

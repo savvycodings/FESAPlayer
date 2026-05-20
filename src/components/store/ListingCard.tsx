@@ -6,6 +6,7 @@ import Ionicons from '@expo/vector-icons/Ionicons'
 import { ThemeContext } from '../../context'
 import { SPACING, TYPOGRAPHY, RADIUS } from '../../constants/layout'
 import { VaultingBadge } from './VaultingBadge'
+import { AppButton } from '../ui/AppButton'
 
 type VaultingStatus = 'vaulted' | 'seller-has' | 'unverified' | 'vaulting-in-process'
 type PurchaseType = 'instant' | 'bid' | 'both'
@@ -105,49 +106,44 @@ export function ListingCard({
             {/* Action Buttons */}
             <View style={styles.actionsContainer}>
               {isOwnListing ? (
-                // Edit button then vaulting badge below, centered
                 <View style={styles.ownListingActions}>
-                  <TouchableOpacity
-                    style={styles.editButton}
+                  <AppButton
+                    variant="filled"
+                    size="sm"
+                    icon="pencil-outline"
+                    label="Edit"
+                    fullWidth
                     onPress={onEditPress}
-                    activeOpacity={0.7}
-                  >
-                    <Ionicons
-                      name="pencil-outline"
-                      size={14}
-                      color={theme.tintTextColor || '#000000'}
-                      style={styles.editIcon}
-                    />
-                    <Text style={styles.editButtonText}>Edit</Text>
-                  </TouchableOpacity>
+                  />
                   <View style={[styles.badgeBelowEdit, styles.ownListingActionSpaced]}>
                     <VaultingBadge status={vaultingStatus} size="sm" muted textOnly />
                   </View>
                 </View>
               ) : (
-                // Show Buy/Bid buttons for other users' listings
                 <>
                   {purchaseType === 'instant' || purchaseType === 'both' ? (
-                    <TouchableOpacity
-                      style={styles.buyButton}
+                    <AppButton
+                      variant="filled"
+                      size="sm"
+                      icon="cart-outline"
+                      label={`Buy R${Number(price).toLocaleString('en-ZA')}`}
+                      fullWidth
                       onPress={onBuyPress}
-                      activeOpacity={0.7}
-                    >
-                      <Text style={styles.buyButtonText} numberOfLines={1}>
-                        Buy Now R{Number(price).toLocaleString('en-ZA')}
-                      </Text>
-                    </TouchableOpacity>
+                    />
                   ) : null}
-                  <TouchableOpacity
-                    style={[
-                      styles.bidButton,
-                      (purchaseType === 'instant' || purchaseType === 'both') && styles.actionButtonSpaced,
-                    ]}
+                  <AppButton
+                    variant="outline"
+                    size="sm"
+                    icon="hammer-outline"
+                    label="Bid"
+                    fullWidth
                     onPress={onBidPress}
-                    activeOpacity={0.7}
-                  >
-                    <Text style={styles.bidButtonText}>Bid</Text>
-                  </TouchableOpacity>
+                    style={
+                      (purchaseType === 'instant' || purchaseType === 'both')
+                        ? styles.actionButtonSpaced
+                        : undefined
+                    }
+                  />
                 </>
               )}
             </View>
@@ -197,23 +193,22 @@ const getStyles = (theme: any) => StyleSheet.create({
     left: SPACING.sm,
   },
   infoSection: {
-    padding: SPACING.md,
-    paddingTop: SPACING.sm,
+    padding: SPACING.xs,
+    paddingTop: 4,
   },
   cardName: {
-    fontSize: TYPOGRAPHY.body,
+    fontSize: TYPOGRAPHY.bodySmall,
     fontFamily: theme.semiBoldFont,
     color: theme.textColor,
     fontWeight: '600',
-    marginBottom: SPACING.sm,
+    marginBottom: 4,
     textAlign: 'left',
-    letterSpacing: 0.2,
-    lineHeight: 20,
+    lineHeight: 16,
   },
   price: {
     fontSize: TYPOGRAPHY.h3,
     fontFamily: theme.boldFont,
-    color: theme.tintColor || '#73EC8B',
+    color: theme.textColor,
     fontWeight: '700',
     marginBottom: SPACING.sm,
   },
@@ -223,7 +218,7 @@ const getStyles = (theme: any) => StyleSheet.create({
   bidLabel: {
     fontSize: TYPOGRAPHY.bodySmall,
     fontFamily: theme.semiBoldFont,
-    color: theme.tintColor || '#73EC8B',
+    color: theme.textColor,
     fontWeight: '600',
     marginBottom: SPACING.xs / 2,
   },
@@ -246,54 +241,5 @@ const getStyles = (theme: any) => StyleSheet.create({
   },
   badgeBelowEdit: {
     alignItems: 'center',
-  },
-  buyButton: {
-    backgroundColor: theme.tintColor || '#73EC8B',
-    paddingVertical: SPACING.sm,
-    paddingHorizontal: SPACING.sm,
-    borderRadius: RADIUS.md,
-    alignItems: 'center',
-    alignSelf: 'stretch',
-  },
-  buyButtonText: {
-    fontSize: TYPOGRAPHY.caption,
-    fontFamily: theme.semiBoldFont,
-    color: '#000000',
-    fontWeight: '600',
-    textAlign: 'center',
-  },
-  bidButton: {
-    backgroundColor: 'transparent',
-    paddingVertical: SPACING.sm,
-    paddingHorizontal: SPACING.md,
-    borderRadius: RADIUS.md,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
-  },
-  bidButtonText: {
-    fontSize: TYPOGRAPHY.bodySmall,
-    fontFamily: theme.semiBoldFont,
-    color: theme.textColor,
-    fontWeight: '600',
-  },
-  editButton: {
-    backgroundColor: theme.tintColor || '#73EC8B',
-    paddingVertical: SPACING.sm,
-    paddingHorizontal: SPACING.md,
-    borderRadius: RADIUS.md,
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexDirection: 'row',
-    alignSelf: 'stretch',
-  },
-  editIcon: {
-    marginRight: 6,
-  },
-  editButtonText: {
-    fontSize: TYPOGRAPHY.bodySmall,
-    fontFamily: theme.semiBoldFont,
-    color: theme.tintTextColor || '#000000',
-    fontWeight: '600',
   },
 })

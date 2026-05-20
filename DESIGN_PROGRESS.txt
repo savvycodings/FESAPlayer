@@ -1,0 +1,30 @@
+SA Player UI Cohesion — Design Progress
+Last updated: 2026-05-19
+
+Phase 1 — COMPLETE
+- Compact spacing tokens in layout.ts (sectionGap 16, stackGap, grid gaps, etc.)
+- Theme button tokens (buttonFilledBg/Fg, outline, priceAccent) in theme.ts
+- AppButton component (filled white / outline white, sm/md/lg)
+- DESIGN_SYSTEM.md updated
+- Profile: Add Card / Verify → AppButton; ProfileHeader tightened; ProductGrid ListingTile + compact grid
+- Grade: empty state AppButton; filler copy trimmed
+- Market: retry AppButton; list gaps compact; refresh tint white
+
+Phase 2 — COMPLETE
+- ListingTile shared card component
+- Section compact prop on Shop, Profile, My Store sections
+- setProducts → ListingTile grid + useWindowDimensions
+- RecentListings grid row gap token
+- search: tournament CTAs → AppButton; suggestion list separator 8px
+- myStore: ISO add → AppButton; compact sections; tab pills white active; modal primary white
+- AuctionSection: create card white CTA styling; shorter copy
+- ActionButtons → AppButton row
+
+Phase 3 — COMPLETE
+- useWindowDimensions grids (ProductGrid, setProducts)
+- useSafeAreaInsets on Market (existing), Search top bar, Grade container + bottom actions
+- RefreshControl / ActivityIndicator tints → textColor on target screens
+- Filler product descriptions trimmed on cards (profile, ProductGrid, setProducts, myStore)
+- Grade: scan/portfolio actions → AppButton; feature icons neutral
+
+Out of scope (unchanged): auth, payment modals, server, android native, expo-image optional dep.

@@ -6,7 +6,8 @@ import { Text } from '../components/ui/text'
 import { ThemeContext } from '../context'
 import { SPACING, TYPOGRAPHY, RADIUS } from '../constants/layout'
 import { Section } from '../components/layout/Section'
-import { Card, CardContent } from '../components/ui/card'
+import { CompactAccordion } from '../components/layout/CompactAccordion'
+import { IsoListItem } from '../components/store/IsoListItem'
 import Ionicons from '@expo/vector-icons/Ionicons'
 import { DOMAIN } from '../../constants'
 import { authClient } from '../lib/auth-client'
@@ -18,9 +19,14 @@ import {
   SafetyFilter,
 } from '../components/store'
 import { LeaveReviewModal } from '../components/store/LeaveReviewModal'
+import { AppButton } from '../components/ui/AppButton'
 import { type StoreListing } from '../components/store/StoreListings'
 import { AuctionSection, type Auction } from '../components/profile'
 import { PayFastPayment } from '../components/payment'
+
+const USD_TO_ZAR = Number(process.env.EXPO_PUBLIC_USD_TO_ZAR) || 17
+const formatIsoPrice = (usd: number) =>
+  `R${Math.round(usd * USD_TO_ZAR).toLocaleString('en-ZA')}`
 
 type ViewProfileStackParamList = {
   ViewProfile: {
@@ -357,7 +363,7 @@ export function ViewProfile() {
   if (loading && storeId) {
     return (
       <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
-        <ActivityIndicator size="large" color={theme.tintColor || '#73EC8B'} />
+        <ActivityIndicator size="large" color={theme.textColor} />
         <Text style={[styles.emptyText, { marginTop: SPACING.md }]}>Loading store...</Text>
       </View>
     )
@@ -410,7 +416,7 @@ export function ViewProfile() {
           youtubeUrl={storeData?.youtubeUrl}
         />
 
-        <Section title="Store Stats" style={{ marginTop: SPACING.lg }}>
+        <Section title="Store Stats">
           <StoreStats
             totalSales={displayStoreData.totalSales}
             totalRevenue={displayStoreData.totalRevenue}
@@ -453,7 +459,7 @@ export function ViewProfile() {
                   image: listing.cardImage,
                   category: 'listing',
                   price: listing.price,
-                  description: `Premium ${listing.cardName}. Authentic and verified with secure shipping.`,
+                  description: listing.cardName,
                   listingId: listingId != null ? String(listingId) : undefined,
                   sellerId: sellerId ?? undefined,
                   storeName: storeData?.storeName ?? storeData?.name ?? undefined,
@@ -552,182 +558,116 @@ export function ViewProfile() {
           />
         </Section>
 
-        <Section title="In Search Of">
-          <Card style={styles.isoCard}>
-            <CardContent style={styles.isoCardContent}>
-              <TouchableOpacity
-                style={styles.isoHeader}
-                onPress={() => setIsoExpanded(!isoExpanded)}
-                activeOpacity={0.7}
-              >
-                <View style={styles.isoHeaderLeft}>
-                  <View style={styles.isoIconContainer}>
-                    <Ionicons name="search" size={20} color={theme.tintColor || '#73EC8B'} />
+        <Section title="In Search Of" compact>
+          <CompactAccordion
+            title="In Search Of"
+            subtitle={
+              isoLoading
+                ? 'Loading…'
+                : `${isoItems.length} ${isoItems.length === 1 ? 'card' : 'cards'}`
+            }
+            icon="search-outline"
+            expanded={isoExpanded}
+            onToggle={() => setIsoExpanded(!isoExpanded)}
+          >
+            {isoLoading ? (
+              <View style={styles.isoLoadingWrap}>
+                <ActivityIndicator size="small" color={theme.textColor} />
+              </View>
+            ) : isoItems.length === 0 ? (
+              <Text style={styles.isoEmptyText}>No cards in search of</Text>
+            ) : (
+              isoItems.map((isoItem, index) => {
+                const imageUri =
+                  isoItem.image ||
+                  getPokemonTcgImageUrlFromSetNumberIfOnCdn(isoItem.set, isoItem.cardNumber) ||
+                  null
+                return (
+                  <View key={isoItem.id}>
+                    <IsoListItem
+                      item={isoItem}
+                      imageUri={imageUri}
+                      formatPrice={formatIsoPrice}
+                    />
+                    {index < isoItems.length - 1 ? <View style={styles.isoSeparator} /> : null}
                   </View>
-                  <View>
-                    <Text style={styles.isoTitle}>Cards in Search Of</Text>
-                    <Text style={styles.isoSubtitle}>
-                      {isoLoading ? '…' : isoItems.length} {isoItems.length === 1 ? 'card' : 'cards'} looking for
-                    </Text>
-                  </View>
-                </View>
-                <Ionicons
-                  name={isoExpanded ? "chevron-up" : "chevron-down"}
-                  size={20}
-                  color="rgba(255, 255, 255, 0.6)"
-                />
-              </TouchableOpacity>
-
-              {isoExpanded && (
-                <View style={styles.isoContent}>
-                  {isoLoading ? (
-                    <View style={styles.isoLoadingWrap}>
-                      <ActivityIndicator size="small" color={theme.tintColor || '#73EC8B'} />
-                    </View>
-                  ) : isoItems.length === 0 ? (
-                    <Text style={styles.isoEmptyText}>No cards in search of</Text>
-                  ) : (
-                    isoItems.map((isoItem, index) => {
-                      const imageUri = isoItem.image
-                        || getPokemonTcgImageUrlFromSetNumberIfOnCdn(isoItem.set, isoItem.cardNumber)
-                        || null
-                      const formatIsoPrice = (usd: number) => {
-                        const rate = Number(process.env.EXPO_PUBLIC_USD_TO_ZAR) || 17
-                        return `R${Math.round(usd * rate).toLocaleString('en-ZA')}`
-                      }
-                      return (
-                        <View key={isoItem.id}>
-                          <View style={styles.isoItem}>
-                            <View style={styles.isoItemImageWrap}>
-                              {imageUri ? (
-                                <Image
-                                  source={{ uri: imageUri }}
-                                  style={styles.isoCardImage}
-                                  resizeMode="contain"
-                                />
-                              ) : (
-                                <View style={styles.isoCardImagePlaceholder}>
-                                  <Ionicons name="image-outline" size={32} color="rgba(255, 255, 255, 0.4)" />
-                                  <Text style={styles.isoCardImageFallbackText} numberOfLines={2}>{isoItem.cardName}</Text>
-                                </View>
-                              )}
-                            </View>
-                            <View style={styles.isoItemTextBlock}>
-                              <Text style={styles.isoItemTitle} numberOfLines={1}>
-                                {isoItem.cardName || 'Unnamed card'}
-                              </Text>
-                              <View style={styles.isoDetailRow}>
-                                <Text style={styles.isoDetailLabel}>Set</Text>
-                                <Text style={styles.isoDetailValue} numberOfLines={1}>{isoItem.set || '—'}</Text>
-                              </View>
-                              <View style={styles.isoDetailRow}>
-                                <Text style={styles.isoDetailLabel}>Card #</Text>
-                                <Text style={styles.isoDetailValue} numberOfLines={1}>{isoItem.cardNumber || '—'}</Text>
-                              </View>
-                              <View style={styles.isoPriceRow}>
-                                <Text style={styles.isoPriceLabel}>Market</Text>
-                                <View style={styles.isoPricePill}>
-                                  <Text style={styles.isoPriceText} numberOfLines={1}>
-                                    {isoItem.marketPrice != null ? formatIsoPrice(Number(isoItem.marketPrice)) : '—'}
-                                  </Text>
-                                </View>
-                              </View>
-                            </View>
-                          </View>
-                          {index < isoItems.length - 1 && <View style={styles.isoSeparator} />}
-                        </View>
-                      )
-                    })
-                  )}
-                </View>
-              )}
-            </CardContent>
-          </Card>
+                )
+              })
+            )}
+          </CompactAccordion>
         </Section>
 
-        <Section title="Reviews">
-          <Card style={styles.reviewsCard}>
-            <CardContent style={styles.reviewsCardContent}>
-              <TouchableOpacity
-                style={styles.reviewsHeader}
-                onPress={() => setReviewsExpanded(!reviewsExpanded)}
-                activeOpacity={0.7}
-              >
-                <View style={styles.reviewsHeaderLeft}>
-                  <View style={styles.reviewsIconContainer}>
-                    <Ionicons name="star" size={20} color="#73EC8B" />
-                  </View>
-                  <View>
-                    <Text style={styles.reviewsTitle}>Customer Reviews</Text>
-                    <Text style={styles.reviewsSubtitle}>
-                      {storeReviews.length} reviews
-                      {storeReviews.length > 0 && ` • ${(
-                        storeReviews.reduce((sum, r) => sum + (r.rating || 0), 0) / storeReviews.length
-                      ).toFixed(1)} average`}
-                    </Text>
-                  </View>
-                </View>
-                <Ionicons
-                  name={reviewsExpanded ? "chevron-up" : "chevron-down"}
-                  size={20}
-                  color="rgba(255, 255, 255, 0.6)"
-                />
-              </TouchableOpacity>
-
-              {currentUser && (
-                <TouchableOpacity
-                  style={styles.leaveReviewButton}
-                  onPress={() => setIsLeaveReviewVisible(true)}
-                  activeOpacity={0.7}
-                >
-                  <Text style={styles.leaveReviewText}>Leave a review</Text>
-                </TouchableOpacity>
-              )}
-
-              {reviewsExpanded && (
-                <View style={styles.reviewsList}>
-                  {storeReviews.map((review) => (
-                    <TouchableOpacity
-                      key={review.id}
-                      style={styles.reviewItem}
-                      onPress={() => {
-                        navigation.navigate('ViewProfile', {
-                          userId: `user-${review.reviewerName.toLowerCase().replace(/\s+/g, '-')}`,
-                          userName: review.reviewerName,
-                          userImage: review.reviewerAvatar,
-                          userInitials: review.reviewerName.split(' ').map(n => n[0]).join('').toUpperCase(),
-                          verified: false,
-                        })
-                      }}
-                      activeOpacity={0.7}
-                    >
-                      <View style={styles.reviewHeader}>
-                        <Image
-                          source={review.reviewerAvatar}
-                          style={styles.reviewerAvatar}
-                        />
-                        <View style={styles.reviewerInfo}>
-                          <Text style={styles.reviewerName}>{review.reviewerName}</Text>
-                          <View style={styles.reviewRating}>
-                            {[...Array(5)].map((_, i) => (
-                              <Ionicons
-                                key={i}
-                                name={i < review.rating ? "star" : "star-outline"}
-                                size={12}
-                                color={theme.tintColor || '#73EC8B'}
-                              />
-                            ))}
-                            <Text style={styles.reviewDate}>{review.date}</Text>
-                          </View>
+        <Section title="Reviews" compact>
+          <CompactAccordion
+            title="Customer Reviews"
+            subtitle={
+              storeReviews.length > 0
+                ? `${storeReviews.length} reviews · ${(
+                    storeReviews.reduce((sum, r) => sum + (r.rating || 0), 0) / storeReviews.length
+                  ).toFixed(1)} avg`
+                : `${storeReviews.length} reviews`
+            }
+            icon="star-outline"
+            expanded={reviewsExpanded}
+            onToggle={() => setReviewsExpanded(!reviewsExpanded)}
+          >
+            {currentUser ? (
+              <AppButton
+                variant="outline"
+                size="sm"
+                onDarkSurface
+                icon="chatbubble-outline"
+                label="Leave a review"
+                onPress={() => setIsLeaveReviewVisible(true)}
+                style={styles.leaveReviewButton}
+              />
+            ) : null}
+            {storeReviews.length === 0 ? (
+              <Text style={styles.isoEmptyText}>No reviews yet</Text>
+            ) : (
+              <View style={styles.reviewsList}>
+                {storeReviews.map((review) => (
+                  <TouchableOpacity
+                    key={review.id}
+                    style={styles.reviewItem}
+                    onPress={() => {
+                      navigation.navigate('ViewProfile', {
+                        userId: `user-${review.reviewerName.toLowerCase().replace(/\s+/g, '-')}`,
+                        userName: review.reviewerName,
+                        userImage: review.reviewerAvatar,
+                        userInitials: review.reviewerName
+                          .split(' ')
+                          .map((n) => n[0])
+                          .join('')
+                          .toUpperCase(),
+                        verified: false,
+                      })
+                    }}
+                    activeOpacity={0.7}
+                  >
+                    <View style={styles.reviewHeader}>
+                      <Image source={review.reviewerAvatar} style={styles.reviewerAvatar} />
+                      <View style={styles.reviewerInfo}>
+                        <Text style={styles.reviewerName}>{review.reviewerName}</Text>
+                        <View style={styles.reviewRating}>
+                          {[...Array(5)].map((_, i) => (
+                            <Ionicons
+                              key={i}
+                              name={i < review.rating ? 'star' : 'star-outline'}
+                              size={10}
+                              color={theme.buttonFilledBg || '#FFFFFF'}
+                            />
+                          ))}
+                          <Text style={styles.reviewDate}>{review.date}</Text>
                         </View>
                       </View>
-                      <Text style={styles.reviewComment}>{review.comment}</Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              )}
-            </CardContent>
-          </Card>
+                    </View>
+                    <Text style={styles.reviewComment}>{review.comment}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
+          </CompactAccordion>
         </Section>
       </ScrollView>
 
@@ -773,7 +713,7 @@ export function ViewProfile() {
           itemAmount={paymentType === 'buy' ? (parseFloat(String(selectedListing.price)) || 0) : undefined}
           shippingFee={paymentType === 'buy' ? 100 : undefined}
           itemName={selectedListing.cardName}
-          itemDescription={`Premium ${selectedListing.cardName}. Authentic and verified with secure shipping.`}
+          itemDescription={selectedListing.cardName}
           userEmail={currentUser?.email || ''}
           userNameFirst={currentUser?.firstName || currentUser?.name?.split(' ')[0] || 'User'}
           userNameLast={currentUser?.lastName || currentUser?.name?.split(' ').slice(1).join(' ') || ''}
@@ -818,8 +758,8 @@ const getStyles = (theme: any) => StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: SPACING.containerPadding,
-    paddingTop: SPACING.lg,
-    paddingBottom: SPACING.md,
+    paddingTop: SPACING.sm,
+    paddingBottom: SPACING.sm,
     backgroundColor: theme.backgroundColor,
   },
   backButton: {
@@ -827,89 +767,48 @@ const getStyles = (theme: any) => StyleSheet.create({
   },
   headerTitle: {
     flex: 1,
-    fontSize: TYPOGRAPHY.h2,
+    fontSize: TYPOGRAPHY.body,
     fontFamily: theme.boldFont,
     color: theme.textColor,
     textAlign: 'center',
     fontWeight: '600',
-    letterSpacing: -0.3,
+    letterSpacing: -0.2,
   },
   headerSpacer: {
     width: 44,
   },
   scrollContentContainer: {
     paddingHorizontal: SPACING.containerPadding,
-    paddingBottom: SPACING['4xl'],
-  },
-  reviewsCard: {
-    backgroundColor: theme.cardBackground || '#000000',
-    borderRadius: RADIUS.lg,
-    borderWidth: 1,
-    borderColor: theme.borderColor || 'rgba(255, 255, 255, 0.08)',
-    marginBottom: SPACING.md,
-  },
-  reviewsCardContent: {
-    padding: SPACING.cardPadding,
-  },
-  reviewsHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  reviewsHeaderLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: SPACING.sm,
-  },
-  reviewsIconContainer: {
-    width: 32,
-    height: 32,
-    borderRadius: RADIUS.sm,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  reviewsTitle: {
-    fontSize: TYPOGRAPHY.h4,
-    fontFamily: theme.semiBoldFont,
-    color: theme.textColor,
-    fontWeight: '600',
-    marginBottom: SPACING.xs / 2,
-  },
-  reviewsSubtitle: {
-    fontSize: TYPOGRAPHY.caption,
-    fontFamily: theme.regularFont,
-    color: 'rgba(255, 255, 255, 0.6)',
+    paddingBottom: SPACING.screenBottom,
   },
   reviewsList: {
-    marginTop: SPACING.md,
-    gap: SPACING.md,
+    gap: SPACING.xs,
   },
   reviewItem: {
-    paddingTop: SPACING.md,
+    paddingTop: SPACING.xs,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(255, 255, 255, 0.08)',
+    borderTopColor: 'rgba(255, 255, 255, 0.06)',
   },
   reviewHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: SPACING.sm,
+    marginBottom: SPACING.xs,
   },
   reviewerAvatar: {
-    width: 40,
-    height: 40,
+    width: 22,
+    height: 22,
     borderRadius: RADIUS.full,
-    marginRight: SPACING.sm,
+    marginRight: SPACING.xs,
   },
   reviewerInfo: {
     flex: 1,
   },
   reviewerName: {
-    fontSize: TYPOGRAPHY.bodySmall,
+    fontSize: TYPOGRAPHY.caption,
     fontFamily: theme.semiBoldFont,
     color: theme.textColor,
     fontWeight: '600',
-    marginBottom: SPACING.xs / 2,
+    marginBottom: 1,
   },
   reviewRating: {
     flexDirection: 'row',
@@ -923,20 +822,14 @@ const getStyles = (theme: any) => StyleSheet.create({
     marginLeft: SPACING.xs,
   },
   reviewComment: {
-    fontSize: TYPOGRAPHY.bodySmall,
+    fontSize: TYPOGRAPHY.caption,
     fontFamily: theme.regularFont,
-    color: 'rgba(255, 255, 255, 0.8)',
-    lineHeight: 20,
+    color: 'rgba(255, 255, 255, 0.75)',
+    lineHeight: 16,
   },
   leaveReviewButton: {
-    alignSelf: 'flex-end',
-    marginTop: SPACING.sm,
+    alignSelf: 'flex-start',
     marginBottom: SPACING.xs,
-  },
-  leaveReviewText: {
-    fontSize: TYPOGRAPHY.bodySmall,
-    fontFamily: theme.regularFont,
-    color: theme.tintColor || '#73EC8B',
   },
   emptyContainer: {
     alignItems: 'center',
@@ -949,158 +842,15 @@ const getStyles = (theme: any) => StyleSheet.create({
     color: 'rgba(255, 255, 255, 0.5)',
     marginTop: SPACING.md,
   },
-  isoCard: {
-    backgroundColor: theme.cardBackground || '#000000',
-    borderRadius: RADIUS.lg,
-    borderWidth: 1,
-    borderColor: theme.borderColor || 'rgba(255, 255, 255, 0.08)',
-  },
-  isoCardContent: {
-    padding: SPACING.cardPadding,
-  },
-  isoHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  isoHeaderLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: SPACING.sm,
-  },
-  isoIconContainer: {
-    width: 32,
-    height: 32,
-    borderRadius: RADIUS.sm,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  isoTitle: {
-    fontSize: TYPOGRAPHY.h4,
-    fontFamily: theme.semiBoldFont,
-    color: theme.textColor,
-    fontWeight: '600',
-    marginBottom: SPACING.xs / 2,
-  },
-  isoSubtitle: {
-    fontSize: TYPOGRAPHY.caption,
-    fontFamily: theme.regularFont,
-    color: 'rgba(255, 255, 255, 0.6)',
-  },
-  isoContent: {
-    marginTop: SPACING.md,
-    paddingTop: SPACING.md,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(255, 255, 255, 0.08)',
-  },
-  isoItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: SPACING.sm,
-    gap: SPACING.md,
-  },
-  isoItemImageWrap: {
-    width: 72,
-    height: 100,
-    borderRadius: RADIUS.md,
-    overflow: 'hidden',
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
-  },
-  isoCardImage: {
-    width: '100%',
-    height: '100%',
-  },
-  isoCardImagePlaceholder: {
-    width: '100%',
-    height: '100%',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: SPACING.sm,
-  },
-  isoCardImageFallbackText: {
-    fontSize: TYPOGRAPHY.bodySmall,
-    fontFamily: theme.regularFont,
-    color: 'rgba(255, 255, 255, 0.6)',
-    marginTop: SPACING.xs,
-    textAlign: 'center',
-  },
-  isoItemTextBlock: {
-    flex: 1,
-    justifyContent: 'center',
-    gap: SPACING.xs,
-  },
-  isoItemTitle: {
-    fontSize: TYPOGRAPHY.h2,
-    fontFamily: theme.boldFont,
-    color: theme.textColor,
-    marginBottom: SPACING.xs,
-  },
-  isoItemLeft: {
-    flex: 1,
-    gap: SPACING.xs,
-  },
-  isoItemRight: {
-    width: 60,
-    height: 80,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  isoDetailRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: SPACING.sm,
-  },
-  isoDetailLabel: {
-    fontSize: TYPOGRAPHY.bodySmall,
-    fontFamily: theme.semiBoldFont,
-    color: 'rgba(255, 255, 255, 0.6)',
-    fontWeight: '600',
-    minWidth: 48,
-  },
-  isoDetailValue: {
-    fontSize: TYPOGRAPHY.bodySmall,
-    fontFamily: theme.regularFont,
-    color: theme.textColor,
-    flex: 1,
-  },
-  isoPriceRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: SPACING.xs,
-    gap: SPACING.sm,
-  },
-  isoPriceLabel: {
-    fontSize: TYPOGRAPHY.caption,
-    fontFamily: theme.semiBoldFont,
-    color: 'rgba(255, 255, 255, 0.6)',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  isoPricePill: {
-    paddingHorizontal: SPACING.sm,
-    paddingVertical: SPACING.xs,
-    borderRadius: 999,
-    backgroundColor: 'rgba(115, 236, 139, 0.1)',
-    borderWidth: 1,
-    borderColor: theme.tintColor || '#73EC8B',
-  },
-  isoPriceText: {
-    fontSize: TYPOGRAPHY.bodySmall,
-    fontFamily: theme.semiBoldFont,
-    color: theme.tintColor || '#73EC8B',
-  },
   isoLoadingWrap: {
-    paddingVertical: SPACING.lg,
+    paddingVertical: SPACING.sm,
     alignItems: 'center',
   },
   isoEmptyText: {
-    fontSize: TYPOGRAPHY.body,
+    fontSize: TYPOGRAPHY.caption,
     fontFamily: theme.regularFont,
-    color: 'rgba(255, 255, 255, 0.6)',
-    paddingVertical: SPACING.md,
+    color: 'rgba(255, 255, 255, 0.5)',
+    paddingVertical: SPACING.xs,
   },
   isoSeparator: {
     height: 1,

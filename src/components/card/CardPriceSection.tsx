@@ -120,7 +120,7 @@ export function CardPriceSection({ cardId, displayPriceZar = 0, days = 90, onMar
           <CardContent style={styles.cardContent}>
             {marketUsd != null && (
               <View style={styles.priceRow}>
-                <Text style={styles.priceLabel}>Market (USD → ZAR)</Text>
+                <Text style={styles.priceLabel}>Market</Text>
                 <Text style={styles.priceValue}>{formatZar(marketUsd)}</Text>
               </View>
             )}
