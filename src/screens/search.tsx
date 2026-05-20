@@ -19,7 +19,7 @@ import Ionicons from '@expo/vector-icons/Ionicons'
 import { Carousel } from '../components/Carousel'
 import { Section } from '../components/layout/Section'
 import { Card, CardContent } from '../components/ui/card'
-import { SPACING, TYPOGRAPHY, RADIUS } from '../constants/layout'
+import { SPACING, TYPOGRAPHY, RADIUS, TILE_BORDER_WHITE, TILE_BORDER_WIDTH } from '../constants/layout'
 import { DOMAIN } from '../../constants'
 import { AppButton } from '../components/ui/AppButton'
 
@@ -358,23 +358,17 @@ export function Search() {
     return result
   }, [searchQuery, allSearchableItems])
 
-  // Helper function to render expanded grid items
+  // Full section grid after "See all" — 2 columns, all items, no carousel overlap
   const renderExpandedItems = (
     items: Array<{ name: string; image: any }>,
     type: 'featured' | 'set' | 'product' | 'single'
   ) => {
-    // Calculate how many items are visible in the carousel
-    // itemWidth is 280px, with 12px spacing, screen width varies but typically shows 1-2 items
-    // To be safe, we'll exclude the first 2 items that are most visible
-    const itemsToSkip = 2
-    const itemsToShow = items.slice(itemsToSkip)
-
     return (
       <View style={styles.expandedGrid}>
-        {itemsToShow.map((item, index) => {
+        {items.map((item, index) => {
           const fullName =
             type === 'product'
-              ? getProductDisplayName(item, index + itemsToSkip)
+              ? getProductDisplayName(item, index)
               : formatDisplayName(item.name)
           const displayName = truncateTileName(fullName, true)
           const viewCount = Math.floor(Math.random() * 500) + 100
@@ -388,7 +382,7 @@ export function Search() {
 
           return (
             <TouchableOpacity
-              key={index}
+              key={item.name}
               style={styles.expandedItem}
               activeOpacity={0.8}
               onPress={() => {
@@ -630,6 +624,9 @@ export function Search() {
           seeAllText={expandedSections.featured ? 'See less' : 'See all'}
           onSeeAllPress={() => toggleSection('featured')}
         >
+          {expandedSections.featured ? (
+            renderExpandedItems(featuredItems, 'featured')
+          ) : (
           <Carousel
             items={featuredItems}
             renderItem={(item, index) => {
@@ -700,7 +697,7 @@ export function Search() {
               }
             }}
           />
-          {expandedSections.featured && renderExpandedItems(featuredItems, 'featured')}
+          )}
         </Section>
 
         {/* Sets Section */}
@@ -710,6 +707,9 @@ export function Search() {
           seeAllText={expandedSections.sets ? 'See less' : 'See all'}
           onSeeAllPress={() => toggleSection('sets')}
         >
+          {expandedSections.sets ? (
+            renderExpandedItems(setsItems, 'set')
+          ) : (
           <Carousel
             items={setsItems}
             renderItem={(item, index) => {
@@ -766,7 +766,7 @@ export function Search() {
               })
             }}
           />
-          {expandedSections.sets && renderExpandedItems(setsItems, 'set')}
+          )}
         </Section>
 
         {/* Products Section */}
@@ -776,6 +776,9 @@ export function Search() {
           seeAllText={expandedSections.products ? 'See less' : 'See all'}
           onSeeAllPress={() => toggleSection('products')}
         >
+          {expandedSections.products ? (
+            renderExpandedItems(productsItems, 'product')
+          ) : (
           <Carousel
             items={productsItems}
             renderItem={(item, index) => {
@@ -836,7 +839,7 @@ export function Search() {
               })
             }}
           />
-          {expandedSections.products && renderExpandedItems(productsItems, 'product')}
+          )}
         </Section>
 
         {/* Singles Section */}
@@ -846,6 +849,9 @@ export function Search() {
           seeAllText={expandedSections.singles ? 'See less' : 'See all'}
           onSeeAllPress={() => toggleSection('singles')}
         >
+          {expandedSections.singles ? (
+            renderExpandedItems(singlesItems, 'single')
+          ) : (
           <Carousel
             items={singlesItems}
             renderItem={(item, index) => {
@@ -903,7 +909,7 @@ export function Search() {
               })
             }}
           />
-          {expandedSections.singles && renderExpandedItems(singlesItems, 'single')}
+          )}
         </Section>
       </ScrollView>
     </View>
@@ -987,8 +993,8 @@ const getStyles = (theme: any) => StyleSheet.create({
   carouselCard: {
     backgroundColor: theme.cardBackground || '#000000',
     borderRadius: RADIUS.lg,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
+    borderWidth: TILE_BORDER_WIDTH,
+    borderColor: TILE_BORDER_WHITE,
     overflow: 'hidden',
     width: '100%',
     flex: 1,
@@ -1185,21 +1191,18 @@ const getStyles = (theme: any) => StyleSheet.create({
   expandedGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    marginTop: SPACING.sm,
     justifyContent: 'space-between',
-    gap: SPACING.gridColumnGap,
     rowGap: SPACING.gridRowGap,
   },
   expandedItem: {
     width: '48%',
-    marginBottom: 0,
     alignSelf: 'flex-start',
   },
   expandedCard: {
     backgroundColor: theme.cardBackground || '#000000',
     borderRadius: RADIUS.lg,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
+    borderWidth: TILE_BORDER_WIDTH,
+    borderColor: TILE_BORDER_WHITE,
     overflow: 'hidden',
     width: '100%',
     aspectRatio: 1,

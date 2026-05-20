@@ -1,14 +1,21 @@
 import { useContext, useState, useEffect, useMemo, useCallback } from 'react'
 import { useFocusEffect } from '@react-navigation/native'
 import { View, StyleSheet, ScrollView, TouchableOpacity, Image, Alert, ActivityIndicator, Modal, TextInput, RefreshControl } from 'react-native'
+import { KeyboardAwareScrollView } from 'react-native-keyboard-controller'
 import { useNavigation } from '@react-navigation/native'
 import { NativeStackNavigationProp } from '@react-navigation/native-stack'
 import { Text } from '../components/ui/text'
 import { ThemeContext } from '../context'
-import { SPACING, TYPOGRAPHY, RADIUS } from '../constants/layout'
+import {
+  SPACING,
+  TYPOGRAPHY,
+  RADIUS,
+  TILE_BORDER_WHITE,
+  TILE_BORDER_WIDTH,
+  MODAL_INNER_TILE_BORDER,
+} from '../constants/layout'
 import Ionicons from '@expo/vector-icons/Ionicons'
-import { Card, CardContent } from '../components/ui/card'
-import { AuctionSection, CreateAuctionModal, type Auction, OrderCard, type Order, ListItemModal, AddISOModal } from '../components/profile'
+import { AuctionSection, CreateAuctionModal, type Auction, OrderCard, type Order, ListItemModal } from '../components/profile'
 import { Section } from '../components/layout/Section'
 import { AppButton } from '../components/ui/AppButton'
 import { SkeletonBox } from '../components/layout/SkeletonBox'
@@ -19,6 +26,7 @@ import {
   SafetyFilter,
   ShareLinkButton,
   CreateStoreModal,
+  IsoCatalogSearch,
 } from '../components/store'
 import { IsoListItem } from '../components/store/IsoListItem'
 import { type StoreListing } from '../components/store/StoreListings'
@@ -81,7 +89,7 @@ export function MyStore() {
   const [selectedProduct, setSelectedProduct] = useState<{ name: string; image?: any } | null>(null)
   const [isCreateAuctionModalVisible, setIsCreateAuctionModalVisible] = useState(false)
   const [editingListing, setEditingListing] = useState<StoreListing | null>(null)
-  const [isAddISOModalVisible, setIsAddISOModalVisible] = useState(false)
+  const [isoAddingCardId, setIsoAddingCardId] = useState<string | null>(null)
 
   // Store state
   const [store, setStore] = useState<any>(null)
@@ -336,13 +344,14 @@ export function MyStore() {
         credentials: 'include',
         body: JSON.stringify({
           storeName: editStoreName.trim() || undefined,
-          bannerUrl: store?.bannerUrl ?? editBannerUrl ?? undefined,
+          bannerUrl: editBannerUrl ?? store?.bannerUrl ?? undefined,
           twitchUrl: editTwitchUrl.trim() === '' ? null : editTwitchUrl.trim() || undefined,
           youtubeUrl: editYoutubeUrl.trim() === '' ? null : editYoutubeUrl.trim() || undefined,
         }),
       })
       const data = await response.json()
       if (response.ok) {
+        if (data.store) setStore(data.store)
         await fetchStore({ silent: true })
         setIsEditStoreModalVisible(false)
         Alert.alert('Success', 'Store details updated.')
@@ -763,12 +772,17 @@ export function MyStore() {
   }
 
   // Create ISO item
-  const createISOItem = async (cardName: string, cardNumber?: string, set?: string) => {
+  const createISOItem = async (
+    cardName: string,
+    cardNumber?: string,
+    set?: string,
+    image?: string,
+  ): Promise<boolean> => {
     try {
       const token = await getSessionToken()
       if (!token) {
         Alert.alert('Error', 'Please log in')
-        return
+        return false
       }
 
       const baseUrl = DOMAIN?.endsWith('/') ? DOMAIN.slice(0, -1) : DOMAIN
@@ -783,6 +797,7 @@ export function MyStore() {
           cardName,
           cardNumber: cardNumber || null,
           set: set || null,
+          image: image || null,
         }),
       })
 
@@ -790,13 +805,29 @@ export function MyStore() {
 
       if (response.ok) {
         await fetchISOItems()
-        Alert.alert('Success', 'ISO item added successfully!')
-      } else {
-        Alert.alert('Error', data.message || 'Failed to add ISO item')
+        return true
       }
+      Alert.alert('Error', data.message || 'Failed to add ISO item')
+      return false
     } catch (error: any) {
       console.error('Error creating ISO item:', error)
       Alert.alert('Error', 'Failed to add ISO item')
+      return false
+    }
+  }
+
+  const handleIsoCatalogAdd = async (pick: {
+    cardName: string
+    cardNumber?: string
+    set?: string
+    image?: string
+    catalogId?: string
+  }) => {
+    setIsoAddingCardId(pick.catalogId ?? null)
+    const ok = await createISOItem(pick.cardName, pick.cardNumber, pick.set, pick.image)
+    setIsoAddingCardId(null)
+    if (ok) {
+      Alert.alert('Added', `${pick.cardName} added to your ISO list.`)
     }
   }
 
@@ -1032,15 +1063,14 @@ export function MyStore() {
 
           {activeTab === 'ISO' && (
             <Section title="In Search Of" showSeeAll={false} compact>
-              <AppButton
-                variant="filled"
-                size="sm"
-                icon="add-circle-outline"
-                label="Add to ISO"
-                fullWidth
-                onPress={() => setIsAddISOModalVisible(true)}
-                style={styles.isoAddButton}
+              <IsoCatalogSearch
+                apiBaseUrl={DOMAIN}
+                onAdd={handleIsoCatalogAdd}
+                addingCardId={isoAddingCardId}
               />
+              {isoItems.length > 0 ? (
+                <Text style={styles.isoListHeading}>Your ISO list</Text>
+              ) : null}
               {isoLoading && !isoHasLoadedOnce ? (
                 <>
                   <View style={styles.skeletonLoadingLabel}>
@@ -1282,17 +1312,6 @@ export function MyStore() {
         }}
       />
 
-      {/* Add ISO Modal */}
-      <AddISOModal
-        visible={isAddISOModalVisible}
-        onClose={() => setIsAddISOModalVisible(false)}
-        onAdd={async (cardName, cardNumber, set) => {
-          await createISOItem(cardName, cardNumber, set)
-          setIsAddISOModalVisible(false)
-        }}
-        apiBaseUrl={DOMAIN}
-      />
-
       {/* Edit store details modal */}
       <Modal
         visible={isEditStoreModalVisible}
@@ -1300,41 +1319,47 @@ export function MyStore() {
         transparent={true}
       >
         <View style={styles.modalOverlay}>
-          <Card style={styles.modalCard}>
-            <CardContent style={styles.modalContent}>
+          <KeyboardAwareScrollView
+            style={styles.modalKeyboardScroll}
+            contentContainerStyle={styles.modalKeyboardScrollContent}
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="interactive"
+            bottomOffset={56}
+            showsVerticalScrollIndicator={false}
+          >
+          <View style={styles.modalCard}>
+            <View style={styles.modalContent}>
               <Text style={styles.modalTitle}>Edit store details</Text>
-              <Text style={styles.modalSubtitle}>
-                Profile picture, store banner, name and social links (Twitch & YouTube are optional).
-              </Text>
               <View style={styles.modalAvatarSection}>
-                <Text style={styles.modalBannerLabel}>Profile picture</Text>
-                <TouchableOpacity
-                  onPress={handleChangeAvatar}
-                  disabled={avatarUploading}
-                  activeOpacity={0.8}
-                  style={styles.modalAvatarTouch}
-                >
-                  {avatarUploading ? (
-                    <View style={[styles.modalAvatar, styles.modalAvatarUploading]}>
-                      <ActivityIndicator size="small" color={theme.textColor} />
-                    </View>
-                  ) : store?.user?.avatar ? (
-                    <Image
-                      source={{ uri: store.user.avatar }}
-                      style={styles.modalAvatar}
-                      resizeMode="cover"
-                    />
-                  ) : (
-                    <View style={[styles.modalAvatar, styles.modalAvatarEmpty]}>
-                      <Ionicons name="person-outline" size={32} color="rgba(255, 255, 255, 0.4)" />
-                      <Text style={styles.modalAvatarPlaceholderText}>Tap to add photo</Text>
-                    </View>
-                  )}
-                </TouchableOpacity>
+                <Text style={styles.modalSectionLabel}>Profile picture</Text>
+                <View style={styles.modalAvatarCenter}>
+                  <TouchableOpacity
+                    onPress={handleChangeAvatar}
+                    disabled={avatarUploading}
+                    activeOpacity={0.8}
+                    style={styles.modalAvatarTouch}
+                  >
+                    {avatarUploading ? (
+                      <View style={[styles.modalAvatar, styles.modalAvatarUploading]}>
+                        <ActivityIndicator size="small" color={theme.textColor} />
+                      </View>
+                    ) : store?.user?.avatar ? (
+                      <Image
+                        source={{ uri: store.user.avatar }}
+                        style={styles.modalAvatar}
+                        resizeMode="cover"
+                      />
+                    ) : (
+                      <View style={[styles.modalAvatar, styles.modalAvatarEmpty]}>
+                        <Ionicons name="person-outline" size={32} color="rgba(255, 255, 255, 0.4)" />
+                        <Text style={styles.modalAvatarPlaceholderText}>Tap to add photo</Text>
+                      </View>
+                    )}
+                  </TouchableOpacity>
+                </View>
               </View>
-              {/* Store banner */}
-              <View style={styles.modalBannerSection}>
-                <Text style={styles.modalBannerLabel}>Store banner</Text>
+              <View style={styles.modalMediaSection}>
+                <Text style={styles.modalSectionLabel}>Store banner</Text>
                 <TouchableOpacity
                   onPress={handleChangeBanner}
                   disabled={bannerUploading}
@@ -1360,35 +1385,32 @@ export function MyStore() {
                   )}
                 </TouchableOpacity>
               </View>
-              <TextInput
-                style={styles.modalInput}
-                placeholder="Store name (required)"
-                placeholderTextColor={theme.mutedForegroundColor || 'rgba(255, 255, 255, 0.6)'}
-                value={editStoreName}
-                onChangeText={setEditStoreName}
-              />
-              <View style={styles.modalInputRow}>
-                <View style={styles.modalInputIcon}>
-                  <Ionicons name="logo-twitch" size={20} color={theme.mutedForegroundColor || 'rgba(255, 255, 255, 0.6)'} />
-                </View>
+              <View style={styles.modalStoreNameSection}>
+                <Text style={styles.modalSectionLabel}>Store name</Text>
+                <View style={[styles.modalFieldTile, styles.modalFieldTileInSection]}>
                 <TextInput
-                  style={[styles.modalInput, styles.modalInputInRow]}
-                  placeholder="Twitch URL (optional)"
+                  style={styles.modalFieldInput}
+                  placeholder="Store name (required)"
                   placeholderTextColor={theme.mutedForegroundColor || 'rgba(255, 255, 255, 0.6)'}
+                  value={editStoreName}
+                  onChangeText={setEditStoreName}
+                />
+                </View>
+              </View>
+              <View style={styles.modalFieldTile}>
+                <Ionicons name="logo-twitch" size={20} color={theme.mutedForegroundColor || 'rgba(255, 255, 255, 0.6)'} />
+                <TextInput
+                  style={styles.modalFieldInput}
                   value={editTwitchUrl}
                   onChangeText={setEditTwitchUrl}
                   autoCapitalize="none"
                   keyboardType="url"
                 />
               </View>
-              <View style={styles.modalInputRow}>
-                <View style={styles.modalInputIcon}>
-                  <Ionicons name="logo-youtube" size={20} color={theme.mutedForegroundColor || 'rgba(255, 255, 255, 0.6)'} />
-                </View>
+              <View style={styles.modalFieldTile}>
+                <Ionicons name="logo-youtube" size={20} color={theme.mutedForegroundColor || 'rgba(255, 255, 255, 0.6)'} />
                 <TextInput
-                  style={[styles.modalInput, styles.modalInputInRow]}
-                  placeholder="YouTube URL (optional)"
-                  placeholderTextColor={theme.mutedForegroundColor || 'rgba(255, 255, 255, 0.6)'}
+                  style={styles.modalFieldInput}
                   value={editYoutubeUrl}
                   onChangeText={setEditYoutubeUrl}
                   autoCapitalize="none"
@@ -1403,20 +1425,19 @@ export function MyStore() {
                   onPress={() => setIsEditStoreModalVisible(false)}
                   disabled={updatingStore}
                   onDarkSurface
-                  style={styles.modalActionBtn}
                 />
                 <AppButton
-                  variant="filled"
+                  variant="outline"
                   size="md"
                   label={updatingStore ? 'Saving…' : 'Save'}
                   onPress={updateStoreDetails}
                   disabled={updatingStore || !editStoreName.trim()}
                   onDarkSurface
-                  style={styles.modalActionBtn}
                 />
               </View>
-            </CardContent>
-          </Card>
+            </View>
+          </View>
+          </KeyboardAwareScrollView>
         </View>
       </Modal>
     </View>
@@ -1513,8 +1534,14 @@ const getStyles = (theme: any) => StyleSheet.create({
     alignItems: 'center',
     paddingVertical: SPACING.xs,
   },
-  isoAddButton: {
+  isoListHeading: {
+    fontSize: TYPOGRAPHY.caption,
+    fontFamily: theme.semiBoldFont,
+    color: 'rgba(255, 255, 255, 0.55)',
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
     marginBottom: SPACING.sm,
+    marginTop: SPACING.xs,
   },
   isoListWrap: {
     marginTop: SPACING.xs,
@@ -1675,8 +1702,13 @@ const getStyles = (theme: any) => StyleSheet.create({
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.7)',
+  },
+  modalKeyboardScroll: {
+    flex: 1,
+  },
+  modalKeyboardScrollContent: {
+    flexGrow: 1,
     justifyContent: 'center',
-    alignItems: 'center',
     padding: SPACING.lg,
   },
   modalCard: {
@@ -1684,8 +1716,11 @@ const getStyles = (theme: any) => StyleSheet.create({
     borderRadius: RADIUS.lg,
     width: '100%',
     maxWidth: 400,
-    borderWidth: 1,
-    borderColor: theme.borderColor || 'rgba(255, 255, 255, 0.08)',
+    maxHeight: '88%',
+    alignSelf: 'center',
+    borderWidth: TILE_BORDER_WIDTH,
+    borderColor: TILE_BORDER_WHITE,
+    overflow: 'hidden',
   },
   modalContent: {
     padding: SPACING.xl,
@@ -1694,25 +1729,41 @@ const getStyles = (theme: any) => StyleSheet.create({
     fontSize: TYPOGRAPHY.h3,
     fontFamily: theme.boldFont,
     color: theme.textColor,
-    marginBottom: SPACING.xs,
-    textAlign: 'center',
-  },
-  modalSubtitle: {
-    fontSize: TYPOGRAPHY.body,
-    fontFamily: theme.regularFont,
-    color: theme.mutedForegroundColor || 'rgba(255, 255, 255, 0.6)',
     marginBottom: SPACING.xl,
     textAlign: 'center',
   },
   modalAvatarSection: {
-    alignItems: 'center',
+    width: '100%',
     marginBottom: SPACING.lg,
+  },
+  modalAvatarCenter: {
+    width: '100%',
+    alignItems: 'center',
+  },
+  modalMediaSection: {
+    width: '100%',
+    alignItems: 'flex-start',
+    marginBottom: SPACING.lg,
+  },
+  modalSectionLabel: {
+    fontSize: TYPOGRAPHY.body,
+    fontFamily: theme.semiBoldFont,
+    color: theme.textColor,
+    marginBottom: SPACING.xs,
+    fontWeight: '600',
+    alignSelf: 'flex-start',
+    textAlign: 'left',
+  },
+  modalStoreNameSection: {
+    width: '100%',
+    alignItems: 'flex-start',
+    marginBottom: SPACING.xl,
   },
   modalAvatarTouch: {
     borderRadius: RADIUS.full,
     overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: theme.borderColor || 'rgba(255, 255, 255, 0.12)',
+    borderWidth: TILE_BORDER_WIDTH,
+    borderColor: MODAL_INNER_TILE_BORDER,
   },
   modalAvatar: {
     width: 88,
@@ -1735,22 +1786,12 @@ const getStyles = (theme: any) => StyleSheet.create({
     color: 'rgba(255, 255, 255, 0.4)',
     marginTop: SPACING.xs,
   },
-  modalBannerSection: {
-    marginBottom: SPACING.lg,
-  },
-  modalBannerLabel: {
-    fontSize: TYPOGRAPHY.caption,
-    fontFamily: theme.semiBoldFont,
-    color: theme.textColor,
-    marginBottom: SPACING.xs,
-    fontWeight: '600',
-  },
   modalBannerTouch: {
     width: '100%',
     borderRadius: RADIUS.md,
     overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: theme.borderColor || 'rgba(255, 255, 255, 0.12)',
+    borderWidth: TILE_BORDER_WIDTH,
+    borderColor: MODAL_INNER_TILE_BORDER,
   },
   modalBannerImage: {
     width: '100%',
@@ -1774,36 +1815,44 @@ const getStyles = (theme: any) => StyleSheet.create({
     color: 'rgba(255, 255, 255, 0.4)',
     marginTop: SPACING.xs,
   },
-  modalInput: {
-    backgroundColor: theme.backgroundColor || '#000',
-    borderRadius: RADIUS.md,
-    padding: SPACING.md,
-    borderWidth: 1,
-    borderColor: theme.borderColor || 'rgba(255, 255, 255, 0.08)',
-    color: theme.textColor,
-    fontSize: TYPOGRAPHY.body,
-    fontFamily: theme.regularFont,
-    marginBottom: SPACING.xl,
-  },
-  modalInputRow: {
+  modalFieldTile: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: SPACING.sm,
+    width: '100%',
+    minHeight: 48,
+    backgroundColor: theme.backgroundColor || '#000',
+    borderRadius: RADIUS.md,
+    borderWidth: TILE_BORDER_WIDTH,
+    borderColor: MODAL_INNER_TILE_BORDER,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.sm,
     marginBottom: SPACING.xl,
   },
-  modalInputIcon: {
-    marginRight: SPACING.sm,
-  },
-  modalInputInRow: {
+  modalFieldTileInSection: {
     marginBottom: 0,
+  },
+  modalFieldInput: {
     flex: 1,
+    minWidth: 0,
+    alignSelf: 'center',
+    color: theme.textColor,
+    fontSize: TYPOGRAPHY.body,
+    lineHeight: isAndroid ? TYPOGRAPHY.body : TYPOGRAPHY.body * 1.2,
+    fontFamily: theme.regularFont,
+    paddingVertical: 0,
+    paddingHorizontal: 0,
+    margin: 0,
+    borderWidth: 0,
+    textAlignVertical: 'center',
+    ...androidLabelStyle,
   },
   modalActions: {
     flexDirection: 'row',
-    gap: SPACING.md,
-    marginTop: SPACING.sm,
-  },
-  modalActionBtn: {
-    flex: 1,
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    width: '100%',
+    marginTop: SPACING.md,
   },
   modalButton: {
     flex: 1,

@@ -32,5 +32,13 @@ yarn-error.*
 .env
 .env*.local
 
+# GCP / service account keys (never commit)
+saplayer-*.json
+*-*.json
+!package.json
+!tsconfig.json
+!app.json
+!eas.json
+
 # typescript
 *.tsbuildinfo

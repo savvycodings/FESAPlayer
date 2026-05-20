@@ -11,7 +11,7 @@ import Ionicons from '@expo/vector-icons/Ionicons'
 import { Text } from '../ui/text'
 import { AppButton } from '../ui/AppButton'
 import { ThemeContext } from '../../context'
-import { SPACING, TYPOGRAPHY, RADIUS, LISTING_TILE_BORDER } from '../../constants/layout'
+import { SPACING, TYPOGRAPHY, RADIUS, TILE_BORDER_WHITE, TILE_BORDER_WIDTH } from '../../constants/layout'
 import { isIOS } from '../../utils/platformHelpers'
 
 export interface CreateStoreModalProps {
@@ -57,23 +57,25 @@ export function CreateStoreModal({
           <View style={styles.card}>
             <Text style={styles.title}>Create Your Store</Text>
 
-            <TextInput
-              style={styles.input}
-              placeholder="Store name (required)"
-              placeholderTextColor={theme.mutedForegroundColor || 'rgba(255, 255, 255, 0.5)'}
-              value={storeName}
-              onChangeText={onStoreNameChange}
-              autoCapitalize="words"
-            />
+            <View style={styles.fieldTile}>
+              <TextInput
+                style={styles.fieldInput}
+                placeholder="Store name (required)"
+                placeholderTextColor={theme.mutedForegroundColor || 'rgba(255, 255, 255, 0.5)'}
+                value={storeName}
+                onChangeText={onStoreNameChange}
+                autoCapitalize="words"
+              />
+            </View>
 
-            <View style={styles.inputRow}>
+            <View style={styles.fieldTile}>
               <Ionicons
                 name="logo-twitch"
                 size={20}
                 color={theme.mutedForegroundColor || 'rgba(255, 255, 255, 0.5)'}
               />
               <TextInput
-                style={[styles.input, styles.inputFlex]}
+                style={styles.fieldInput}
                 placeholder="Twitch URL (optional)"
                 placeholderTextColor={theme.mutedForegroundColor || 'rgba(255, 255, 255, 0.5)'}
                 value={twitchUrl}
@@ -83,14 +85,14 @@ export function CreateStoreModal({
               />
             </View>
 
-            <View style={styles.inputRow}>
+            <View style={styles.fieldTile}>
               <Ionicons
                 name="logo-youtube"
                 size={20}
                 color={theme.mutedForegroundColor || 'rgba(255, 255, 255, 0.5)'}
               />
               <TextInput
-                style={[styles.input, styles.inputFlex]}
+                style={styles.fieldInput}
                 placeholder="YouTube URL (optional)"
                 placeholderTextColor={theme.mutedForegroundColor || 'rgba(255, 255, 255, 0.5)'}
                 value={youtubeUrl}
@@ -142,9 +144,10 @@ function getStyles(theme: {
       alignSelf: 'center',
       backgroundColor: theme.cardBackground || '#000000',
       borderRadius: RADIUS.lg,
-      borderWidth: 1,
-      borderColor: LISTING_TILE_BORDER,
+      borderWidth: TILE_BORDER_WIDTH,
+      borderColor: TILE_BORDER_WHITE,
       padding: SPACING.xl,
+      overflow: 'hidden',
     },
     title: {
       fontSize: TYPOGRAPHY.h3,
@@ -153,27 +156,26 @@ function getStyles(theme: {
       textAlign: 'center',
       marginBottom: SPACING.lg,
     },
-    input: {
-      borderWidth: 1,
-      borderColor: LISTING_TILE_BORDER,
-      borderRadius: RADIUS.md,
-      paddingHorizontal: SPACING.md,
-      paddingVertical: SPACING.sm,
-      fontSize: TYPOGRAPHY.body,
-      fontFamily: theme.regularFont,
-      color: theme.textColor,
-      backgroundColor: 'rgba(255, 255, 255, 0.04)',
-      marginBottom: SPACING.sm,
-    },
-    inputRow: {
+    fieldTile: {
       flexDirection: 'row',
       alignItems: 'center',
       gap: SPACING.sm,
+      borderWidth: TILE_BORDER_WIDTH,
+      borderColor: TILE_BORDER_WHITE,
+      borderRadius: RADIUS.md,
+      paddingHorizontal: SPACING.md,
+      paddingVertical: SPACING.md,
       marginBottom: SPACING.sm,
+      backgroundColor: 'rgba(255, 255, 255, 0.04)',
     },
-    inputFlex: {
+    fieldInput: {
       flex: 1,
-      marginBottom: 0,
+      minWidth: 0,
+      fontSize: TYPOGRAPHY.body,
+      fontFamily: theme.regularFont,
+      color: theme.textColor,
+      padding: 0,
+      borderWidth: 0,
     },
     createButtonRow: {
       flexDirection: 'row',

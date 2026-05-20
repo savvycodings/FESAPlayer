@@ -67,6 +67,13 @@ export const RADIUS = {
 /** Listing tiles on dark screens — visible stroke around card */
 export const LISTING_TILE_BORDER = 'rgba(255, 255, 255, 0.22)'
 
+/** Solid white tile stroke (search tiles, store edit modal shell, etc.) */
+export const TILE_BORDER_WHITE = '#FFFFFF'
+export const TILE_BORDER_WIDTH = 1.5
+
+/** Light grey stroke for fields inside a white-bordered modal */
+export const MODAL_INNER_TILE_BORDER = 'rgba(255, 255, 255, 0.32)'
+
 /** Extra horizontal inset for listing card grids (tile width stays full column) */
 export const LISTING_GRID_EDGE_PAD = 4
 

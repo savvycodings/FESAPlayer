@@ -1,329 +1,218 @@
-import { View, StyleSheet, Modal, TouchableOpacity, ScrollView, TextInput, Alert, ActivityIndicator, FlatList, Image } from 'react-native'
-import { useContext, useState, useEffect, useMemo, useRef } from 'react'
+import {
+  View,
+  StyleSheet,
+  Modal,
+  TouchableOpacity,
+  TextInput,
+  ActivityIndicator,
+  FlatList,
+  Image,
+} from 'react-native'
+import { useContext, useState, useEffect, useCallback } from 'react'
 import { Text } from '../ui/text'
 import Ionicons from '@expo/vector-icons/Ionicons'
 import { ThemeContext } from '../../context'
 import { AppButton } from '../ui/AppButton'
 import { SPACING, TYPOGRAPHY, RADIUS } from '../../constants/layout'
-import { getPokemonTcgImageUrlFromSetNumberIfOnCdn } from '../../utils/pokemonTcgImages'
+import { searchCatalogCards, type CatalogCardHit } from '../../utils/isoCatalogSearch'
 
-let TCG_SETS: { id: string; name: string }[] = []
-try {
-  const data = require('../../utils/pokemonTcgSets.json') as { sets?: { id: string; name: string }[] }
-  TCG_SETS = Array.isArray(data.sets) ? data.sets : []
-} catch {
-  TCG_SETS = []
+export type IsoCardPick = {
+  cardName: string
+  cardNumber?: string
+  set?: string
+  image?: string
+  catalogId?: string
 }
 
 interface AddISOModalProps {
   visible: boolean
   onClose: () => void
-  onAdd: (cardName: string, cardNumber: string, set: string) => void
+  onAdd: (data: IsoCardPick) => void
   apiBaseUrl?: string
 }
 
-export function AddISOModal({
-  visible,
-  onClose,
-  onAdd,
-  apiBaseUrl,
-}: AddISOModalProps) {
+export function AddISOModal({ visible, onClose, onAdd, apiBaseUrl }: AddISOModalProps) {
   const { theme } = useContext(ThemeContext)
   const styles = getStyles(theme)
-  const [cardName, setCardName] = useState('')
-  const [cardNumber, setCardNumber] = useState('')
-  const [set, setSet] = useState('')
-  const [setPickerVisible, setSetPickerVisible] = useState(false)
-  const [setSearch, setSetSearch] = useState('')
-  const [lookupResults, setLookupResults] = useState<{ id: string; name: string; set?: string; number?: string }[]>([])
-  const [lookupLoading, setLookupLoading] = useState(false)
-  const lookupRef = useRef<() => Promise<void>>(() => Promise.resolve())
-
-  // Auto-search when user has card name + (set or card number); no button click needed
-  useEffect(() => {
-    if (!visible || !apiBaseUrl) return
-    const hasName = cardName.trim().length >= 2
-    const hasSetOrNumber = set.trim().length > 0 || cardNumber.trim().length > 0
-    if (!hasName || !hasSetOrNumber) return
-    lookupRef.current = handleLookupCard
-    const t = setTimeout(() => lookupRef.current(), 600)
-    return () => clearTimeout(t)
-  }, [cardName, set, cardNumber, visible, apiBaseUrl])
-
-  const filteredSets = useMemo(() => {
-    if (!setSearch.trim()) return TCG_SETS
-    const q = setSearch.toLowerCase().trim()
-    return TCG_SETS.filter((s) => s.name.toLowerCase().includes(q))
-  }, [setSearch])
+  const [searchQuery, setSearchQuery] = useState('')
+  const [results, setResults] = useState<CatalogCardHit[]>([])
+  const [searchLoading, setSearchLoading] = useState(false)
+  const [selected, setSelected] = useState<CatalogCardHit | null>(null)
+  const [searchError, setSearchError] = useState<string | null>(null)
 
   useEffect(() => {
-    if (visible) {
-      setCardName('')
-      setCardNumber('')
-      setSet('')
-      setSetPickerVisible(false)
-      setSetSearch('')
-      setLookupResults([])
-    }
+    if (!visible) return
+    setSearchQuery('')
+    setResults([])
+    setSelected(null)
+    setSearchError(null)
   }, [visible])
 
-  const isValid = () => {
-    return cardName.trim().length > 0
-  }
-
-  const handleLookupCard = async () => {
-    const query = [cardName.trim(), cardNumber.trim(), set.trim()].filter(Boolean).join(' ')
-    if (!query) return
-    if (!apiBaseUrl) return
-    setLookupLoading(true)
-    setLookupResults([])
-    try {
-      const base = apiBaseUrl.replace(/\/$/, '')
-      const url = `${base}/pokedata/search?query=${encodeURIComponent(query)}&asset_type=CARD`
-      const res = await fetch(url)
-      const data = await res.json()
-      const results = data.results || []
-      if (results.length === 0) {
-        Alert.alert('No results', `No cards found for "${query}". Try a different name or set.`)
-      } else {
-        const list = results.map((r: any) => ({
-          id: String(r.id),
-          name: r.name || '',
-          set: r.set,
-          number: r.number ?? r.num ?? undefined,
-        }))
-        const num = cardNumber.trim()
-        if (num) {
-          list.sort((a, b) => {
-            const aMatch = a.number?.toLowerCase() === num.toLowerCase() ? 1 : 0
-            const bMatch = b.number?.toLowerCase() === num.toLowerCase() ? 1 : 0
-            return bMatch - aMatch
-          })
-        }
-        setLookupResults(list)
-        // Auto-apply first result so user doesn't have to tap
-        await handleSelectLookupCard(list[0])
+  const runSearch = useCallback(
+    async (q: string) => {
+      if (!apiBaseUrl || q.trim().length < 2) {
+        setResults([])
+        setSearchError(null)
+        return
       }
-    } catch (e: any) {
-      Alert.alert('Lookup failed', e?.message || 'Could not search cards.')
-    } finally {
-      setLookupLoading(false)
-    }
-  }
-  lookupRef.current = handleLookupCard
+      setSearchLoading(true)
+      setSearchError(null)
+      const { hits, error } = await searchCatalogCards(apiBaseUrl, q, 24)
+      setResults(hits)
+      setSearchError(error ?? null)
+      setSearchLoading(false)
+    },
+    [apiBaseUrl],
+  )
 
-  const handleSelectLookupCard = async (item: { id: string; name: string; set?: string; number?: string }) => {
-    setCardName(item.name)
-    if (item.number) setCardNumber(item.number)
-    if (item.set && item.set.length > 6 && !/^[A-Z0-9]{2,5}$/i.test(item.set.trim())) setSet(item.set)
-    setLookupResults([])
-    if (!apiBaseUrl) return
-    try {
-      const base = apiBaseUrl.replace(/\/$/, '')
-      const res = await fetch(`${base}/pokedata/card/${encodeURIComponent(item.id)}?asset_type=CARD`)
-      const data = await res.json()
-      if (data.setName != null || data.setId != null) setSet(String(data.setName ?? data.setId ?? ''))
-      if (data.cardNumber != null) setCardNumber(String(data.cardNumber))
-    } catch (_) {
-      // keep form values from search result
-    }
+  useEffect(() => {
+    if (!visible || !apiBaseUrl) return
+    const t = setTimeout(() => runSearch(searchQuery), 400)
+    return () => clearTimeout(t)
+  }, [searchQuery, visible, apiBaseUrl, runSearch])
+
+  const handleSelect = (item: CatalogCardHit) => {
+    setSelected(item)
   }
 
   const handleAdd = () => {
-    if (isValid()) {
-      onAdd(cardName.trim(), cardNumber.trim(), set.trim())
-      onClose()
-      // Form reset happens when modal opens again (useEffect when visible becomes true)
-    }
+    if (!selected) return
+    onAdd({
+      cardName: selected.name,
+      cardNumber: selected.number,
+      set: selected.set,
+      image: selected.imageUrl || undefined,
+      catalogId: selected.id,
+    })
+    onClose()
   }
 
   const handleClose = () => {
-    setSetPickerVisible(false)
-    setSetSearch('')
     onClose()
-    // Don't reset form state here — avoids flash of empty form before modal unmounts.
-    // Reset happens in useEffect when visible becomes true (next time modal opens).
+  }
+
+  const renderResult = ({ item }: { item: CatalogCardHit }) => {
+    const isSelected = selected?.id === item.id
+    const meta = [item.set, item.number ? `#${item.number}` : null].filter(Boolean).join(' · ')
+    return (
+      <TouchableOpacity
+        style={[styles.resultRow, isSelected && styles.resultRowSelected]}
+        onPress={() => handleSelect(item)}
+        activeOpacity={0.7}
+      >
+        <View style={styles.resultThumb}>
+          {item.imageUrl ? (
+            <Image source={{ uri: item.imageUrl }} style={styles.resultThumbImage} resizeMode="cover" />
+          ) : (
+            <View style={styles.resultThumbEmpty}>
+              <Ionicons name="image-outline" size={18} color="rgba(255, 255, 255, 0.35)" />
+            </View>
+          )}
+        </View>
+        <View style={styles.resultTextCol}>
+          <Text style={styles.resultName} numberOfLines={1}>
+            {item.name}
+          </Text>
+          {meta ? (
+            <Text style={styles.resultMeta} numberOfLines={1}>
+              {meta}
+            </Text>
+          ) : null}
+        </View>
+        {isSelected ? (
+          <Ionicons name="checkmark-circle" size={22} color={theme.tintColor || '#73EC8B'} />
+        ) : (
+          <Ionicons name="chevron-forward" size={18} color="rgba(255, 255, 255, 0.35)" />
+        )}
+      </TouchableOpacity>
+    )
   }
 
   return (
-    <Modal
-      visible={visible}
-      transparent
-      animationType="fade"
-      onRequestClose={handleClose}
-    >
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={handleClose}>
       <View style={styles.overlay}>
-        <TouchableOpacity
-          style={styles.overlayTouchable}
-          activeOpacity={1}
-          onPress={handleClose}
-        />
+        <TouchableOpacity style={styles.overlayTouchable} activeOpacity={1} onPress={handleClose} />
         <View style={styles.modalContainer}>
           <View style={styles.header}>
-            <Text style={styles.title}>Add Card to ISO</Text>
+            <Text style={styles.title}>Add to ISO</Text>
             <TouchableOpacity onPress={handleClose} style={styles.closeButton}>
               <Ionicons name="close" size={24} color={theme.textColor} />
             </TouchableOpacity>
           </View>
 
-          <ScrollView
-            showsVerticalScrollIndicator={false}
-            contentContainerStyle={styles.scrollContent}
-            nestedScrollEnabled
-            keyboardShouldPersistTaps="handled"
-          >
-            {/* Card Name */}
-            <View style={styles.inputSection}>
-              <Text style={styles.inputLabel}>Card Name *</Text>
-              <TextInput
-                style={styles.textInput}
-                value={cardName}
-                onChangeText={setCardName}
-                placeholder="e.g., Charizard ex"
-                placeholderTextColor="rgba(255, 255, 255, 0.3)"
-                autoFocus
-              />
-            </View>
-
-            {/* Card Number */}
-            <View style={styles.inputSection}>
-              <Text style={styles.inputLabel}>Card Number</Text>
-              <TextInput
-                style={styles.textInput}
-                value={cardNumber}
-                onChangeText={setCardNumber}
-                placeholder="e.g., 223/165 or 172"
-                placeholderTextColor="rgba(255, 255, 255, 0.3)"
-              />
-            </View>
-
-            {/* Set: searchable picker (same as Add Card in Profile) */}
-            <View style={styles.inputSection}>
-              <Text style={styles.inputLabel}>Set</Text>
-              <TouchableOpacity
-                style={[styles.textInput, styles.setSelectorButton]}
-                onPress={() => setSetPickerVisible(true)}
-                activeOpacity={0.7}
-              >
-                <Text style={set ? styles.setSelectorText : styles.setSelectorPlaceholder} numberOfLines={1}>
-                  {set || 'Select set...'}
-                </Text>
-                <Ionicons name="chevron-down" size={20} color="rgba(255, 255, 255, 0.5)" />
-              </TouchableOpacity>
-            </View>
-
-            {/* Set picker modal */}
-            <Modal visible={setPickerVisible} transparent animationType="slide">
-              <View style={styles.setPickerBackdrop}>
-                <TouchableOpacity
-                  style={StyleSheet.absoluteFill}
-                  activeOpacity={1}
-                  onPress={() => { setSetPickerVisible(false); setSetSearch('') }}
-                />
-                <View style={styles.setPickerSheet}>
-                  <View style={styles.setPickerHeader}>
-                    <Text style={styles.setPickerTitle}>Select set</Text>
-                    <TouchableOpacity onPress={() => { setSetPickerVisible(false); setSetSearch('') }} hitSlop={12}>
-                      <Ionicons name="close" size={24} color={theme.textColor} />
-                    </TouchableOpacity>
-                  </View>
-                  <TextInput
-                    style={[styles.textInput, styles.setSearchInput]}
-                    value={setSearch}
-                    onChangeText={setSetSearch}
-                    placeholder="Search sets..."
-                    placeholderTextColor="rgba(255, 255, 255, 0.3)"
-                  />
-                  <FlatList
-                    data={filteredSets}
-                    keyExtractor={(item) => item.id}
-                    style={styles.setPickerList}
-                    keyboardShouldPersistTaps="handled"
-                    renderItem={({ item }) => (
-                      <TouchableOpacity
-                        style={[styles.setPickerItem, set === item.name && styles.setPickerItemActive]}
-                        onPress={() => {
-                          setSet(item.name)
-                          setSetPickerVisible(false)
-                          setSetSearch('')
-                        }}
-                      >
-                        <Text style={styles.setPickerItemText} numberOfLines={1}>{item.name}</Text>
-                      </TouchableOpacity>
-                    )}
-                  />
-                </View>
-              </View>
-            </Modal>
-
-            {/* Card image showcase – below Set */}
-            <View style={styles.inputSection}>
-              {(() => {
-                const displayUri = getPokemonTcgImageUrlFromSetNumberIfOnCdn(set, cardNumber)
-                if (!displayUri) {
-                  return (
-                    <View style={[styles.cardImageHero, styles.cardImageHeroEmpty]}>
-                      <Ionicons name="image-outline" size={32} color="rgba(255, 255, 255, 0.3)" />
-                      <Text style={styles.noImageText}>Select set & number or look up a card</Text>
-                    </View>
-                  )
-                }
-                return (
-                  <View style={styles.cardImageHero}>
-                    <Image
-                      source={{ uri: displayUri }}
-                      style={styles.cardImageFill}
-                      resizeMode="cover"
-                    />
-                  </View>
-                )
-              })()}
-            </View>
-
-            {/* Find the correct card: search runs automatically when you enter name + set or number */}
-            <View style={styles.inputSection}>
-              <Text style={styles.inputLabel}>Find the correct card</Text>
-              {lookupLoading && (
-                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: SPACING.xs }}>
-                  <ActivityIndicator size="small" color={theme.tintColor || '#73EC8B'} />
-                  <Text style={[styles.lookupHint, { marginLeft: SPACING.sm }]}>Looking up card…</Text>
-                </View>
-              )}
-              {lookupResults.length > 0 && (
-                <View style={styles.lookupResults}>
-                  <Text style={styles.lookupHint}>Tap to select (match # to your card)</Text>
-                  {lookupResults.slice(0, 8).map((item) => (
-                    <TouchableOpacity
-                      key={item.id}
-                      style={styles.lookupRow}
-                      onPress={() => handleSelectLookupCard(item)}
-                    >
-                      {item.number ? (
-                        <View style={styles.lookupNumberBadge}>
-                          <Text style={styles.lookupNumberBadgeText}>#{item.number}</Text>
-                        </View>
-                      ) : null}
-                      <View style={styles.lookupRowMain}>
-                        <Text style={styles.lookupRowText} numberOfLines={1}>{item.name}</Text>
-                        {item.set ? <Text style={styles.lookupRowSet} numberOfLines={1}>{item.set}</Text> : null}
-                      </View>
-                      <Text style={styles.lookupRowId}>ID: {item.id}</Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              )}
-            </View>
-
-            <AppButton
-              variant="filled"
-              size="lg"
-              icon="add-circle-outline"
-              label="Add to ISO"
-              fullWidth
-              onPress={handleAdd}
-              disabled={!isValid()}
+          <Text style={styles.hint}>Search cards from the catalog</Text>
+          <View style={styles.searchBar}>
+            <Ionicons name="search-outline" size={20} color="rgba(255, 255, 255, 0.5)" />
+            <TextInput
+              style={styles.searchInput}
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              placeholder="Card name, set, or number…"
+              placeholderTextColor="rgba(255, 255, 255, 0.35)"
+              autoCapitalize="none"
+              autoCorrect={false}
+              autoFocus
             />
-          </ScrollView>
+            {searchQuery.length > 0 ? (
+              <TouchableOpacity onPress={() => setSearchQuery('')} hitSlop={8}>
+                <Ionicons name="close-circle" size={20} color="rgba(255, 255, 255, 0.45)" />
+              </TouchableOpacity>
+            ) : null}
+          </View>
+
+          {searchLoading ? (
+            <View style={styles.loadingRow}>
+              <ActivityIndicator size="small" color={theme.tintColor || '#73EC8B'} />
+              <Text style={styles.loadingText}>Searching catalog…</Text>
+            </View>
+          ) : null}
+
+          {!searchLoading && searchError ? (
+            <Text style={styles.errorText}>{searchError}</Text>
+          ) : null}
+
+          {!searchLoading && searchQuery.trim().length < 2 ? (
+            <Text style={styles.emptyHint}>Type at least 2 characters to search</Text>
+          ) : null}
+
+          <FlatList
+            data={results}
+            keyExtractor={(item) => item.id}
+            renderItem={renderResult}
+            style={styles.resultsList}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+            ListEmptyComponent={
+              !searchLoading && searchQuery.trim().length >= 2 && !searchError ? (
+                <Text style={styles.emptyHint}>No matches</Text>
+              ) : null
+            }
+          />
+
+          {selected ? (
+            <View style={styles.previewRow}>
+              <View style={styles.previewThumb}>
+                {selected.imageUrl ? (
+                  <Image source={{ uri: selected.imageUrl }} style={styles.previewImage} resizeMode="cover" />
+                ) : (
+                  <Ionicons name="image-outline" size={20} color="rgba(255, 255, 255, 0.35)" />
+                )}
+              </View>
+              <Text style={styles.previewLabel} numberOfLines={2}>
+                {selected.name}
+              </Text>
+            </View>
+          ) : null}
+
+          <AppButton
+            variant="filled"
+            size="lg"
+            icon="add-circle-outline"
+            label="Add to ISO"
+            fullWidth
+            onPress={handleAdd}
+            disabled={!selected}
+          />
         </View>
       </View>
     </Modal>
@@ -348,22 +237,18 @@ const getStyles = (theme: any) =>
     modalContainer: {
       backgroundColor: theme.backgroundColor,
       borderRadius: RADIUS.lg,
-      width: '85%',
+      width: '90%',
       maxWidth: 400,
       maxHeight: '85%',
       padding: SPACING.containerPadding,
       borderWidth: 1,
       borderColor: 'rgba(255, 255, 255, 0.08)',
     },
-    scrollContent: {
-      flexGrow: 1,
-      paddingBottom: SPACING.xs,
-    },
     header: {
       flexDirection: 'row',
       justifyContent: 'space-between',
       alignItems: 'center',
-      marginBottom: SPACING.lg,
+      marginBottom: SPACING.sm,
     },
     title: {
       fontSize: TYPOGRAPHY.h2,
@@ -376,205 +261,133 @@ const getStyles = (theme: any) =>
       padding: SPACING.xs,
       marginLeft: SPACING.sm,
     },
-    inputSection: {
-      marginBottom: SPACING.lg,
+    hint: {
+      fontSize: TYPOGRAPHY.bodySmall,
+      fontFamily: theme.regularFont,
+      color: 'rgba(255, 255, 255, 0.55)',
+      marginBottom: SPACING.sm,
     },
-    inputLabel: {
-      fontSize: TYPOGRAPHY.body,
-      fontFamily: theme.semiBoldFont,
-      color: theme.textColor,
-      fontWeight: '600',
-      marginBottom: SPACING.md,
-    },
-    textInput: {
+    searchBar: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: SPACING.sm,
       backgroundColor: theme.cardBackground || '#000000',
       borderRadius: RADIUS.md,
       borderWidth: 1,
-      borderColor: 'rgba(255, 255, 255, 0.1)',
-      padding: SPACING.md,
-      fontSize: TYPOGRAPHY.body,
-      fontFamily: theme.regularFont,
-      color: theme.textColor,
-    },
-    setSelectorButton: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-    },
-    setSelectorText: {
-      fontSize: TYPOGRAPHY.body,
-      fontFamily: theme.regularFont,
-      color: theme.textColor,
-      flex: 1,
-      marginRight: SPACING.sm,
-    },
-    setSelectorPlaceholder: {
-      fontSize: TYPOGRAPHY.body,
-      fontFamily: theme.regularFont,
-      color: 'rgba(255, 255, 255, 0.3)',
-      flex: 1,
-      marginRight: SPACING.sm,
-    },
-    setPickerBackdrop: {
-      flex: 1,
-      backgroundColor: 'rgba(0, 0, 0, 0.5)',
-      justifyContent: 'flex-end',
-    },
-    setPickerSheet: {
-      maxHeight: '70%',
-      borderTopLeftRadius: RADIUS.lg,
-      borderTopRightRadius: RADIUS.lg,
-      backgroundColor: theme.backgroundColor,
-      paddingBottom: SPACING.lg,
-    },
-    setPickerHeader: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      padding: SPACING.md,
-      borderBottomWidth: 1,
-      borderBottomColor: 'rgba(255, 255, 255, 0.1)',
-    },
-    setPickerTitle: {
-      fontSize: TYPOGRAPHY.body,
-      fontFamily: theme.semiBoldFont,
-      color: theme.textColor,
-    },
-    setSearchInput: {
-      marginHorizontal: SPACING.md,
-      marginTop: SPACING.sm,
-    },
-    setPickerList: {
-      maxHeight: 320,
-      marginTop: SPACING.sm,
+      borderColor: 'rgba(255, 255, 255, 0.12)',
       paddingHorizontal: SPACING.md,
+      paddingVertical: SPACING.sm,
+      marginBottom: SPACING.sm,
     },
-    setPickerItem: {
-      paddingVertical: SPACING.md,
-      paddingHorizontal: SPACING.sm,
+    searchInput: {
+      flex: 1,
+      fontSize: TYPOGRAPHY.body,
+      fontFamily: theme.regularFont,
+      color: theme.textColor,
+      paddingVertical: SPACING.xs,
+    },
+    loadingRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: SPACING.sm,
+      marginBottom: SPACING.sm,
+    },
+    loadingText: {
+      fontSize: TYPOGRAPHY.bodySmall,
+      fontFamily: theme.regularFont,
+      color: 'rgba(255, 255, 255, 0.6)',
+    },
+    errorText: {
+      fontSize: TYPOGRAPHY.bodySmall,
+      fontFamily: theme.regularFont,
+      color: 'rgba(255, 200, 200, 0.9)',
+      marginBottom: SPACING.sm,
+    },
+    emptyHint: {
+      fontSize: TYPOGRAPHY.bodySmall,
+      fontFamily: theme.regularFont,
+      color: 'rgba(255, 255, 255, 0.45)',
+      textAlign: 'center',
+      paddingVertical: SPACING.lg,
+    },
+    resultsList: {
+      maxHeight: 280,
+      marginBottom: SPACING.md,
+    },
+    resultRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: SPACING.sm,
+      paddingVertical: SPACING.sm,
+      paddingHorizontal: SPACING.xs,
       borderRadius: RADIUS.sm,
       borderWidth: 1,
-      borderColor: 'transparent',
+      borderColor: 'rgba(255, 255, 255, 0.08)',
+      marginBottom: SPACING.xs,
+      backgroundColor: 'rgba(255, 255, 255, 0.04)',
     },
-    setPickerItemActive: {
-      backgroundColor: 'rgba(115, 236, 139, 0.15)',
+    resultRowSelected: {
       borderColor: theme.tintColor || '#73EC8B',
+      backgroundColor: 'rgba(115, 236, 139, 0.12)',
     },
-    setPickerItemText: {
-      fontSize: TYPOGRAPHY.body,
-      fontFamily: theme.regularFont,
-      color: theme.textColor,
-    },
-    cardImageHero: {
-      width: '100%',
-      aspectRatio: 2.5 / 3.5,
-      borderRadius: RADIUS.lg,
+    resultThumb: {
+      width: 40,
+      height: 54,
+      borderRadius: RADIUS.sm,
       overflow: 'hidden',
-      backgroundColor: theme.cardBackground || 'rgba(255, 255, 255, 0.04)',
+      backgroundColor: 'rgba(255, 255, 255, 0.06)',
     },
-    cardImageHeroEmpty: {
-      alignItems: 'center',
-      justifyContent: 'center',
-      padding: SPACING.lg,
-    },
-    cardImageFill: {
+    resultThumbImage: {
       width: '100%',
       height: '100%',
     },
-    noImageText: {
-      fontSize: TYPOGRAPHY.bodySmall,
-      fontFamily: theme.regularFont,
-      color: 'rgba(255, 255, 255, 0.5)',
-      marginTop: SPACING.sm,
-    },
-    lookupButton: {
-      backgroundColor: 'rgba(255, 255, 255, 0.1)',
-      borderRadius: RADIUS.md,
-      paddingVertical: SPACING.md,
-      paddingHorizontal: SPACING.lg,
+    resultThumbEmpty: {
+      flex: 1,
       alignItems: 'center',
-      borderWidth: 1,
-      borderColor: 'rgba(255, 255, 255, 0.2)',
+      justifyContent: 'center',
     },
-    lookupButtonDisabled: {
-      opacity: 0.6,
-    },
-    lookupButtonText: {
-      fontSize: TYPOGRAPHY.body,
-      fontFamily: theme.semiBoldFont,
-      color: theme.textColor,
-    },
-    lookupHint: {
-      fontSize: TYPOGRAPHY.bodySmall,
-      fontFamily: theme.regularFont,
-      color: 'rgba(255, 255, 255, 0.6)',
-      marginTop: SPACING.sm,
-      marginBottom: SPACING.xs,
-    },
-    lookupResults: {
-      marginTop: SPACING.sm,
-      gap: SPACING.xs,
-    },
-    lookupRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      padding: SPACING.sm,
-      backgroundColor: 'rgba(255, 255, 255, 0.05)',
-      borderRadius: RADIUS.sm,
-      borderWidth: 1,
-      borderColor: 'rgba(255, 255, 255, 0.1)',
-      gap: SPACING.sm,
-    },
-    lookupNumberBadge: {
-      backgroundColor: theme.tintColor || '#73EC8B',
-      paddingHorizontal: SPACING.sm,
-      paddingVertical: 2,
-      borderRadius: RADIUS.sm,
-      minWidth: 36,
-      alignItems: 'center',
-    },
-    lookupNumberBadgeText: {
-      fontSize: TYPOGRAPHY.bodySmall,
-      fontFamily: theme.semiBoldFont,
-      color: '#000',
-    },
-    lookupRowMain: {
+    resultTextCol: {
       flex: 1,
       minWidth: 0,
     },
-    lookupRowText: {
+    resultName: {
       fontSize: TYPOGRAPHY.bodySmall,
       fontFamily: theme.semiBoldFont,
       color: theme.textColor,
+      fontWeight: '600',
     },
-    lookupRowSet: {
-      fontSize: TYPOGRAPHY.bodySmall,
-      fontFamily: theme.regularFont,
-      color: 'rgba(255, 255, 255, 0.6)',
-      marginTop: 2,
-    },
-    lookupRowId: {
-      fontSize: TYPOGRAPHY.bodySmall,
+    resultMeta: {
+      fontSize: TYPOGRAPHY.label,
       fontFamily: theme.regularFont,
       color: 'rgba(255, 255, 255, 0.5)',
+      marginTop: 2,
     },
-    addButton: {
-      backgroundColor: theme.tintColor || '#73EC8B',
+    previewRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: SPACING.sm,
+      marginBottom: SPACING.md,
+      padding: SPACING.sm,
       borderRadius: RADIUS.md,
-      paddingVertical: SPACING.md,
-      paddingHorizontal: SPACING.lg,
+      backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    },
+    previewThumb: {
+      width: 44,
+      height: 60,
+      borderRadius: RADIUS.sm,
+      overflow: 'hidden',
+      backgroundColor: 'rgba(255, 255, 255, 0.06)',
       alignItems: 'center',
       justifyContent: 'center',
-      marginTop: SPACING.lg,
     },
-    addButtonDisabled: {
-      backgroundColor: 'rgba(115, 236, 139, 0.3)',
-      opacity: 0.5,
+    previewImage: {
+      width: '100%',
+      height: '100%',
     },
-    addButtonText: {
-      fontSize: TYPOGRAPHY.body,
+    previewLabel: {
+      flex: 1,
+      fontSize: TYPOGRAPHY.bodySmall,
       fontFamily: theme.semiBoldFont,
-      color: '#000000',
-      fontWeight: '600',
+      color: theme.textColor,
     },
   })
