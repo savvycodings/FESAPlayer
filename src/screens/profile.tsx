@@ -14,6 +14,7 @@ import { SkeletonBox } from '../components/layout/SkeletonBox'
 import { Section } from '../components/layout/Section'
 import { AppButton } from '../components/ui/AppButton'
 import { DOMAIN } from '../../constants'
+import { PROFILE_REFRESH_STALE_LIMIT } from '../lib/cardPrices'
 import { CARD_PLACEHOLDER_IMAGE } from '../constants/cardPlaceholder'
 import * as ImagePicker from 'expo-image-picker'
 import { uploadImage, isExternalUrl } from '../utils/imageUpload'
@@ -52,6 +53,7 @@ export function Profile() {
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [portfolioData, setPortfolioData] = useState<{ x: number; y: number }[]>([])
+  const [portfolioDates, setPortfolioDates] = useState<string[]>([])
   const [setDistribution, setSetDistribution] = useState<{ label: string; value: number }[]>([])
   const [isAddCardModalVisible, setIsAddCardModalVisible] = useState(false)
   const [isBulkVaultingModalVisible, setIsBulkVaultingModalVisible] = useState(false)
@@ -98,8 +100,9 @@ export function Profile() {
   }
 
   // Fetch collections
-  const fetchCollections = async (options?: { silent?: boolean }) => {
+  const fetchCollections = async (options?: { silent?: boolean; refreshStale?: boolean }) => {
     const silent = options?.silent === true
+    const refreshStale = options?.refreshStale !== false
     try {
       if (!silent) setLoading(true)
       // Check session
@@ -166,6 +169,7 @@ export function Profile() {
       const session = await authClient.getSession()
       if (!session?.data?.session) {
         setPortfolioData([])
+        setPortfolioDates([])
         return
       }
       const sessionToken = session.data.session.token
@@ -181,21 +185,27 @@ export function Profile() {
       const data = await response.json()
       if (!response.ok || !Array.isArray(data.history)) {
         setPortfolioData([])
+        setPortfolioDates([])
         return
       }
       const history = data.history as { date?: string; totalMarketPriceUsd?: number | null }[]
       if (history.length === 0) {
+        setPortfolioData([])
+        setPortfolioDates([])
         return
       }
+      const dates = history.map((h) => (h.date ? String(h.date).slice(0, 10) : ''))
       const points = history.map((h, index) => {
         const usd = h.totalMarketPriceUsd != null ? Number(h.totalMarketPriceUsd) : 0
         const valueZar = usd > 0 ? Math.round(usd * USD_TO_ZAR) : 0
         return { x: index, y: valueZar }
       })
       setPortfolioData(points)
+      setPortfolioDates(dates)
     } catch (error) {
       console.error('Error fetching portfolio history:', error)
       setPortfolioData([])
+      setPortfolioDates([])
     }
   }
 
@@ -500,27 +510,31 @@ export function Profile() {
     }
   }
 
+  const loadProfileMarketData = useCallback(async (options?: { silent?: boolean }) => {
+    await fetchCollections({ silent: options?.silent, refreshStale: true })
+    await fetchPortfolioHistory()
+  }, [])
+
   // Load data on mount
   useEffect(() => {
     fetchUserProfile()
-    fetchCollections()
-    fetchPortfolioHistory()
-  }, [])
+    void loadProfileMarketData()
+  }, [loadProfileMarketData])
 
-  // Refresh data when screen comes into focus (silent: no full loading state, so list/chart update in place)
+  // Refresh when tab focused — stale prices first, then portfolio chart
   useFocusEffect(
     useCallback(() => {
       fetchUserProfile()
-      fetchCollections({ silent: true })
-      fetchPortfolioHistory()
-    }, [])
+      void loadProfileMarketData({ silent: true })
+    }, [loadProfileMarketData]),
   )
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true)
-    await Promise.all([fetchUserProfile(), fetchCollections({ silent: true }), fetchPortfolioHistory()])
+    await fetchUserProfile()
+    await loadProfileMarketData({ silent: true })
     setRefreshing(false)
-  }, [])
+  }, [loadProfileMarketData])
 
   // Price from API/cache (marketPrice USD → ZAR) when cardId set; else legacy or R0. Only hit API every 48h; data lives in DB.
   const USD_TO_ZAR = Number(process.env.EXPO_PUBLIC_USD_TO_ZAR) || 17
@@ -618,6 +632,8 @@ export function Profile() {
       <ScrollView
         contentContainerStyle={styles.scrollContentContainer}
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        nestedScrollEnabled
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -641,6 +657,7 @@ export function Profile() {
               portfolioValue={portfolioValueStr}
               stats={stats}
               portfolioData={portfolioData}
+              portfolioDates={portfolioDates}
               level={userLevel}
               currentXP={currentXP}
               xpToNextLevel={xpToNextLevel}

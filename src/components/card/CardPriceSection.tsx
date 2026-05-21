@@ -6,7 +6,7 @@ import { Text } from '../ui/text'
 import { Card, CardContent } from '../ui/card'
 import { PortfolioLineChart } from '../charts/PortfolioLineChart'
 import { SPACING, TYPOGRAPHY, RADIUS, PROFILE_CHART_ACCENT } from '../../constants/layout'
-import { DOMAIN } from '../../../constants'
+import { loadCardPriceBundle } from '../../lib/cardPrices'
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window')
 const USD_TO_ZAR = Number(process.env.EXPO_PUBLIC_USD_TO_ZAR) || 17
@@ -56,43 +56,17 @@ export function CardPriceSection({
   useEffect(() => {
     if (!cardId?.trim()) return
     let cancelled = false
-    const baseUrl = DOMAIN?.endsWith('/') ? DOMAIN.slice(0, -1) : DOMAIN
 
     setChartLoading(true)
-    fetch(`${baseUrl}/pokedata/card/${encodeURIComponent(cardId.trim())}/price-history?days=${days}`)
-      .then((res) => res.json())
-      .then((data) => {
+    loadCardPriceBundle(cardId.trim(), { days, fallbackZar: displayPriceZar })
+      .then(({ lookup, history, chartData: series, chartDates: dates }) => {
         if (cancelled) return
-        const history = (data.history || []) as {
-          date?: string
-          marketPrice?: number | null
-          ebayLastSold?: number | null
-        }[]
-        const rows: HistoryRow[] = history.map((h) => ({
-          date: h.date ? String(h.date).slice(0, 10) : '',
-          marketPrice: h.marketPrice != null ? Number(h.marketPrice) : null,
-          ebayLastSold: h.ebayLastSold != null ? Number(h.ebayLastSold) : null,
-        }))
-        setHistoryRows(rows)
-        if (rows.length === 0) {
-          const flat =
-            displayPriceZar > 0
-              ? [
-                  { x: 0, y: displayPriceZar },
-                  { x: 1, y: displayPriceZar },
-                ]
-              : []
-          setChartData(flat)
-          setChartDates([])
-        } else {
-          setChartData(
-            rows.map((h, i) => ({
-              x: i,
-              y: h.marketPrice != null ? h.marketPrice * USD_TO_ZAR : displayPriceZar,
-            })),
-          )
-          setChartDates(rows.map((h) => h.date))
-        }
+        setHistoryRows(history)
+        setChartData(series)
+        setChartDates(dates)
+        setMarketUsd(lookup?.marketPrice ?? null)
+        setEbayUsd(lookup?.ebayLastSold ?? null)
+        onMarketPriceUsd?.(lookup?.marketPrice ?? null)
       })
       .catch(() => {
         if (!cancelled) {
@@ -106,30 +80,13 @@ export function CardPriceSection({
               : [],
           )
           setChartDates([])
-        }
-      })
-      .finally(() => {
-        if (!cancelled) setChartLoading(false)
-      })
-
-    fetch(`${baseUrl}/pokedata/card/${encodeURIComponent(cardId.trim())}`)
-      .then((res) => res.json())
-      .then((data) => {
-        if (cancelled) return
-        const mp = data?.marketPrice ?? data?.market_price
-        const ep = data?.ebayLastSold ?? data?.ebay_last_sold
-        const marketNum = mp != null && mp !== '' ? parseFloat(String(mp)) : null
-        const ebayNum = ep != null && ep !== '' ? parseFloat(String(ep)) : null
-        setMarketUsd(Number.isFinite(marketNum) ? marketNum : null)
-        setEbayUsd(Number.isFinite(ebayNum) ? ebayNum : null)
-        onMarketPriceUsd?.(Number.isFinite(marketNum) ? marketNum : null)
-      })
-      .catch(() => {
-        if (!cancelled) {
           setMarketUsd(null)
           setEbayUsd(null)
           onMarketPriceUsd?.(null)
         }
+      })
+      .finally(() => {
+        if (!cancelled) setChartLoading(false)
       })
 
     return () => {

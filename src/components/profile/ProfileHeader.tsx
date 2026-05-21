@@ -15,7 +15,7 @@ import {
 import { ProgressBars } from '../store'
 import { LevelRewardModal } from '../store/LevelRewardModal'
 import { TrustedBadge } from '../ui/TrustedBadge'
-import { PortfolioLineChart } from '../charts/PortfolioLineChart'
+import { PortfolioLineChart, type ChartPeriod } from '../charts/PortfolioLineChart'
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window')
 
@@ -37,6 +37,8 @@ interface ProfileHeaderProps {
   portfolioValue?: string
   stats?: PortfolioStats
   portfolioData?: GraphDataPoint[]
+  /** ISO date strings aligned with portfolioData points (from API) */
+  portfolioDates?: string[]
   level?: number
   currentXP?: number
   xpToNextLevel?: number
@@ -66,6 +68,7 @@ export function ProfileHeader({
     { x: 5, y: 44500 },
     { x: 6, y: 45000 },
   ],
+  portfolioDates,
   level,
   currentXP,
   xpToNextLevel,
@@ -77,7 +80,7 @@ export function ProfileHeader({
 }: ProfileHeaderProps) {
   const { theme } = useContext(ThemeContext)
   const styles = getStyles(theme)
-  const [selectedPeriod, setSelectedPeriod] = useState<'1M' | '3M' | '6M' | '1Y'>('1M')
+  const [selectedPeriod, setSelectedPeriod] = useState<ChartPeriod>('1M')
   const [modalVisible, setModalVisible] = useState(false)
   const [selectedLevel, setSelectedLevel] = useState<number | null>(null)
 
@@ -88,17 +91,53 @@ export function ProfileHeader({
     return Number.isFinite(n) ? n : 0
   }, [portfolioValue])
 
-  // Use API history when present; otherwise flat line at current portfolio value
-  const chartData = useMemo(() => {
+  const periodDays: Record<ChartPeriod, number> = {
+    '1M': 30,
+    '3M': 90,
+    '6M': 180,
+    '1Y': 365,
+  }
+
+  // Use API history when present; slice by selected period; else flat line at current value
+  const { chartData, chartDates } = useMemo(() => {
     if (portfolioData && portfolioData.length > 0) {
-      return portfolioData
+      const days = periodDays[selectedPeriod]
+      const cutoff = new Date()
+      cutoff.setHours(0, 0, 0, 0)
+      cutoff.setDate(cutoff.getDate() - days)
+
+      let startIndex = 0
+      if (portfolioDates && portfolioDates.length === portfolioData.length) {
+        const idx = portfolioDates.findIndex((d) => {
+          if (!d) return false
+          const parsed = new Date(d)
+          return !Number.isNaN(parsed.getTime()) && parsed >= cutoff
+        })
+        startIndex = idx >= 0 ? idx : 0
+      } else {
+        const maxPoints = days <= 30 ? 30 : days <= 90 ? 90 : portfolioData.length
+        startIndex = Math.max(0, portfolioData.length - maxPoints)
+      }
+
+      const sliced = portfolioData.slice(startIndex)
+      const dates =
+        portfolioDates && portfolioDates.length === portfolioData.length
+          ? portfolioDates.slice(startIndex)
+          : undefined
+      return {
+        chartData: sliced.map((p, i) => ({ x: i, y: p.y })),
+        chartDates: dates,
+      }
     }
     const pointCount = 7
-    return Array.from({ length: pointCount }, (_, i) => ({
-      x: i,
-      y: portfolioValueZar,
-    }))
-  }, [portfolioData, portfolioValueZar])
+    return {
+      chartData: Array.from({ length: pointCount }, (_, i) => ({
+        x: i,
+        y: portfolioValueZar,
+      })),
+      chartDates: undefined as string[] | undefined,
+    }
+  }, [portfolioData, portfolioDates, portfolioValueZar, selectedPeriod])
 
   const hasHistory = portfolioData && portfolioData.length > 1
   const hasData = chartData.length > 0
@@ -294,6 +333,7 @@ export function ProfileHeader({
           {hasData ? (
             <PortfolioLineChart
               data={chartData}
+              dates={chartDates}
               period={selectedPeriod}
               accentColor={chartAccent}
               height={200}

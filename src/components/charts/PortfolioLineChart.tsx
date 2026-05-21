@@ -1,4 +1,4 @@
-import { useContext, useMemo, useRef, useState } from 'react'
+import { useCallback, useContext, useEffect, useMemo, useState } from 'react'
 import { View, StyleSheet, LayoutChangeEvent, PanResponder, Dimensions } from 'react-native'
 import Svg, { Circle, Path, Line } from 'react-native-svg'
 import { Text } from '../ui/text'
@@ -101,7 +101,10 @@ export function PortfolioLineChart({
 
   const [chartWidth, setChartWidth] = useState(maxChartWidth)
   const [selectedPoint, setSelectedPoint] = useState<{ x: number; value: number; index: number } | null>(null)
-  const chartContainerRef = useRef<View>(null)
+
+  useEffect(() => {
+    setSelectedPoint(null)
+  }, [data, dates, period])
 
   const chartHeight = height
   const yAxisWidth = 50
@@ -209,35 +212,42 @@ export function PortfolioLineChart({
     setChartWidth(Math.min(width, maxChartWidth))
   }
 
-  const handleTouch = (locationX: number) => {
-    if (!hasData || normalizedPoints.length === 0) {
-      setSelectedPoint(null)
-      return
-    }
-    const touchX = locationX
-    if (touchX < chartPaddingLeft - 12 || touchX > chartPaddingLeft + graphWidth + 12) {
-      setSelectedPoint(null)
-      return
-    }
-    const closestPoint = normalizedPoints.reduce((prev, curr) =>
-      Math.abs(curr.x - touchX) < Math.abs(prev.x - touchX) ? curr : prev,
-    )
-    setSelectedPoint({
-      x: closestPoint.x,
-      value: closestPoint.value,
-      index: closestPoint.index,
-    })
-  }
+  const handleTouch = useCallback(
+    (locationX: number) => {
+      if (!hasData || normalizedPoints.length === 0) {
+        setSelectedPoint(null)
+        return
+      }
+      const touchX = locationX
+      if (touchX < chartPaddingLeft - 12 || touchX > chartPaddingLeft + graphWidth + 12) {
+        setSelectedPoint(null)
+        return
+      }
+      const closestPoint = normalizedPoints.reduce((prev, curr) =>
+        Math.abs(curr.x - touchX) < Math.abs(prev.x - touchX) ? curr : prev,
+      )
+      setSelectedPoint({
+        x: closestPoint.x,
+        value: closestPoint.value,
+        index: closestPoint.index,
+      })
+    },
+    [hasData, normalizedPoints, chartPaddingLeft, graphWidth],
+  )
 
-  const panResponder = useRef(
-    PanResponder.create({
-      onStartShouldSetPanResponder: () => true,
-      onMoveShouldSetPanResponder: () => true,
-      onPanResponderGrant: (evt) => handleTouch(evt.nativeEvent.locationX),
-      onPanResponderMove: (evt) => handleTouch(evt.nativeEvent.locationX),
-      onPanResponderRelease: () => {},
-    }),
-  ).current
+  const panResponder = useMemo(
+    () =>
+      PanResponder.create({
+        onStartShouldSetPanResponder: () => true,
+        onMoveShouldSetPanResponder: () => true,
+        onPanResponderTerminationRequest: () => false,
+        onShouldBlockNativeResponder: () => true,
+        onPanResponderGrant: (evt) => handleTouch(evt.nativeEvent.locationX),
+        onPanResponderMove: (evt) => handleTouch(evt.nativeEvent.locationX),
+        onPanResponderRelease: () => {},
+      }),
+    [handleTouch],
+  )
 
   if (!hasData || !chartPathValid) return null
 
@@ -272,7 +282,6 @@ export function PortfolioLineChart({
 
           <View
             style={[styles.chartSvgContainer, { height: chartHeight }]}
-            ref={chartContainerRef}
             {...panResponder.panHandlers}
           >
             <Svg width={svgWidth} height={chartHeight}>

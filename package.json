@@ -10,7 +10,9 @@
     "web:local": "set EXPO_PUBLIC_BACKEND_URL=http://localhost:3050&& expo start --web",
     "eas": "pnpm dlx eas-cli",
     "eas:build:android": "pnpm dlx eas-cli build --platform android --profile production",
-    "eas:build:android:clean": "pnpm dlx eas-cli build --platform android --profile production --clear-cache"
+    "eas:build:android:clean": "pnpm dlx eas-cli build --platform android --profile production --clear-cache",
+    "eas:build:ios": "pnpm dlx eas-cli build --platform ios --profile production",
+    "eas:build:ios:clean": "pnpm dlx eas-cli build --platform ios --profile production --clear-cache"
   },
   "dependencies": {
     "@better-auth/expo": "^1.4.17",
@@ -44,6 +46,7 @@
     "better-auth": "^1.4.17",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "eas": "^0.1.0",
     "expo": "~54.0.34",
     "expo-clipboard": "~8.0.8",
     "expo-constants": "^18.0.13",
