@@ -38,12 +38,20 @@ export interface AppButtonProps {
 }
 
 const SIZE_HEIGHT: Record<AppButtonSize, number> = {
-  sm: 32,
+  sm: 28,
   md: 36,
   lg: 40,
 }
 
-const TILE_HEIGHT = 28
+const TILE_HEIGHT = 24
+
+const LABEL_LINE_HEIGHT: Record<AppButtonSize, number> = {
+  sm: 16,
+  md: 18,
+  lg: 20,
+}
+
+const TILE_LINE_HEIGHT = 14
 
 const ICON_SIZE: Record<AppButtonSize, number> = {
   sm: 16,
@@ -172,6 +180,7 @@ function getStyles(
       : size === 'lg'
         ? TYPOGRAPHY.body
         : TYPOGRAPHY.bodySmall
+  const lineHeight = tile ? TILE_LINE_HEIGHT : LABEL_LINE_HEIGHT[size]
 
   const paddingH = tile
     ? SPACING.xs
@@ -217,6 +226,8 @@ function getStyles(
       alignItems: 'center',
       justifyContent: 'center',
       width: fullWidth ? '100%' : undefined,
+      height: fullWidth || tile ? '100%' : undefined,
+      minHeight: height,
     },
     pressed: {
       opacity: 0.85,
@@ -230,6 +241,7 @@ function getStyles(
     },
     label: {
       fontSize,
+      lineHeight,
       fontFamily: theme.semiBoldFont,
       fontWeight: '600',
       color: fg,

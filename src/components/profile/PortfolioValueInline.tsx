@@ -4,7 +4,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage'
 import Ionicons from '@expo/vector-icons/Ionicons'
 import { ThemedText } from '../ui/ThemedText'
 import { ThemeContext } from '../../context'
-import { SPACING, TYPOGRAPHY, RADIUS, PROFILE_CHART_ACCENT } from '../../constants/layout'
+import { SPACING, TYPOGRAPHY, PROFILE_CHART_ACCENT } from '../../constants/layout'
+import { Pill } from '../ui/Pill'
 
 const STORAGE_KEY = 'portfolioValueVisible'
 
@@ -64,18 +65,14 @@ export function PortfolioValueInline({
         <ThemedText style={[styles.value, { color: PROFILE_CHART_ACCENT }]}>
           {visible ? valueLabel : 'R •••••'}
         </ThemedText>
-        {visible && showChange && (
-          <View style={[styles.changeBadge, change >= 0 ? styles.changePositive : styles.changeNegative]}>
-            <Ionicons
-              name={change >= 0 ? 'arrow-up' : 'arrow-down'}
-              size={10}
-              color={change >= 0 ? '#10B981' : '#EF4444'}
-            />
-            <ThemedText style={[styles.changeText, change >= 0 ? styles.changeTextPositive : styles.changeTextNegative]}>
-              {Math.abs(parseFloat(changePercent))}%
-            </ThemedText>
-          </View>
-        )}
+        {visible && showChange ? (
+          <Pill
+            label={`${Math.abs(parseFloat(changePercent))}%`}
+            preset={change >= 0 ? 'positive' : 'negative'}
+            icon={change >= 0 ? 'arrow-up' : 'arrow-down'}
+            align="center"
+          />
+        ) : null}
       </View>
       <TouchableOpacity
         onPress={toggleVisible}
@@ -105,15 +102,15 @@ const getStyles = (theme: any, variant: 'default' | 'shop') =>
     },
     valueCluster: {
       flexDirection: 'row',
-      alignItems: 'flex-end',
+      alignItems: 'center',
       gap: SPACING.xs,
       flexShrink: 0,
-      ...(variant === 'shop' ? { alignSelf: 'flex-end' } : {}),
     },
     eyeButton: {
       justifyContent: 'center',
       alignItems: 'center',
       alignSelf: 'center',
+      ...(variant === 'shop' ? { height: SHOP_NAME_LINE_HEIGHT } : {}),
     },
     value: {
       fontSize: variant === 'shop' ? SHOP_VALUE_FONT : TYPOGRAPHY.h4,
@@ -123,32 +120,10 @@ const getStyles = (theme: any, variant: 'default' | 'shop') =>
       letterSpacing: variant === 'shop' ? -0.3 : -0.2,
       includeFontPadding: false,
       ...(variant === 'shop'
-        ? { textAlignVertical: 'bottom' as const, height: SHOP_NAME_LINE_HEIGHT }
+        ? {
+            textAlignVertical: 'center' as const,
+            height: SHOP_NAME_LINE_HEIGHT,
+          }
         : {}),
-    },
-    changeBadge: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 2,
-      paddingHorizontal: 6,
-      paddingVertical: 2,
-      borderRadius: RADIUS.full,
-    },
-    changePositive: {
-      backgroundColor: 'rgba(16, 185, 129, 0.15)',
-    },
-    changeNegative: {
-      backgroundColor: 'rgba(239, 68, 68, 0.15)',
-    },
-    changeText: {
-      fontSize: TYPOGRAPHY.label,
-      fontFamily: theme.semiBoldFont,
-      fontWeight: '600',
-    },
-    changeTextPositive: {
-      color: '#10B981',
-    },
-    changeTextNegative: {
-      color: '#EF4444',
     },
   })

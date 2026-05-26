@@ -19,7 +19,8 @@ import Ionicons from '@expo/vector-icons/Ionicons'
 import { Carousel } from '../components/Carousel'
 import { Section } from '../components/layout/Section'
 import { Card, CardContent } from '../components/ui/card'
-import { SPACING, TYPOGRAPHY, RADIUS, TILE_BORDER_WHITE, TILE_BORDER_WIDTH } from '../constants/layout'
+import { SPACING, TYPOGRAPHY, RADIUS, TILE_BORDER_WHITE, TILE_BORDER_WIDTH, PILL_METRICS } from '../constants/layout'
+import { pillLabelStyle } from '../utils/platformHelpers'
 import { DOMAIN } from '../../constants'
 import { AppButton } from '../components/ui/AppButton'
 
@@ -1105,19 +1106,21 @@ const getStyles = (theme: any) => StyleSheet.create({
   badgeSubtle: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    alignSelf: 'flex-start',
     backgroundColor: 'rgba(0, 0, 0, 0.6)',
-    paddingHorizontal: SPACING.sm,
-    paddingVertical: SPACING.xs,
+    paddingHorizontal: PILL_METRICS.paddingH,
+    paddingVertical: PILL_METRICS.paddingV,
     borderRadius: RADIUS.full,
-    gap: SPACING.xs / 2,
+    gap: PILL_METRICS.iconGap,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.2)',
   },
   badgeTextSubtle: {
-    fontSize: TYPOGRAPHY.caption,
     fontFamily: theme.semiBoldFont,
     color: 'rgba(255, 255, 255, 0.9)',
     fontWeight: '600',
+    ...pillLabelStyle(PILL_METRICS.fontSize, PILL_METRICS.lineHeight),
   },
   infoOverlay: {
     position: 'absolute',

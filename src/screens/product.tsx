@@ -21,6 +21,7 @@ import { CardPriceSection } from '../components/card/CardPriceSection'
 import { CardOtherSellers } from '../components/card/CardOtherSellers'
 import { PayFastPayment } from '../components/payment'
 import { AppButton } from '../components/ui/AppButton'
+import { CompactPill } from '../components/ui/CompactPill'
 import { authClient } from '../lib/auth-client'
 import { DOMAIN } from '../../constants'
 type ProductRouteParams = {
@@ -38,6 +39,8 @@ type ProductRouteParams = {
     setName?: string
     cardNumber?: string
     fromProfile?: boolean
+    isListed?: boolean
+    marketPriceUsd?: number
     fromMyStore?: boolean
     listingId?: string
     sellerId?: string
@@ -85,6 +88,8 @@ export function Product() {
     setName: routeSetName,
     cardNumber: routeCardNumber,
     fromProfile,
+    isListed: routeIsListed,
+    marketPriceUsd: routeMarketPriceUsd,
     fromMyStore,
     listingId,
     sellerId,
@@ -96,6 +101,7 @@ export function Product() {
   const tintColor = theme.tintColor || '#73EC8B'
   const styles = getStyles(theme, tintColor)
   const [isFavorited, setIsFavorited] = useState(false)
+  const [listed, setListed] = useState(Boolean(routeIsListed))
   const [isPaymentModalVisible, setIsPaymentModalVisible] = useState(false)
   const [paymentType, setPaymentType] = useState<'buy' | 'bid'>('buy')
   /** Set when opening payment for a listing so PayFastPayment has buyerId and user details */
@@ -104,8 +110,10 @@ export function Product() {
   const [initialPudoLockerCode, setInitialPudoLockerCode] = useState('')
   const [initialShippingAddress, setInitialShippingAddress] = useState('')
   const [removing, setRemoving] = useState(false)
-  /** Market price USD from card_prices (for 80% min bid floor). Set when cardId is present. */
-  const [marketPriceUsd, setMarketPriceUsd] = useState<number | null>(null)
+  /** Market price USD from route (profile) or card_prices via CardPriceSection */
+  const [marketPriceUsd, setMarketPriceUsd] = useState<number | null>(
+    routeMarketPriceUsd != null && routeMarketPriceUsd > 0 ? routeMarketPriceUsd : null
+  )
   const [resolvedSetName, setResolvedSetName] = useState<string | undefined>(routeSetName || routeSet)
   const [resolvedCardNumber, setResolvedCardNumber] = useState<string | undefined>(routeCardNumber)
 
@@ -167,6 +175,15 @@ export function Product() {
   const bidsData: { avatar?: any; name: string; bid: number }[] = []
   const highestBid = isListing && routeCurrentBid != null ? routeCurrentBid : (bidsData.length > 0 ? Math.max(...bidsData.map(b => b.bid)) : 0)
   const USD_TO_ZAR = Number(process.env.EXPO_PUBLIC_USD_TO_ZAR) || 17
+  const minListPriceZar =
+    marketPriceUsd != null && marketPriceUsd > 0
+      ? Math.round(0.8 * marketPriceUsd * USD_TO_ZAR)
+      : undefined
+  const collectionId = id != null && String(id).trim() !== '' ? Number(id) : undefined
+
+  useEffect(() => {
+    setListed(Boolean(routeIsListed))
+  }, [routeIsListed])
   const eightyPercentMarketZar = marketPriceUsd != null && marketPriceUsd > 0 ? Math.round(0.8 * marketPriceUsd * USD_TO_ZAR) : null
   const buyNowPrice = isListing ? displayPrice : (highestBid > 0 ? highestBid + 20 : displayPrice)
   const minBidPriceRaw = isListing ? (highestBid > 0 ? highestBid + 1 : displayPrice) : (highestBid > 0 ? highestBid + 1 : displayPrice)
@@ -305,17 +322,38 @@ export function Product() {
           <Ionicons name="chevron-back" size={28} color={theme.textColor} />
         </TouchableOpacity>
         <View style={styles.headerSpacer} />
-        <TouchableOpacity
-          onPress={() => setIsFavorited(!isFavorited)}
-          style={styles.headerFavoriteButton}
-          activeOpacity={0.7}
-        >
-          <Ionicons
-            name={isFavorited ? "heart" : "heart-outline"}
-            size={24}
-            color={isFavorited ? "#FF0000" : theme.textColor}
-          />
-        </TouchableOpacity>
+        {fromProfile ? (
+          listed ? (
+            <CompactPill label="Listed" variant="listed" />
+          ) : (
+            <CompactPill
+              label="List"
+              variant="outline"
+              onPress={() =>
+                navigation.navigate('ListItem', {
+                  collectionId,
+                  cardId: cardId?.trim() || undefined,
+                  productName: name || formattedName,
+                  productImage: image,
+                  minPriceFromMarketZar: minListPriceZar,
+                })
+              }
+              accessibilityLabel="List card for sale"
+            />
+          )
+        ) : (
+          <TouchableOpacity
+            onPress={() => setIsFavorited(!isFavorited)}
+            style={styles.headerFavoriteButton}
+            activeOpacity={0.7}
+          >
+            <Ionicons
+              name={isFavorited ? 'heart' : 'heart-outline'}
+              size={24}
+              color={isFavorited ? '#FF0000' : theme.textColor}
+            />
+          </TouchableOpacity>
+        )}
       </View>
 
       <ScrollView

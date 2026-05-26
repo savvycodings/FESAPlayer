@@ -13,6 +13,7 @@ import {
   TILE_BORDER_WHITE,
   TILE_BORDER_WIDTH,
   MODAL_INNER_TILE_BORDER,
+  PILL_METRICS,
 } from '../constants/layout'
 import Ionicons from '@expo/vector-icons/Ionicons'
 import { AuctionSection, CreateAuctionModal, type Auction, OrderCard, type Order, ListItemModal } from '../components/profile'
@@ -35,7 +36,7 @@ import * as ImagePicker from 'expo-image-picker'
 import { uploadImage, isExternalUrl } from '../utils/imageUpload'
 import { authClient } from '../lib/auth-client'
 import { getPokemonTcgImageUrlFromSetNumberIfOnCdn } from '../utils/pokemonTcgImages'
-import { androidLabelStyle, isAndroid } from '../utils/platformHelpers'
+import { androidLabelStyle, isAndroid, pillLabelStyle } from '../utils/platformHelpers'
 
 type MyStoreStackParamList = {
   MyStoreMain: undefined
@@ -1467,8 +1468,8 @@ const getStyles = (theme: any) => StyleSheet.create({
   },
   tabPill: {
     flex: 1,
-    height: 28,
     paddingHorizontal: SPACING.xs,
+    paddingVertical: PILL_METRICS.paddingV,
     borderRadius: RADIUS.full,
     alignItems: 'center',
     justifyContent: 'center',
@@ -1477,12 +1478,10 @@ const getStyles = (theme: any) => StyleSheet.create({
     backgroundColor: theme.buttonFilledBg || '#FFFFFF',
   },
   tabPillText: {
-    fontSize: TYPOGRAPHY.label,
-    lineHeight: isAndroid ? 14 : TYPOGRAPHY.label,
     fontFamily: theme.semiBoldFont,
     color: theme.textColor,
     textAlign: 'center',
-    ...androidLabelStyle,
+    ...pillLabelStyle(PILL_METRICS.fontSize, PILL_METRICS.lineHeight),
   },
   tabPillTextActive: {
     color: theme.buttonFilledFg || '#000000',
@@ -1681,17 +1680,20 @@ const getStyles = (theme: any) => StyleSheet.create({
     letterSpacing: 0.5,
   },
   isoPricePill: {
-    paddingHorizontal: SPACING.sm,
-    paddingVertical: SPACING.xs,
-    borderRadius: 999,
+    paddingHorizontal: PILL_METRICS.paddingH,
+    paddingVertical: PILL_METRICS.paddingV,
+    borderRadius: RADIUS.full,
     backgroundColor: 'rgba(255, 255, 255, 0.08)',
     borderWidth: 1,
     borderColor: theme.borderColor || 'rgba(255, 255, 255, 0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    alignSelf: 'flex-start',
   },
   isoPriceText: {
-    fontSize: TYPOGRAPHY.bodySmall,
     fontFamily: theme.semiBoldFont,
     color: theme.textColor,
+    ...pillLabelStyle(PILL_METRICS.fontSize, PILL_METRICS.lineHeight),
   },
   isoSeparator: {
     height: 1,

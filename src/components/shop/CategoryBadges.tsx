@@ -2,7 +2,8 @@ import { View, StyleSheet, TouchableOpacity } from 'react-native'
 import { useContext } from 'react'
 import { Text } from '../ui/text'
 import { ThemeContext } from '../../context'
-import { SPACING, TYPOGRAPHY, RADIUS } from '../../constants/layout'
+import { SPACING, TYPOGRAPHY, RADIUS, PILL_METRICS } from '../../constants/layout'
+import { pillLabelStyle } from '../../utils/platformHelpers'
 
 interface Category {
   id: string
@@ -64,28 +65,30 @@ const getStyles = (theme: any) => StyleSheet.create({
     marginBottom: 10,
   },
   categoryBadge: {
-    paddingHorizontal: 18,
-    paddingVertical: 8,
+    paddingHorizontal: PILL_METRICS.paddingH,
+    paddingVertical: PILL_METRICS.paddingV,
     borderRadius: RADIUS.full,
     borderWidth: 1,
     borderColor: theme.borderColor || 'rgba(255, 255, 255, 0.15)',
     backgroundColor: 'transparent',
     alignItems: 'center',
     justifyContent: 'center',
+    alignSelf: 'flex-start',
   },
   categoryBadgeActive: {
     borderColor: theme.borderColor || 'rgba(255, 255, 255, 0.4)',
     backgroundColor: 'rgba(255, 255, 255, 0.08)',
   },
   badgeText: {
-    fontSize: TYPOGRAPHY.bodySmall,
     fontFamily: theme.regularFont,
     color: theme.mutedForegroundColor || 'rgba(255, 255, 255, 0.7)',
     letterSpacing: 0.1,
+    ...pillLabelStyle(PILL_METRICS.fontSize, PILL_METRICS.lineHeight),
   },
   badgeTextActive: {
     color: theme.textColor,
     fontFamily: theme.semiBoldFont,
     fontWeight: '600',
+    ...pillLabelStyle(PILL_METRICS.fontSize, PILL_METRICS.lineHeight),
   },
 })

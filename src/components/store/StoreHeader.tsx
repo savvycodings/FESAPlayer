@@ -1,10 +1,10 @@
 import { View, StyleSheet, Image, TouchableOpacity, Linking } from 'react-native'
-import { androidLabelStyle, compactLevelLineHeight } from '../../utils/platformHelpers'
+import { pillLabelStyle } from '../../utils/platformHelpers'
 import { useContext, useState } from 'react'
 import { Text } from '../ui/text'
 import { ThemedText } from '../ui/ThemedText'
 import { ThemeContext } from '../../context'
-import { SPACING, TYPOGRAPHY, RADIUS } from '../../constants/layout'
+import { SPACING, TYPOGRAPHY, RADIUS, PILL_METRICS } from '../../constants/layout'
 import { VerificationRings } from './VerificationRings'
 import { ProgressBars } from './ProgressBars'
 import { LevelRewardModal } from './LevelRewardModal'
@@ -350,8 +350,8 @@ const getStyles = (theme: any) => StyleSheet.create({
   },
   levelBadge: {
     backgroundColor: theme.buttonFilledBg || '#FFFFFF',
-    paddingHorizontal: SPACING.pillPaddingH,
-    height: SPACING.pillHeight,
+    paddingHorizontal: PILL_METRICS.paddingH,
+    paddingVertical: PILL_METRICS.paddingV,
     borderRadius: RADIUS.full,
     marginTop: 0,
     alignSelf: 'flex-start',
@@ -359,11 +359,9 @@ const getStyles = (theme: any) => StyleSheet.create({
     alignItems: 'center',
   },
   levelText: {
-    fontSize: 12,
-    lineHeight: compactLevelLineHeight,
     fontFamily: theme.boldFont,
     color: theme.buttonFilledFg || '#000000',
-    ...androidLabelStyle,
+    ...pillLabelStyle(PILL_METRICS.fontSize, PILL_METRICS.lineHeight),
   },
   featuresContainer: {
     flexDirection: 'row',

@@ -1,5 +1,5 @@
 import { View, StyleSheet, TouchableOpacity, Dimensions, Image } from 'react-native'
-import { androidLabelStyle, compactLevelLineHeight } from '../../utils/platformHelpers'
+import { androidLabelStyle, compactLevelLineHeight, pillLabelStyle } from '../../utils/platformHelpers'
 import { useContext, useState, useMemo } from 'react'
 import { Text } from '../ui/text'
 import Ionicons from '@expo/vector-icons/Ionicons'
@@ -11,10 +11,12 @@ import {
   STORE_COLORS,
   PROFILE_CHART_ACCENT,
   LISTING_TILE_BORDER,
+  PILL_METRICS,
 } from '../../constants/layout'
 import { ProgressBars } from '../store'
 import { LevelRewardModal } from '../store/LevelRewardModal'
 import { TrustedBadge } from '../ui/TrustedBadge'
+import { Pill } from '../ui/Pill'
 import { PortfolioLineChart, type ChartPeriod } from '../charts/PortfolioLineChart'
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window')
@@ -282,19 +284,17 @@ export function ProfileHeader({
         <View style={styles.portfolioValueSection}>
             <Text style={styles.portfolioLabel}>Portfolio Value</Text>
             <View style={styles.portfolioValueRow}>
-              <Text style={[styles.portfolioValue, { color: chartAccent }]}>{portfolioValue}</Text>
-              {change !== 0 && hasHistory && (
-                <View style={[styles.changeBadge, change >= 0 ? styles.changePositive : styles.changeNegative]}>
-                  <Ionicons
-                    name={change >= 0 ? 'arrow-up' : 'arrow-down'}
-                    size={10}
-                    color={change >= 0 ? '#10B981' : '#EF4444'}
+              <View style={styles.portfolioValueCluster}>
+                <Text style={[styles.portfolioValue, { color: chartAccent }]}>{portfolioValue}</Text>
+                {change !== 0 && hasHistory && (
+                  <Pill
+                    label={`${Math.abs(parseFloat(changePercent))}%`}
+                    preset={change >= 0 ? 'positive' : 'negative'}
+                    icon={change >= 0 ? 'arrow-up' : 'arrow-down'}
+                    align="center"
                   />
-                  <Text style={[styles.changeText, change >= 0 ? styles.changeTextPositive : styles.changeTextNegative]}>
-                    {Math.abs(parseFloat(changePercent))}%
-                  </Text>
-                </View>
-              )}
+                )}
+              </View>
             </View>
           </View>
 
@@ -451,19 +451,21 @@ const getStyles = (theme: any) => StyleSheet.create({
   },
   premiumBadge: {
     backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    paddingHorizontal: SPACING.pillPaddingH,
-    height: SPACING.pillHeight,
+    paddingHorizontal: PILL_METRICS.paddingH,
+    paddingVertical: PILL_METRICS.paddingV,
     borderRadius: RADIUS.full,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.12)',
+    alignSelf: 'flex-start',
     justifyContent: 'center',
+    alignItems: 'center',
   },
   premiumText: {
     color: theme.textColor,
     fontFamily: theme.semiBoldFont,
-    fontSize: TYPOGRAPHY.label,
     fontWeight: '600',
     letterSpacing: 0.2,
+    ...pillLabelStyle(PILL_METRICS.fontSize, PILL_METRICS.lineHeight),
   },
   profileIconWrapper: {
     position: 'relative',
@@ -548,8 +550,8 @@ const getStyles = (theme: any) => StyleSheet.create({
   },
   levelBadge: {
     backgroundColor: theme.buttonFilledBg || '#FFFFFF',
-    paddingHorizontal: SPACING.pillPaddingH,
-    height: SPACING.pillHeight,
+    paddingHorizontal: PILL_METRICS.paddingH,
+    paddingVertical: PILL_METRICS.paddingV,
     borderRadius: RADIUS.full,
     alignSelf: 'flex-start',
     justifyContent: 'center',
@@ -559,19 +561,20 @@ const getStyles = (theme: any) => StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: 'rgba(255, 255, 255, 0.06)',
-    paddingHorizontal: SPACING.pillPaddingH,
-    height: SPACING.pillHeight,
+    paddingHorizontal: PILL_METRICS.paddingH,
+    paddingVertical: PILL_METRICS.paddingV,
     borderRadius: RADIUS.full,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.12)',
+    alignSelf: 'flex-start',
   },
   rewardIcon: {
     marginRight: 4,
   },
   rewardText: {
-    fontSize: TYPOGRAPHY.caption,
     fontFamily: theme.semiBoldFont,
     fontWeight: '600',
+    ...pillLabelStyle(PILL_METRICS.fontSize, PILL_METRICS.lineHeight),
   },
   levelText: {
     fontSize: TYPOGRAPHY.label,
@@ -592,11 +595,14 @@ const getStyles = (theme: any) => StyleSheet.create({
     overflow: 'visible',
   },
   portfolioValueRow: {
+    marginTop: 0,
+  },
+  portfolioValueCluster: {
     flexDirection: 'row',
-    alignItems: 'baseline',
+    alignItems: 'center',
     flexWrap: 'wrap',
     gap: SPACING.xs,
-    marginTop: 0,
+    minHeight: 32,
   },
   portfolioLabel: {
     fontSize: TYPOGRAPHY.caption,
@@ -608,13 +614,13 @@ const getStyles = (theme: any) => StyleSheet.create({
     lineHeight: TYPOGRAPHY.caption * 1.2,
   },
   portfolioValue: {
-    fontSize: TYPOGRAPHY.h4,
+    fontSize: 28,
     fontFamily: theme.boldFont,
     color: theme.textColor,
-    fontWeight: '700',
-    letterSpacing: -0.2,
-    lineHeight: TYPOGRAPHY.h4 * 1.05,
+    letterSpacing: -0.4,
+    lineHeight: 32,
     marginTop: 0,
+    ...androidLabelStyle,
   },
   periodSelectorContainer: {
     width: '100%',
@@ -633,21 +639,21 @@ const getStyles = (theme: any) => StyleSheet.create({
   },
   periodOption: {
     paddingHorizontal: SPACING.sm,
-    paddingVertical: 2,
+    paddingVertical: PILL_METRICS.paddingV,
     borderRadius: RADIUS.full,
     minWidth: 36,
-    height: SPACING.pillHeight,
     alignItems: 'center',
     justifyContent: 'center',
+    alignSelf: 'flex-start',
   },
   periodOptionActive: {
     backgroundColor: theme.textColor,
   },
   periodOptionText: {
-    fontSize: TYPOGRAPHY.label,
     fontFamily: theme.semiBoldFont,
     color: 'rgba(255, 255, 255, 0.55)',
     fontWeight: '600',
+    ...pillLabelStyle(PILL_METRICS.fontSize, PILL_METRICS.lineHeight),
   },
   periodOptionTextActive: {
     color: theme.backgroundColor,
@@ -709,31 +715,6 @@ const getStyles = (theme: any) => StyleSheet.create({
     fontFamily: theme.semiBoldFont,
     color: theme.tintColor || '#73EC8B',
     fontWeight: '600',
-  },
-  changeBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: SPACING.xs,
-    paddingVertical: SPACING.xs / 2,
-    borderRadius: RADIUS.sm,
-    gap: 2,
-  },
-  changePositive: {
-    backgroundColor: 'rgba(16, 185, 129, 0.15)',
-  },
-  changeNegative: {
-    backgroundColor: 'rgba(239, 68, 68, 0.15)',
-  },
-  changeText: {
-    fontSize: TYPOGRAPHY.caption,
-    fontFamily: theme.semiBoldFont,
-    fontWeight: '600',
-  },
-  changeTextPositive: {
-    color: '#10B981',
-  },
-  changeTextNegative: {
-    color: '#EF4444',
   },
   userNameContainer: {
     flex: 1,

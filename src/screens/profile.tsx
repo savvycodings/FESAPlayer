@@ -8,7 +8,7 @@ import { ThemeContext } from '../context'
 import { SPACING, TYPOGRAPHY, RADIUS } from '../constants/layout'
 import { isAndroid } from '../utils/platformHelpers'
 import Ionicons from '@expo/vector-icons/Ionicons'
-import { ProfileHeader, ProductGrid, ListItemModal, AddCardModal, BulkVaultingModal } from '../components/profile'
+import { ProfileHeader, ProductGrid, AddCardModal, BulkVaultingModal } from '../components/profile'
 import { PayFastPayment } from '../components/payment'
 import { SkeletonBox } from '../components/layout/SkeletonBox'
 import { Section } from '../components/layout/Section'
@@ -18,6 +18,7 @@ import { PROFILE_REFRESH_STALE_LIMIT } from '../lib/cardPrices'
 import { CARD_PLACEHOLDER_IMAGE } from '../constants/cardPlaceholder'
 import * as ImagePicker from 'expo-image-picker'
 import { uploadImage, isExternalUrl } from '../utils/imageUpload'
+import { createCollectionListing } from '../utils/createCollectionListing'
 import { getPokemonTcgImageUrl, getPokemonTcgImageUrlFromSetNumberIfOnCdn } from '../utils/pokemonTcgImages'
 import { authClient } from '../lib/auth-client'
 
@@ -33,6 +34,8 @@ type ProfileStackParamList = {
     description?: string
     set?: string
     fromProfile?: boolean
+    isListed?: boolean
+    marketPriceUsd?: number
   }
 }
 
@@ -42,9 +45,6 @@ export function Profile() {
   const { theme } = useContext(ThemeContext)
   const navigation = useNavigation<ProfileScreenNavigationProp>()
   const styles = getStyles(theme)
-  const [isListItemModalVisible, setIsListItemModalVisible] = useState(false)
-  const [selectedProduct, setSelectedProduct] = useState<{ name: string; image?: any; id?: number; cardId?: string; marketPriceUsd?: number } | null>(null)
-
   // State for user data
   const [user, setUser] = useState<any>(null)
   const [collections, setCollections] = useState<any[]>([])
@@ -303,7 +303,6 @@ export function Profile() {
     }
   }
 
-  // Create listing from collection item (collectionId links listing to this item so "Listed" is accurate; cardId optional - primes price cache when present). When listingPhotos provided, uploads all 3 to Cloudinary.
   const createListing = async (
     cardName: string,
     price: number,
@@ -313,88 +312,16 @@ export function Profile() {
     listingPhotos?: { front: string; back: string; close: string },
     quantity?: number
   ) => {
-    try {
-      const session = await authClient.getSession()
-      if (!session?.data?.session) {
-        Alert.alert('Error', 'Please log in')
-        return
-      }
-      const sessionToken = session.data.session.token
-
-      const uploadOne = async (uri: string): Promise<string> => {
-        if (isExternalUrl(uri)) return uri
-        return uploadImage(uri, 'gradeit/listings')
-      }
-
-      let imageUrl: string
-      let imageBackUrl: string | undefined
-      let imageCloseUrl: string | undefined
-
-      if (listingPhotos) {
-        const frontUri = listingPhotos.front
-        const isTcg = frontUri.includes('images.pokemontcg.io')
-        if (!frontUri || isTcg) {
-          Alert.alert('Photo required', 'Please add all 3 photos of your card. Listings must use your own photos.')
-          return
-        }
-        try {
-          ;[imageUrl, imageBackUrl, imageCloseUrl] = await Promise.all([
-            uploadOne(listingPhotos.front),
-            uploadOne(listingPhotos.back),
-            uploadOne(listingPhotos.close),
-          ])
-        } catch (error: any) {
-          Alert.alert('Upload Error', error.message || 'Failed to upload listing photos')
-          return
-        }
-      } else {
-        const imageUri = cardImage?.uri || (typeof cardImage === 'string' ? cardImage : null)
-        const isTcg = imageUri && typeof imageUri === 'string' && imageUri.includes('images.pokemontcg.io')
-        if (!imageUri || isTcg) {
-          Alert.alert('Photo required', 'Please select a photo of your card. Listings must use a photo stored in Cloudinary.')
-          return
-        }
-        try {
-          imageUrl = await uploadOne(imageUri)
-        } catch (error: any) {
-          Alert.alert('Upload Error', error.message || 'Failed to upload listing image')
-          return
-        }
-      }
-
-      const baseUrl = DOMAIN?.endsWith('/') ? DOMAIN.slice(0, -1) : DOMAIN
-      const response = await fetch(`${baseUrl}/api/store/listings`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${sessionToken}`,
-        },
-        credentials: 'include',
-        body: JSON.stringify({
-          cardName,
-          price,
-          cardImage: imageUrl,
-          ...(imageBackUrl && { cardImageBack: imageBackUrl }),
-          ...(imageCloseUrl && { cardImageClose: imageCloseUrl }),
-          ...(cardId && { cardId }),
-          ...(collectionId != null && { collectionId }),
-          quantity: quantity != null && quantity > 0 ? Math.floor(quantity) : 1,
-        }),
-      })
-
-      const data = await response.json()
-
-      if (response.ok) {
-        Alert.alert('Success', 'Listing created successfully! It will appear in your store.')
-        // Refresh collections to update isListed status
-        await fetchCollections()
-      } else {
-        Alert.alert('Error', data.message || 'Failed to create listing')
-      }
-    } catch (error: any) {
-      console.error('Error creating listing:', error)
-      Alert.alert('Error', 'Failed to create listing')
-    }
+    const ok = await createCollectionListing(
+      cardName,
+      price,
+      cardImage,
+      cardId,
+      collectionId,
+      listingPhotos,
+      quantity
+    )
+    if (ok) await fetchCollections()
   }
 
   // Request verification for multiple cards
@@ -697,7 +624,7 @@ export function Profile() {
           {/* Section Header: title + "See all" subtext on left; Add Card + Verify on right inline with title */}
           <View style={styles.sectionHeader}>
             <View style={styles.sectionHeaderLeft}>
-              <ThemedText style={styles.sectionTitle}>Your Products</ThemedText>
+              <ThemedText style={styles.sectionTitle}>Your Portfolio</ThemedText>
             </View>
             <View style={styles.sectionHeaderActions}>
               <AppButton
@@ -788,19 +715,24 @@ export function Profile() {
                       setName: (product as any).setName ?? set,
                       cardNumber: (product as any).cardNumber,
                       fromProfile: true,
+                      isListed: product.isListed,
+                      marketPriceUsd: (product as any).marketPriceUsd,
                     })
                   }
                 }}
                 onQuickListPress={(product) => {
                   if (!product.isListed) {
-                    setSelectedProduct({ 
-                      id: product.id as number,
-                      name: product.name, 
-                      image: product.image,
+                    const usd = (product as any).marketPriceUsd
+                    const USD_TO_ZAR = Number(process.env.EXPO_PUBLIC_USD_TO_ZAR) || 17
+                    const minPriceFromMarketZar =
+                      usd != null && Number(usd) > 0 ? Math.round(0.8 * Number(usd) * USD_TO_ZAR) : undefined
+                    navigation.navigate('ListItem', {
+                      collectionId: Number(product.id),
                       cardId: (product as any).cardId,
-                      marketPriceUsd: (product as any).marketPriceUsd,
+                      productName: product.name,
+                      productImage: product.image,
+                      minPriceFromMarketZar,
                     })
-                    setIsListItemModalVisible(true)
                   }
                 }}
               />
@@ -820,40 +752,7 @@ export function Profile() {
         </View>
       </ScrollView>
 
-      {/* List Item Modal */}
-      {selectedProduct && (
-        <ListItemModal
-          visible={isListItemModalVisible}
-          productName={selectedProduct.name}
-          productImage={selectedProduct.image}
-          minPriceFromMarketZar={
-            selectedProduct.marketPriceUsd != null && selectedProduct.marketPriceUsd > 0
-              ? Math.round(0.8 * selectedProduct.marketPriceUsd * USD_TO_ZAR)
-              : undefined
-          }
-          onClose={() => {
-            setIsListItemModalVisible(false)
-            setSelectedProduct(null)
-          }}
-          onList={async (price, listingImageUri, listingPhotos, quantity) => {
-            if (!listingImageUri || !listingPhotos) {
-              Alert.alert('Photos required', 'Please add all 3 photos (front, back, up close) to list your card.')
-              return
-            }
-            await createListing(
-              selectedProduct.name,
-              price,
-              { uri: listingImageUri },
-              selectedProduct.cardId,
-              selectedProduct.id,
-              listingPhotos,
-              quantity
-            )
-            setIsListItemModalVisible(false)
-            setSelectedProduct(null)
-          }}
-        />
-      )}
+      {/* List flow moved to ListItem screen */}
 
       {/* Add Card Modal */}
       <AddCardModal

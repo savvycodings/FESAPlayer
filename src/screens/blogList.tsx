@@ -7,7 +7,8 @@ import {
   Image,
   Text as RNText,
 } from 'react-native'
-import { androidLabelStyle, STABLE_TEXT_PROPS } from '../utils/layoutHelpers'
+import { STABLE_TEXT_PROPS } from '../utils/layoutHelpers'
+import { androidLabelStyle } from '../utils/platformHelpers'
 import { useNavigation } from '@react-navigation/native'
 import { NativeStackNavigationProp } from '@react-navigation/native-stack'
 import Ionicons from '@expo/vector-icons/Ionicons'

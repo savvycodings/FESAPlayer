@@ -15,7 +15,8 @@ import Ionicons from '@expo/vector-icons/Ionicons'
 import { ThemeContext } from '../context'
 import { Text } from '../components/ui/text'
 import { Card, CardContent } from '../components/ui/card'
-import { SPACING, TYPOGRAPHY, RADIUS } from '../constants/layout'
+import { SPACING, TYPOGRAPHY, RADIUS, PILL_METRICS } from '../constants/layout'
+import { pillLabelStyle } from '../utils/platformHelpers'
 import { DOMAIN } from '../../constants'
 import { AppButton } from '../components/ui/AppButton'
 
@@ -312,16 +313,19 @@ const getStyles = (theme: {
     },
     countPill: {
       minWidth: 32,
-      paddingHorizontal: SPACING.sm,
-      paddingVertical: 4,
+      paddingHorizontal: PILL_METRICS.paddingH,
+      paddingVertical: PILL_METRICS.paddingV,
       borderRadius: RADIUS.full,
       backgroundColor: 'rgba(255, 255, 255, 0.1)',
       alignItems: 'center',
+      justifyContent: 'center',
+      alignSelf: 'flex-start',
     },
     countPillText: {
-      fontSize: TYPOGRAPHY.bodySmall,
+      fontFamily: theme.semiBoldFont,
       fontWeight: '700',
       color: theme.textColor,
+      ...pillLabelStyle(PILL_METRICS.fontSize, PILL_METRICS.lineHeight),
     },
     soonLabel: {
       fontSize: TYPOGRAPHY.caption,

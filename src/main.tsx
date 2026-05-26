@@ -3,7 +3,7 @@ import { useContext, useRef, useCallback } from 'react';
 import { StyleSheet, Text, View, Button } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { Shop, Market, MarketSet, Settings, EditProfile, EditPhone, EditPudoAddress, Search, Grade, Profile, Product, Category, SetProducts, ViewProfile, MyStore } from './screens'
+import { Shop, Market, MarketSet, Settings, EditProfile, EditPhone, EditPudoAddress, Search, Grade, Profile, Product, Category, SetProducts, ViewProfile, MyStore, ListItem } from './screens'
 import BlogPostScreen from './screens/blogPost'
 import BlogList from './screens/blogList'
 import { Header } from './components'
@@ -70,6 +70,7 @@ function ProfileStack() {
     >
       <Stack.Screen name="ProfileMain" component={Profile} />
       <Stack.Screen name="Product" component={Product} />
+      <Stack.Screen name="ListItem" component={ListItem} />
       <Stack.Screen name="ViewProfile" component={ViewProfile} />
       <Stack.Screen name="SettingsMain" component={Settings} />
       <Stack.Screen name="EditProfile" component={EditProfile} />
