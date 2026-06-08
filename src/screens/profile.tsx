@@ -601,7 +601,7 @@ export function Profile() {
           {/* Section Header: title + "See all" subtext on left; Add Card + Verify on right inline with title */}
           <View style={styles.sectionHeader}>
             <View style={styles.sectionHeaderLeft}>
-              <ThemedText style={styles.sectionTitle}>Your Products</ThemedText>
+              <ThemedText style={styles.sectionTitle}>Your Portfolio</ThemedText>
             </View>
             <View style={styles.sectionHeaderActions}>
               <AppButton
@@ -714,6 +714,8 @@ export function Profile() {
 
         </View>
       </ScrollView>
+
+      {/* List flow moved to ListItem screen */}
 
       {/* Add Card Modal */}
       <AddCardModal

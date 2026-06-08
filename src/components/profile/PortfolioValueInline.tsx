@@ -5,7 +5,7 @@ import Ionicons from '@expo/vector-icons/Ionicons'
 import { ThemedText } from '../ui/ThemedText'
 import { ThemeContext } from '../../context'
 import { SPACING, TYPOGRAPHY, PROFILE_CHART_ACCENT } from '../../constants/layout'
-import { ChangePercentPill } from '../ui/ChangePercentPill'
+import { Pill } from '../ui/Pill'
 import { computePortfolioChange } from '../../utils/portfolioChange'
 
 const STORAGE_KEY = 'portfolioValueVisible'
@@ -54,17 +54,20 @@ export function PortfolioValueInline({
     [portfolioHistory, portfolioValue],
   )
 
+  const showChange = hasHistory && change !== 0
+
   return (
     <View style={styles.row}>
       <View style={styles.valueCluster}>
         <ThemedText style={[styles.value, { color: PROFILE_CHART_ACCENT }]}>
           {visible ? valueLabel : 'R •••••'}
         </ThemedText>
-        {visible ? (
-          <ChangePercentPill
-            change={change}
-            changePercent={changePercent}
-            visible={hasHistory && change !== 0}
+        {visible && showChange ? (
+          <Pill
+            label={`${Math.abs(parseFloat(changePercent))}%`}
+            preset={change >= 0 ? 'positive' : 'negative'}
+            icon={change >= 0 ? 'arrow-up' : 'arrow-down'}
+            align="center"
           />
         ) : null}
       </View>
@@ -103,6 +106,7 @@ const getStyles = (theme: any, variant: 'default' | 'shop') =>
     eyeButton: {
       justifyContent: 'center',
       alignItems: 'center',
+      alignSelf: 'center',
       ...(variant === 'shop' ? { height: SHOP_NAME_LINE_HEIGHT } : {}),
     },
     value: {
@@ -112,6 +116,11 @@ const getStyles = (theme: any, variant: 'default' | 'shop') =>
       fontWeight: '700',
       letterSpacing: variant === 'shop' ? -0.3 : -0.2,
       includeFontPadding: false,
-      textAlignVertical: 'center',
+      ...(variant === 'shop'
+        ? {
+            textAlignVertical: 'center' as const,
+            height: SHOP_NAME_LINE_HEIGHT,
+          }
+        : { textAlignVertical: 'center' as const }),
     },
   })

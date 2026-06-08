@@ -25,11 +25,31 @@ export const SPACING = {
   gridColumnGap: 6,      // Card grid columns
   screenBottom: 16,      // ScrollView content bottom inset
 
-  // Compact UI (pills, inline stats, profile chrome)
+  // Compact UI (pills, inline stats, profile chrome) — aligned with PILL_METRICS
   pillHeight: 18,
-  pillPaddingH: 6,
+  pillPaddingH: 10,
   avatarProfile: 72,
 } as const
+
+/**
+ * Compact pills/badges — height comes from lineHeight + paddingV, not a fixed box.
+ * Use paddingVertical + pillLabelStyle(); avoid setting height on pill containers.
+ */
+export const PILL_METRICS = {
+  fontSize: 11,
+  lineHeight: 14,
+  paddingV: 2,
+  paddingH: 10,
+  borderWidth: 1.5,
+  iconSize: 10,
+  iconGap: 2,
+  /** Full pill shape — same as RADIUS.full */
+  borderRadius: 9999,
+} as const
+
+/** Reference height (line + vertical padding) — do not use as a fixed layout height on parents */
+export const PILL_INTRINSIC_HEIGHT =
+  PILL_METRICS.lineHeight + PILL_METRICS.paddingV * 2
 
 /**
  * Typography sizes for consistent text hierarchy

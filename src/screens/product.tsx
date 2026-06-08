@@ -21,9 +21,7 @@ import { CardPriceSection } from '../components/card/CardPriceSection'
 import { CardOtherSellers } from '../components/card/CardOtherSellers'
 import { PayFastPayment } from '../components/payment'
 import { AppButton } from '../components/ui/AppButton'
-import { ListItemModal } from '../components/profile/ListItemModal'
 import { authClient } from '../lib/auth-client'
-import { createStoreListing } from '../lib/createStoreListing'
 import { DOMAIN } from '../../constants'
 type ProductRouteParams = {
   Product: {
@@ -105,6 +103,7 @@ export function Product() {
   const tintColor = theme.tintColor || '#73EC8B'
   const styles = getStyles(theme, tintColor)
   const [isFavorited, setIsFavorited] = useState(false)
+  const [listed, setListed] = useState(Boolean(routeIsListed))
   const [isPaymentModalVisible, setIsPaymentModalVisible] = useState(false)
   const [paymentType, setPaymentType] = useState<'buy' | 'bid'>('buy')
   /** Set when opening payment for a listing so PayFastPayment has buyerId and user details */
@@ -113,14 +112,14 @@ export function Product() {
   const [initialPudoLockerCode, setInitialPudoLockerCode] = useState('')
   const [initialShippingAddress, setInitialShippingAddress] = useState('')
   const [removing, setRemoving] = useState(false)
-  const [isListModalVisible, setIsListModalVisible] = useState(false)
-  const [listedInStore, setListedInStore] = useState(Boolean(routeIsListed))
+  /** Market price USD from route (profile) or card_prices via CardPriceSection */
+  const [marketPriceUsd, setMarketPriceUsd] = useState<number | null>(
+    routeMarketPriceUsd != null && routeMarketPriceUsd > 0 ? routeMarketPriceUsd : null
+  )
 
   useEffect(() => {
-    setListedInStore(Boolean(routeIsListed))
+    setListed(Boolean(routeIsListed))
   }, [routeIsListed])
-  /** Market price USD from card_prices (for 80% min bid floor). Set when cardId is present. */
-  const [marketPriceUsd, setMarketPriceUsd] = useState<number | null>(null)
   const [resolvedSetName, setResolvedSetName] = useState<string | undefined>(routeSetName || routeSet)
   const [resolvedCardNumber, setResolvedCardNumber] = useState<string | undefined>(routeCardNumber)
 
@@ -187,9 +186,10 @@ export function Product() {
     marketUsdForFloor != null && marketUsdForFloor > 0
       ? Math.round(0.8 * marketUsdForFloor * USD_TO_ZAR)
       : null
+  const minListPriceZar = eightyPercentMarketZar ?? undefined
   const collectionId = routeCollectionId ?? id
   const isPortfolioItem = Boolean(fromProfile && collectionId)
-  const canListFromPortfolio = Boolean(isPortfolioItem && !listedInStore)
+  const canListFromPortfolio = Boolean(isPortfolioItem && !listed)
   const buyNowPrice = isListing ? displayPrice : (highestBid > 0 ? highestBid + 20 : displayPrice)
   const minBidPriceRaw = isListing ? (highestBid > 0 ? highestBid + 1 : displayPrice) : (highestBid > 0 ? highestBid + 1 : displayPrice)
   const minBidPrice = eightyPercentMarketZar != null && eightyPercentMarketZar > 0 ? Math.max(minBidPriceRaw, eightyPercentMarketZar) : minBidPriceRaw
@@ -330,7 +330,18 @@ export function Product() {
         <View style={styles.headerActions}>
           {canListFromPortfolio ? (
             <TouchableOpacity
-              onPress={() => setIsListModalVisible(true)}
+              onPress={() =>
+                navigation.navigate('ListItem', {
+                  collectionId:
+                    collectionId != null && String(collectionId).trim() !== ''
+                      ? Number(collectionId)
+                      : undefined,
+                  cardId: cardId?.trim() || undefined,
+                  productName: name || formattedName,
+                  productImage: image,
+                  minPriceFromMarketZar: minListPriceZar,
+                })
+              }
               style={styles.headerIconButton}
               activeOpacity={0.7}
               accessibilityRole="button"
@@ -338,7 +349,7 @@ export function Product() {
             >
               <Ionicons name="storefront-outline" size={24} color={theme.textColor} />
             </TouchableOpacity>
-          ) : isPortfolioItem && listedInStore ? (
+          ) : isPortfolioItem && listed ? (
             <View style={styles.headerIconButton}>
               <Ionicons name="storefront" size={24} color={tintColor} />
             </View>
@@ -641,35 +652,6 @@ export function Product() {
         }}
       />
 
-      {isPortfolioItem ? (
-        <ListItemModal
-          visible={isListModalVisible}
-          productName={name}
-          productImage={image}
-          minPriceFromMarketZar={eightyPercentMarketZar ?? undefined}
-          onClose={() => setIsListModalVisible(false)}
-          onList={async (listPrice, listingImageUri, listingPhotos, quantity) => {
-            if (!listingImageUri || !listingPhotos) {
-              Alert.alert('Photos required', 'Please add all 3 photos (front, back, up close) to list your card.')
-              return
-            }
-            const collectionIdNum = parseInt(String(collectionId), 10)
-            const result = await createStoreListing({
-              cardName: name,
-              price: listPrice,
-              cardImage: { uri: listingImageUri },
-              cardId: cardId?.trim() || undefined,
-              collectionId: Number.isFinite(collectionIdNum) ? collectionIdNum : undefined,
-              listingPhotos,
-              quantity,
-            })
-            if (result.ok) {
-              setListedInStore(true)
-              setIsListModalVisible(false)
-            }
-          }}
-        />
-      ) : null}
     </View>
   )
 }

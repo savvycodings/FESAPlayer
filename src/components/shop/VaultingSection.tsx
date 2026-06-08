@@ -11,7 +11,8 @@ import Ionicons from '@expo/vector-icons/Ionicons'
 import { Text } from '../ui/text'
 import { ThemeContext } from '../../context'
 import { SPACING, TYPOGRAPHY, RADIUS, LISTING_TILE_BORDER } from '../../constants/layout'
-import { androidLabelStyle, STABLE_TEXT_PROPS } from '../../utils/platformHelpers'
+import { androidLabelStyle } from '../../utils/platformHelpers'
+import { STABLE_TEXT_PROPS } from '../../utils/layoutHelpers'
 
 const LABEL_ICON_SIZE = 20
 

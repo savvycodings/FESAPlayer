@@ -11,4 +11,11 @@
 export * from './themed'
 export * from './brand'
 export { AppButton, type AppButtonProps, type AppButtonVariant, type AppButtonSize } from './AppButton'
+export {
+  Pill,
+  type PillProps,
+  type PillPreset,
+  type PillStyleOverrides,
+} from './Pill'
+export { CompactPill, type CompactPillProps, type CompactPillVariant } from './CompactPill'
 export { ListingTile, type ListingTileProps } from './ListingTile'

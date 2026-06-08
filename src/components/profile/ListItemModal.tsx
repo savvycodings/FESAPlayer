@@ -1,7 +1,6 @@
 import { View, StyleSheet, Modal, TouchableOpacity, TextInput, Image, Alert, ActivityIndicator } from 'react-native'
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller'
 import { useContext, useState, useEffect } from 'react'
-import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import * as ImagePicker from 'expo-image-picker'
 import { Text } from '../ui/text'
 import Ionicons from '@expo/vector-icons/Ionicons'
@@ -48,7 +47,6 @@ export function ListItemModal({
   minPriceFromMarketUsd,
 }: ListItemModalProps) {
   const { theme } = useContext(ThemeContext)
-  const insets = useSafeAreaInsets()
   const styles = getStyles(theme)
   const [price, setPrice] = useState('')
   const [description, setDescription] = useState('')
@@ -216,7 +214,7 @@ export function ListItemModal({
         />
         <View style={styles.modalContainer}>
           {/* Header */}
-          <View style={[styles.header, { paddingTop: Math.max(insets.top, SPACING.sm) + SPACING.lg }]}>
+          <View style={[styles.header, { paddingTop: SPACING.sm }]}>
             <Text style={styles.title}>{isEditing ? 'Edit Listing' : 'List Your Item'}</Text>
             <TouchableOpacity onPress={handleClose} style={styles.closeButton} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
               <Ionicons name="close" size={24} color={theme.textColor} />
@@ -381,19 +379,21 @@ const getStyles = (theme: any) =>
       width: '90%',
       maxWidth: 420,
       maxHeight: '90%',
-      padding: SPACING.containerPadding,
+      paddingHorizontal: SPACING.containerPadding,
+      paddingTop: SPACING.sm,
+      paddingBottom: SPACING.sm,
       borderWidth: 1,
       borderColor: 'rgba(255, 255, 255, 0.08)',
     },
     scrollContent: {
       flexGrow: 1,
-      paddingBottom: SPACING.lg,
+      paddingBottom: SPACING.sm,
     },
     header: {
       flexDirection: 'row',
       justifyContent: 'space-between',
       alignItems: 'center',
-      marginBottom: SPACING.lg,
+      marginBottom: SPACING.sm,
     },
     title: {
       fontSize: TYPOGRAPHY.h2,
