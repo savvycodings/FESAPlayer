@@ -29,6 +29,13 @@
     --chart-3: 197 37% 24%;
     --chart-4: 43 74% 66%;
     --chart-5: 27 87% 67%;
+    /* Portfolio / bklit-style chart tokens */
+    --chart-line-primary: 145 68% 68%;
+    --chart-line-secondary: 145 40% 55%;
+    --chart-grid: 0 0% 100%;
+    --chart-crosshair: 145 68% 68%;
+    --chart-brush-border: 0 0% 100%;
+    --chart-tooltip-muted: 0 0% 70%;
   }
 
   .dark:root {
@@ -56,5 +63,11 @@
     --chart-3: 30 80% 55%;
     --chart-4: 280 65% 60%;
     --chart-5: 340 75% 55%;
+    --chart-line-primary: 145 68% 68%;
+    --chart-line-secondary: 145 35% 48%;
+    --chart-grid: 0 0% 100%;
+    --chart-crosshair: 145 68% 68%;
+    --chart-brush-border: 0 0% 100%;
+    --chart-tooltip-muted: 0 0% 65%;
   }
 }

@@ -1,12 +1,13 @@
 import { useCallback, useContext, useEffect, useMemo, useState } from 'react'
-import { View, StyleSheet, LayoutChangeEvent, PanResponder, Dimensions } from 'react-native'
+import { View, LayoutChangeEvent, PanResponder } from 'react-native'
 import Svg, { Circle, Path, Line } from 'react-native-svg'
 import { Text } from '../ui/text'
 import { ThemeContext } from '../../context'
 import { FocalBrackets } from '../ui/FocalBrackets'
-import { SPACING, TYPOGRAPHY, RADIUS, PROFILE_CHART_ACCENT } from '../../constants/layout'
-
-const { width: SCREEN_WIDTH } = Dimensions.get('window')
+import { SPACING, PROFILE_CHART_ACCENT } from '../../constants/layout'
+import { useChartTheme, CHART_LAYOUT } from './chartTheme'
+import { ChartTooltip } from './ChartTooltip'
+import { formatChartDateShort, getChartTickIndices } from './chartFormat'
 
 export type ChartPeriod = '1M' | '3M' | '6M' | '1Y'
 
@@ -15,17 +16,23 @@ export interface ChartDataPoint {
   y: number
 }
 
+export type PortfolioLineChartVariant = 'default' | 'brush'
+
 export interface PortfolioLineChartProps {
   data: ChartDataPoint[]
   dates?: string[]
   period?: ChartPeriod
   accentColor?: string
   height?: number
-  /** Clamp chart width (defaults to screen minus container padding) */
   maxChartWidth?: number
-  /** Profile portfolio Y-axis rounds to nearest 1k */
   roundYAxisThousands?: boolean
   compact?: boolean
+  variant?: PortfolioLineChartVariant
+  framed?: boolean
+  interactive?: boolean
+  /** Bottom date ticks when dates[] is provided */
+  showXAxis?: boolean
+  xAxisTickCount?: number
 }
 
 function roundToNiceNumber(num: number, roundUp: boolean): number {
@@ -91,15 +98,21 @@ export function PortfolioLineChart({
   dates,
   period = '1M',
   accentColor = PROFILE_CHART_ACCENT,
-  height = 200,
-  maxChartWidth = SCREEN_WIDTH - SPACING.containerPadding * 2,
+  height = CHART_LAYOUT.mainHeight,
+  maxChartWidth,
   roundYAxisThousands = false,
   compact = false,
+  variant = 'default',
+  framed = variant === 'default',
+  interactive = variant === 'default',
+  showXAxis,
+  xAxisTickCount = 4,
 }: PortfolioLineChartProps) {
   const { theme } = useContext(ThemeContext)
-  const styles = getStyles(theme, height)
+  const tokens = useChartTheme(accentColor)
+  const isBrush = variant === 'brush'
 
-  const [chartWidth, setChartWidth] = useState(maxChartWidth)
+  const [chartWidth, setChartWidth] = useState(0)
   const [selectedPoint, setSelectedPoint] = useState<{ x: number; value: number; index: number } | null>(null)
 
   useEffect(() => {
@@ -107,17 +120,42 @@ export function PortfolioLineChart({
   }, [data, dates, period])
 
   const chartHeight = height
-  const yAxisWidth = 50
-  const chartPaddingLeft = 15
-  const chartPaddingRight = 0
-  const chartPaddingTop = 20
-  const chartPaddingBottom = 35
-  const svgWidth = Math.max(0, chartWidth - yAxisWidth)
+  const chartPaddingLeft = isBrush ? 4 : 8
+  const chartPaddingRight = 4
+  const chartPaddingTop = isBrush ? CHART_LAYOUT.paddingTopBrush : CHART_LAYOUT.paddingTop
+  const chartPaddingBottom = isBrush ? CHART_LAYOUT.paddingBottomBrush : CHART_LAYOUT.paddingBottom
+  const svgWidth = Math.max(0, chartWidth)
   const graphWidth = Math.max(0, svgWidth - chartPaddingLeft - chartPaddingRight)
   const graphHeight = Math.max(0, chartHeight - chartPaddingTop - chartPaddingBottom)
 
   const hasData = data.length > 0
   const isSingleDayView = hasData && data.every((point) => point.y === data[0].y)
+  const showXAxisLabels = showXAxis ?? (!isBrush && (dates?.length ?? 0) > 0)
+
+  const xAxisTicks = useMemo(() => {
+    if (!showXAxisLabels || !dates?.length) return [] as { index: number; x: number; label: string }[]
+    const indices = getChartTickIndices(data.length, xAxisTickCount)
+    return indices.map((index) => {
+      const xPosition =
+        data.length === 1
+          ? chartPaddingLeft + graphWidth / 2
+          : chartPaddingLeft + (index / (data.length - 1 || 1)) * graphWidth
+      const label =
+        dates[index] && dates[index].length > 0
+          ? formatChartDateShort(dates[index])
+          : formatTooltipDate(index, data.length, period, dates, isSingleDayView)
+      return { index, x: xPosition, label }
+    })
+  }, [
+    showXAxisLabels,
+    dates,
+    data.length,
+    xAxisTickCount,
+    chartPaddingLeft,
+    graphWidth,
+    period,
+    isSingleDayView,
+  ])
 
   const {
     gridLines,
@@ -128,7 +166,7 @@ export function PortfolioLineChart({
     fillRightX,
     fillBottomY,
   } = useMemo(() => {
-    if (!hasData) {
+    if (!hasData || chartWidth <= 0) {
       return {
         gridLines: [] as { y: number; value: number }[],
         normalizedPoints: [] as { x: number; y: number; value: number; index: number }[],
@@ -199,6 +237,7 @@ export function PortfolioLineChart({
   }, [
     data,
     hasData,
+    chartWidth,
     chartHeight,
     chartPaddingBottom,
     graphWidth,
@@ -209,7 +248,9 @@ export function PortfolioLineChart({
 
   const handleChartLayout = (event: LayoutChangeEvent) => {
     const { width } = event.nativeEvent.layout
-    setChartWidth(Math.min(width, maxChartWidth))
+    if (width <= 0) return
+    const capped = maxChartWidth ? Math.min(width, maxChartWidth) : width
+    setChartWidth(capped)
   }
 
   const handleTouch = useCallback(
@@ -237,55 +278,45 @@ export function PortfolioLineChart({
 
   const panResponder = useMemo(
     () =>
-      PanResponder.create({
-        onStartShouldSetPanResponder: () => true,
-        onMoveShouldSetPanResponder: () => true,
-        onPanResponderTerminationRequest: () => false,
-        onShouldBlockNativeResponder: () => true,
-        onPanResponderGrant: (evt) => handleTouch(evt.nativeEvent.locationX),
-        onPanResponderMove: (evt) => handleTouch(evt.nativeEvent.locationX),
-        onPanResponderRelease: () => {},
-      }),
-    [handleTouch],
+      interactive
+        ? PanResponder.create({
+            onStartShouldSetPanResponder: () => true,
+            onMoveShouldSetPanResponder: () => true,
+            onPanResponderTerminationRequest: () => false,
+            onShouldBlockNativeResponder: () => true,
+            onPanResponderGrant: (evt) => handleTouch(evt.nativeEvent.locationX),
+            onPanResponderMove: (evt) => handleTouch(evt.nativeEvent.locationX),
+            onPanResponderRelease: () => {},
+          })
+        : null,
+    [handleTouch, interactive],
   )
 
-  if (!hasData || !chartPathValid) return null
+  if (!hasData || chartWidth <= 0) {
+    return <View className="w-full" style={{ height: chartHeight }} onLayout={handleChartLayout} />
+  }
+
+  if (!chartPathValid) return null
 
   const bracketLength = compact ? 12 : 16
+  const fillOpacity = isBrush ? tokens.areaFillOpacityBrush : tokens.areaFillOpacity
+  const strokeWidth = isBrush ? tokens.strokeWidthBrush : tokens.strokeWidth
 
-  return (
-    <FocalBrackets
-      accentColor={accentColor}
-      bracketLength={bracketLength}
-      bracketThickness={2}
-      offset={2}
-      style={styles.focalFrame}
+  const chartBody = (
+    <View
+      className="w-full self-stretch"
+      style={{ height: chartHeight }}
+      onLayout={handleChartLayout}
+      pointerEvents={isBrush ? 'none' : 'auto'}
     >
-      <View style={styles.chartSection} onLayout={handleChartLayout}>
-        <View style={styles.chartWrapper}>
-          <View style={[styles.yAxisContainer, { height: chartHeight }]}>
-            {[...gridLines].reverse().map((grid, index) => (
-              <Text
-                key={index}
-                style={[
-                  styles.yAxisLabel,
-                  {
-                    position: 'absolute',
-                    top: Number.isFinite(grid.y) ? Math.max(0, grid.y - 6) : 0,
-                  },
-                ]}
-              >
-                {formatZar(grid.value)}
-              </Text>
-            ))}
-          </View>
-
-          <View
-            style={[styles.chartSvgContainer, { height: chartHeight }]}
-            {...panResponder.panHandlers}
-          >
-            <Svg width={svgWidth} height={chartHeight}>
-              {gridLines.map((grid, index) => {
+      <View
+        className="relative w-full overflow-visible"
+        style={{ height: chartHeight }}
+        {...(panResponder ? panResponder.panHandlers : {})}
+      >
+        <Svg width={svgWidth} height={chartHeight}>
+          {!isBrush
+            ? gridLines.map((grid, index) => {
                 const isBottomLine = index === 0
                 return (
                   <Line
@@ -294,147 +325,121 @@ export function PortfolioLineChart({
                     y1={grid.y}
                     x2={chartPaddingLeft + graphWidth}
                     y2={grid.y}
-                    stroke={isBottomLine ? 'rgba(255, 255, 255, 0.22)' : 'rgba(255, 255, 255, 0.1)'}
+                    stroke={isBottomLine ? tokens.gridStrong : tokens.grid}
                     strokeWidth={1}
                   />
                 )
-              })}
+              })
+            : null}
 
-              {normalizedPoints.length > 0 && (
-                <Path
-                  d={`${chartPathData} L ${fillRightX} ${fillBottomY} L ${fillLeftX} ${fillBottomY} Z`}
-                  fill={accentColor}
-                  fillOpacity={0.12}
-                />
-              )}
+          {normalizedPoints.length > 0 && (
+            <Path
+              d={`${chartPathData} L ${fillRightX} ${fillBottomY} L ${fillLeftX} ${fillBottomY} Z`}
+              fill={tokens.linePrimary}
+              fillOpacity={fillOpacity}
+            />
+          )}
 
-              <Path
-                d={chartPathData}
-                stroke={accentColor}
-                strokeWidth={2.5}
-                fill="none"
-                strokeLinecap="round"
-                strokeLinejoin="round"
+          <Path
+            d={chartPathData}
+            stroke={tokens.linePrimary}
+            strokeWidth={strokeWidth}
+            fill="none"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+
+          {interactive && selectedPoint && (
+            <Line
+              x1={selectedPoint.x}
+              y1={chartPaddingTop}
+              x2={selectedPoint.x}
+              y2={chartHeight - chartPaddingBottom}
+              stroke={tokens.linePrimary}
+              strokeWidth={1}
+              strokeOpacity={0.5}
+              strokeDasharray={[4, 4]}
+            />
+          )}
+
+          {interactive && selectedPoint && normalizedPoints[selectedPoint.index] && (
+            <Circle
+              cx={selectedPoint.x}
+              cy={normalizedPoints[selectedPoint.index].y}
+              r={4}
+              fill={tokens.linePrimary}
+              stroke={tokens.dotStroke}
+              strokeWidth={1}
+            />
+          )}
+
+          {interactive &&
+            normalizedPoints.length === 1 &&
+            normalizedPoints.map((point, index) => (
+              <Circle
+                key={index}
+                cx={point.x}
+                cy={point.y}
+                r={5}
+                fill={tokens.linePrimary}
+                stroke={tokens.dotStroke}
+                strokeWidth={2}
               />
+            ))}
+        </Svg>
 
-              {selectedPoint && (
-                <Line
-                  x1={selectedPoint.x}
-                  y1={chartPaddingTop}
-                  x2={selectedPoint.x}
-                  y2={chartHeight - chartPaddingBottom}
-                  stroke={accentColor}
-                  strokeWidth={1}
-                  strokeOpacity={0.5}
-                  strokeDasharray={[4, 4]}
-                />
-              )}
-
-              {selectedPoint && normalizedPoints[selectedPoint.index] && (
-                <Circle
-                  cx={selectedPoint.x}
-                  cy={normalizedPoints[selectedPoint.index].y}
-                  r={4}
-                  fill={accentColor}
-                  stroke="#000"
-                  strokeWidth={1}
-                />
-              )}
-
-              {normalizedPoints.length === 1 &&
-                normalizedPoints.map((point, index) => (
-                  <Circle
-                    key={index}
-                    cx={point.x}
-                    cy={point.y}
-                    r={5}
-                    fill={accentColor}
-                    stroke="#000"
-                    strokeWidth={2}
-                  />
-                ))}
-            </Svg>
-
-            {selectedPoint && normalizedPoints[selectedPoint.index] && (
-              <View
-                style={[
-                  styles.tooltip,
-                  {
-                    left: Math.max(4, Math.min(selectedPoint.x - 44, svgWidth - 92)),
-                    top: Math.max(4, normalizedPoints[selectedPoint.index].y - 52),
-                  },
-                ]}
+        {showXAxisLabels
+          ? xAxisTicks.map((tick) => (
+              <Text
+                key={tick.index}
+                style={{
+                  position: 'absolute',
+                  left: Math.max(0, tick.x - 22),
+                  top: chartHeight - 16,
+                  width: 44,
+                  fontSize: isBrush ? 9 : 10,
+                  fontFamily: theme.regularFont,
+                  color: tokens.axisLabel,
+                  textAlign: 'center',
+                }}
               >
-                <Text style={styles.tooltipDate}>
-                  {formatTooltipDate(selectedPoint.index, data.length, period, dates, isSingleDayView)}
-                </Text>
-                <Text style={[styles.tooltipPrice, { color: accentColor }]}>
-                  {formatZar(selectedPoint.value)}
-                </Text>
-              </View>
+                {tick.label}
+              </Text>
+            ))
+          : null}
+
+        {interactive && selectedPoint && normalizedPoints[selectedPoint.index] && (
+          <ChartTooltip
+            accentColor={accentColor}
+            dateLabel={formatTooltipDate(
+              selectedPoint.index,
+              data.length,
+              period,
+              dates,
+              isSingleDayView,
             )}
-          </View>
-        </View>
+            valueLabel={formatZar(selectedPoint.value)}
+            style={{
+              left: Math.max(4, Math.min(selectedPoint.x - 44, svgWidth - 92)),
+              top: Math.max(4, normalizedPoints[selectedPoint.index].y - 52),
+            }}
+          />
+        )}
       </View>
+    </View>
+  )
+
+  if (!framed) return chartBody
+
+  return (
+    <FocalBrackets
+      accentColor={tokens.linePrimary}
+      bracketLength={bracketLength}
+      bracketThickness={2}
+      offset={2}
+      style={{ width: '100%', alignSelf: 'stretch', alignItems: 'stretch' as const, marginTop: SPACING.xs }}
+    >
+      {chartBody}
     </FocalBrackets>
   )
 }
-
-const getStyles = (theme: { regularFont?: string; semiBoldFont?: string; tintColor?: string }, chartHeight: number) =>
-  StyleSheet.create({
-    focalFrame: {
-      width: '100%',
-      marginTop: SPACING.xs,
-    },
-    chartSection: {
-      width: '100%',
-      paddingTop: SPACING.xs,
-      overflow: 'visible',
-    },
-    chartWrapper: {
-      flexDirection: 'row',
-      width: '100%',
-      alignItems: 'flex-start',
-    },
-    yAxisContainer: {
-      width: 50,
-      position: 'relative',
-      paddingTop: 20,
-      paddingBottom: 35,
-      paddingRight: 5,
-    },
-    yAxisLabel: {
-      fontSize: 11,
-      fontFamily: theme.regularFont,
-      color: 'rgba(255, 255, 255, 0.6)',
-      textAlign: 'left',
-    },
-    chartSvgContainer: {
-      flex: 1,
-      overflow: 'visible',
-      position: 'relative',
-    },
-    tooltip: {
-      position: 'absolute',
-      zIndex: 10,
-      backgroundColor: 'rgba(0, 0, 0, 0.85)',
-      paddingHorizontal: SPACING.sm,
-      paddingVertical: SPACING.xs / 2,
-      borderRadius: RADIUS.sm,
-      borderWidth: 1,
-      borderColor: 'rgba(255, 255, 255, 0.1)',
-      minWidth: 80,
-      alignItems: 'center',
-    },
-    tooltipDate: {
-      fontSize: 10,
-      fontFamily: theme.regularFont,
-      color: 'rgba(255, 255, 255, 0.7)',
-      marginBottom: 2,
-    },
-    tooltipPrice: {
-      fontSize: 12,
-      fontFamily: theme.semiBoldFont,
-      fontWeight: '600',
-    },
-  })

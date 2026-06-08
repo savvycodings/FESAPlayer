@@ -51,7 +51,6 @@ export function ListItemModal({
   const insets = useSafeAreaInsets()
   const styles = getStyles(theme)
   const [price, setPrice] = useState('')
-  const [quantity, setQuantity] = useState('1')
   const [description, setDescription] = useState('')
   const [frontUri, setFrontUri] = useState<string | null>(null)
   const [backUri, setBackUri] = useState<string | null>(null)
@@ -73,30 +72,25 @@ export function ListItemModal({
       } else {
         setDescription('')
       }
-      if (initialQuantity != null && initialQuantity > 0) {
-        setQuantity(String(Math.floor(initialQuantity)))
-      } else {
-        setQuantity('1')
-      }
       if (!isEditing) {
         setFrontUri(null)
         setBackUri(null)
         setCloseUri(null)
       }
     }
-  }, [visible, initialPrice, initialDescription, initialQuantity, isEditing])
+  }, [visible, initialPrice, initialDescription, isEditing])
 
   const minZar = minPriceFromMarketZar ?? (minPriceFromMarketUsd != null && minPriceFromMarketUsd > 0 ? minPriceFromMarketUsd * (Number(process.env.EXPO_PUBLIC_USD_TO_ZAR) || 17) : undefined)
   const hasRequiredImages = isEditing || (!!frontUri && !!backUri && !!closeUri)
-  const parsedQty = () => {
-    const n = parseInt(quantity.replace(/\D/g, ''), 10)
-    return Number.isFinite(n) && n > 0 ? n : 0
+  const listingQuantity = () => {
+    if (isEditing && initialQuantity != null && initialQuantity > 0) {
+      return Math.floor(initialQuantity)
+    }
+    return 1
   }
   const isValid = () => {
     const numericPrice = parseFloat(price.replace(/[^0-9.]/g, ''))
-    const qty = parsedQty()
-    if (numericPrice <= 0 || qty < 1 || description.trim().length === 0 || !hasRequiredImages) return false
-    if (maxQuantity != null && maxQuantity > 0 && qty > maxQuantity) return false
+    if (numericPrice <= 0 || description.trim().length === 0 || !hasRequiredImages) return false
     if (minZar != null && minZar > 0 && numericPrice < minZar) return false
     return true
   }
@@ -162,9 +156,8 @@ export function ListItemModal({
     try {
       const primaryUri = frontUri ?? undefined
       const listingPhotos = frontUri && backUri && closeUri ? { front: frontUri, back: backUri, close: closeUri } : undefined
-      await Promise.resolve(onList(numericPrice, primaryUri, listingPhotos, parsedQty()))
+      await Promise.resolve(onList(numericPrice, primaryUri, listingPhotos, listingQuantity()))
       setPrice('')
-      setQuantity('1')
       setDescription('')
       setFrontUri(null)
       setBackUri(null)
@@ -179,7 +172,6 @@ export function ListItemModal({
 
   const handleClose = () => {
     setPrice('')
-    setQuantity('1')
     setDescription('')
     setFrontUri(null)
     setBackUri(null)
@@ -258,9 +250,6 @@ export function ListItemModal({
             {!isEditing && (
               <View style={styles.inputSection}>
                 <Text style={styles.inputLabel}>Listing photos (all 3 required)</Text>
-                <Text style={styles.inputHint}>
-                  Add clear photos of your physical card: front, back, and a close-up (or any damage).
-                </Text>
                 <View style={styles.bentoRow}>
                   <TouchableOpacity style={styles.bentoBox} onPress={pickImage('front')} activeOpacity={0.8}>
                     {frontUri ? (
@@ -293,49 +282,8 @@ export function ListItemModal({
                     </View>
                   )}
                 </TouchableOpacity>
-                {(!frontUri || !backUri || !closeUri) && (
-                  <Text style={styles.requiredBadge}>All 3 photos required to list</Text>
-                )}
               </View>
             )}
-
-            {/* Quantity for sale */}
-            <View style={styles.inputSection}>
-              <Text style={styles.inputLabel}>Quantity for sale</Text>
-              {maxQuantity != null && maxQuantity > 0 ? (
-                <Text style={styles.inputHint}>You have up to {maxQuantity} in your collection</Text>
-              ) : null}
-              <View style={styles.quantityRow}>
-                <TouchableOpacity
-                  style={styles.quantityStep}
-                  onPress={() => {
-                    const n = parsedQty()
-                    if (n > 1) setQuantity(String(n - 1))
-                  }}
-                  activeOpacity={0.7}
-                >
-                  <Ionicons name="remove" size={20} color={theme.textColor} />
-                </TouchableOpacity>
-                <TextInput
-                  style={styles.quantityInput}
-                  value={quantity}
-                  onChangeText={(t) => setQuantity(t.replace(/\D/g, '').slice(0, 3))}
-                  keyboardType="number-pad"
-                  maxLength={3}
-                />
-                <TouchableOpacity
-                  style={styles.quantityStep}
-                  onPress={() => {
-                    const n = parsedQty()
-                    const cap = maxQuantity != null && maxQuantity > 0 ? maxQuantity : 999
-                    if (n < cap) setQuantity(String(n + 1))
-                  }}
-                  activeOpacity={0.7}
-                >
-                  <Ionicons name="add" size={20} color={theme.textColor} />
-                </TouchableOpacity>
-              </View>
-            </View>
 
             {/* Price Input Section */}
             <View style={styles.inputSection}>
@@ -536,42 +484,6 @@ const getStyles = (theme: any) =>
       fontFamily: theme.semiBoldFont,
       color: 'rgba(255, 255, 255, 0.5)',
       marginTop: SPACING.xs,
-    },
-    requiredBadge: {
-      fontSize: TYPOGRAPHY.caption,
-      fontFamily: theme.semiBoldFont,
-      color: theme.tintColor || '#73EC8B',
-      marginTop: SPACING.xs,
-    },
-    quantityRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: SPACING.sm,
-    },
-    quantityStep: {
-      width: 40,
-      height: 40,
-      borderRadius: RADIUS.md,
-      backgroundColor: 'rgba(255, 255, 255, 0.08)',
-      borderWidth: 1,
-      borderColor: 'rgba(255, 255, 255, 0.12)',
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    quantityInput: {
-      minWidth: 56,
-      textAlign: 'center',
-      fontSize: TYPOGRAPHY.h3,
-      fontFamily: theme.boldFont,
-      color: theme.textColor,
-      fontWeight: '600',
-      paddingVertical: SPACING.sm,
-      paddingHorizontal: SPACING.md,
-      backgroundColor: theme.cardBackground || '#000000',
-      borderRadius: RADIUS.md,
-      borderWidth: 1,
-      borderColor: 'rgba(255, 255, 255, 0.1)',
     },
     priceInputContainer: {
       flexDirection: 'row',

@@ -21,7 +21,9 @@ import { CardPriceSection } from '../components/card/CardPriceSection'
 import { CardOtherSellers } from '../components/card/CardOtherSellers'
 import { PayFastPayment } from '../components/payment'
 import { AppButton } from '../components/ui/AppButton'
+import { ListItemModal } from '../components/profile/ListItemModal'
 import { authClient } from '../lib/auth-client'
+import { createStoreListing } from '../lib/createStoreListing'
 import { DOMAIN } from '../../constants'
 type ProductRouteParams = {
   Product: {
@@ -38,6 +40,10 @@ type ProductRouteParams = {
     setName?: string
     cardNumber?: string
     fromProfile?: boolean
+    /** Portfolio collection row id (preferred over generic id) */
+    collectionId?: string
+    isListed?: boolean
+    marketPriceUsd?: number
     fromMyStore?: boolean
     listingId?: string
     sellerId?: string
@@ -85,6 +91,9 @@ export function Product() {
     setName: routeSetName,
     cardNumber: routeCardNumber,
     fromProfile,
+    collectionId: routeCollectionId,
+    isListed: routeIsListed,
+    marketPriceUsd: routeMarketPriceUsd,
     fromMyStore,
     listingId,
     sellerId,
@@ -104,6 +113,12 @@ export function Product() {
   const [initialPudoLockerCode, setInitialPudoLockerCode] = useState('')
   const [initialShippingAddress, setInitialShippingAddress] = useState('')
   const [removing, setRemoving] = useState(false)
+  const [isListModalVisible, setIsListModalVisible] = useState(false)
+  const [listedInStore, setListedInStore] = useState(Boolean(routeIsListed))
+
+  useEffect(() => {
+    setListedInStore(Boolean(routeIsListed))
+  }, [routeIsListed])
   /** Market price USD from card_prices (for 80% min bid floor). Set when cardId is present. */
   const [marketPriceUsd, setMarketPriceUsd] = useState<number | null>(null)
   const [resolvedSetName, setResolvedSetName] = useState<string | undefined>(routeSetName || routeSet)
@@ -167,7 +182,14 @@ export function Product() {
   const bidsData: { avatar?: any; name: string; bid: number }[] = []
   const highestBid = isListing && routeCurrentBid != null ? routeCurrentBid : (bidsData.length > 0 ? Math.max(...bidsData.map(b => b.bid)) : 0)
   const USD_TO_ZAR = Number(process.env.EXPO_PUBLIC_USD_TO_ZAR) || 17
-  const eightyPercentMarketZar = marketPriceUsd != null && marketPriceUsd > 0 ? Math.round(0.8 * marketPriceUsd * USD_TO_ZAR) : null
+  const marketUsdForFloor = routeMarketPriceUsd ?? marketPriceUsd
+  const eightyPercentMarketZar =
+    marketUsdForFloor != null && marketUsdForFloor > 0
+      ? Math.round(0.8 * marketUsdForFloor * USD_TO_ZAR)
+      : null
+  const collectionId = routeCollectionId ?? id
+  const isPortfolioItem = Boolean(fromProfile && collectionId)
+  const canListFromPortfolio = Boolean(isPortfolioItem && !listedInStore)
   const buyNowPrice = isListing ? displayPrice : (highestBid > 0 ? highestBid + 20 : displayPrice)
   const minBidPriceRaw = isListing ? (highestBid > 0 ? highestBid + 1 : displayPrice) : (highestBid > 0 ? highestBid + 1 : displayPrice)
   const minBidPrice = eightyPercentMarketZar != null && eightyPercentMarketZar > 0 ? Math.max(minBidPriceRaw, eightyPercentMarketZar) : minBidPriceRaw
@@ -175,8 +197,8 @@ export function Product() {
 
   // Remove from collection (only when opened from Profile with a collection id)
   const performRemove = async () => {
-    const collectionId = id != null ? String(id).trim() : ''
-    if (!collectionId) {
+    const removeId = collectionId != null ? String(collectionId).trim() : ''
+    if (!removeId) {
       if (Platform.OS !== 'web') Alert.alert('Error', 'Cannot remove: missing card id.')
       return
     }
@@ -190,7 +212,7 @@ export function Product() {
         return
       }
       const baseUrl = DOMAIN?.endsWith('/') ? DOMAIN.slice(0, -1) : DOMAIN
-      const response = await fetch(`${baseUrl}/api/profile/collections/${collectionId}`, {
+      const response = await fetch(`${baseUrl}/api/profile/collections/${removeId}`, {
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json',
@@ -305,21 +327,43 @@ export function Product() {
           <Ionicons name="chevron-back" size={28} color={theme.textColor} />
         </TouchableOpacity>
         <View style={styles.headerSpacer} />
-        <TouchableOpacity
-          onPress={() => setIsFavorited(!isFavorited)}
-          style={styles.headerFavoriteButton}
-          activeOpacity={0.7}
-        >
-          <Ionicons
-            name={isFavorited ? "heart" : "heart-outline"}
-            size={24}
-            color={isFavorited ? "#FF0000" : theme.textColor}
-          />
-        </TouchableOpacity>
+        <View style={styles.headerActions}>
+          {canListFromPortfolio ? (
+            <TouchableOpacity
+              onPress={() => setIsListModalVisible(true)}
+              style={styles.headerIconButton}
+              activeOpacity={0.7}
+              accessibilityRole="button"
+              accessibilityLabel="List for sale in your store"
+            >
+              <Ionicons name="storefront-outline" size={24} color={theme.textColor} />
+            </TouchableOpacity>
+          ) : isPortfolioItem && listedInStore ? (
+            <View style={styles.headerIconButton}>
+              <Ionicons name="storefront" size={24} color={tintColor} />
+            </View>
+          ) : null}
+          <TouchableOpacity
+            onPress={() => setIsFavorited(!isFavorited)}
+            style={styles.headerIconButton}
+            activeOpacity={0.7}
+            accessibilityRole="button"
+            accessibilityLabel={isFavorited ? 'Remove from favorites' : 'Add to favorites'}
+          >
+            <Ionicons
+              name={isFavorited ? 'heart' : 'heart-outline'}
+              size={24}
+              color={isFavorited ? '#FF0000' : theme.textColor}
+            />
+          </TouchableOpacity>
+        </View>
       </View>
 
       <ScrollView
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[
+          styles.scrollContent,
+          isPortfolioItem && styles.scrollContentPortfolio,
+        ]}
         showsVerticalScrollIndicator={false}
       >
         {/* Product Image Card */}
@@ -494,7 +538,7 @@ export function Product() {
         )}
 
         {/* About / Remove Section */}
-        {fromProfile && id ? (
+        {isPortfolioItem ? (
           <Card style={styles.aboutCard}>
             <CardContent style={styles.aboutContent}>
               <AppButton
@@ -506,7 +550,6 @@ export function Product() {
                 fullWidth
                 onPress={handleRemoveFromCollection}
                 disabled={removing}
-                style={styles.removeFromCollectionButton}
               />
             </CardContent>
           </Card>
@@ -530,8 +573,7 @@ export function Product() {
         <View style={styles.bottomSpacing} />
       </ScrollView>
 
-      {/* Bottom Action Bar - only on non-profile product page */}
-      {!fromProfile && (
+      {!fromProfile ? (
         <View style={styles.bottomActionBar}>
           {allowsBid && (
             <AppButton
@@ -553,7 +595,7 @@ export function Product() {
             style={styles.bottomBarButton}
           />
         </View>
-      )}
+      ) : null}
 
       {/* PayFast Payment Modal - for listings requires listingId, sellerId, buyerId from route/session */}
       <PayFastPayment
@@ -598,6 +640,36 @@ export function Product() {
           setInitialShippingAddress('')
         }}
       />
+
+      {isPortfolioItem ? (
+        <ListItemModal
+          visible={isListModalVisible}
+          productName={name}
+          productImage={image}
+          minPriceFromMarketZar={eightyPercentMarketZar ?? undefined}
+          onClose={() => setIsListModalVisible(false)}
+          onList={async (listPrice, listingImageUri, listingPhotos, quantity) => {
+            if (!listingImageUri || !listingPhotos) {
+              Alert.alert('Photos required', 'Please add all 3 photos (front, back, up close) to list your card.')
+              return
+            }
+            const collectionIdNum = parseInt(String(collectionId), 10)
+            const result = await createStoreListing({
+              cardName: name,
+              price: listPrice,
+              cardImage: { uri: listingImageUri },
+              cardId: cardId?.trim() || undefined,
+              collectionId: Number.isFinite(collectionIdNum) ? collectionIdNum : undefined,
+              listingPhotos,
+              quantity,
+            })
+            if (result.ok) {
+              setListedInStore(true)
+              setIsListModalVisible(false)
+            }
+          }}
+        />
+      ) : null}
     </View>
   )
 }
@@ -621,12 +693,20 @@ const getStyles = (theme: any, tintColor: string) => StyleSheet.create({
   headerSpacer: {
     flex: 1,
   },
-  headerFavoriteButton: {
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.xs,
+  },
+  headerIconButton: {
     padding: SPACING.sm,
   },
   scrollContent: {
     paddingHorizontal: SPACING.containerPadding,
     paddingBottom: 100, // Space for bottom action bar
+  },
+  scrollContentPortfolio: {
+    paddingBottom: SPACING.xl,
   },
   imageCard: {
     backgroundColor: theme.cardBackground || '#000000',
@@ -835,9 +915,6 @@ const getStyles = (theme: any, tintColor: string) => StyleSheet.create({
     fontFamily: theme.regularFont,
     color: 'rgba(255, 255, 255, 0.8)',
     lineHeight: 22,
-  },
-  removeFromCollectionButton: {
-    marginTop: SPACING.lg,
   },
   bidsCard: {
     backgroundColor: theme.cardBackground || '#000000',

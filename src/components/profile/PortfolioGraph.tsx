@@ -7,6 +7,8 @@ import { Card, CardContent } from '../ui/card'
 import Ionicons from '@expo/vector-icons/Ionicons'
 import { ThemeContext } from '../../context'
 import { SPACING, TYPOGRAPHY, RADIUS } from '../../constants/layout'
+import { ChangePercentPill } from '../ui/ChangePercentPill'
+import { computePortfolioChange } from '../../utils/portfolioChange'
 
 interface GraphDataPoint {
   x: number
@@ -74,11 +76,7 @@ export function PortfolioGraph({
   }, '')
 
   const latestValue = data[data.length - 1]?.y || 0
-  const previousValue = data.length >= 2 ? (data[data.length - 2]?.y ?? 0) : undefined
-  const change = previousValue !== undefined ? latestValue - previousValue : 0
-  const changePercent = previousValue != null && previousValue !== 0
-    ? ((change / previousValue) * 100).toFixed(1)
-    : '—'
+  const { change, changePercent, hasHistory } = computePortfolioChange(data)
 
   return (
     <Card style={styles.card}>
@@ -95,18 +93,15 @@ export function PortfolioGraph({
           </View>
           <View style={styles.headerRight}>
             <Text style={styles.value}>{valuePrefix}{latestValue.toLocaleString('en-ZA', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</Text>
-            <View style={[styles.changeContainer, changePercent === '—' ? {} : change >= 0 ? styles.changePositive : styles.changeNegative]}>
-              {changePercent !== '—' && (
-                <Ionicons
-                  name={change >= 0 ? 'arrow-up' : 'arrow-down'}
-                  size={12}
-                  color={change >= 0 ? '#10B981' : '#EF4444'}
-                />
-              )}
-              <Text style={[styles.changeText, changePercent === '—' ? {} : change >= 0 ? styles.changeTextPositive : styles.changeTextNegative]}>
-                {changePercent === '—' ? '—' : `${Math.abs(parseFloat(changePercent))}%`}
-              </Text>
-            </View>
+            {hasHistory ? (
+              <ChangePercentPill
+                change={change}
+                changePercent={changePercent}
+                visible={change !== 0}
+              />
+            ) : (
+              <Text style={styles.changeDash}>—</Text>
+            )}
           </View>
         </View>
 
@@ -193,38 +188,21 @@ const getStyles = (theme: any) => StyleSheet.create({
   },
   headerRight: {
     alignItems: 'flex-end',
+    gap: SPACING.xs / 2,
   },
   value: {
     fontSize: TYPOGRAPHY.h3,
     fontFamily: theme.boldFont,
     color: theme.textColor,
     fontWeight: '600',
-    marginBottom: SPACING.xs / 2,
   },
-  changeContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: SPACING.xs,
-    paddingVertical: SPACING.xs / 2,
-    borderRadius: RADIUS.sm,
-  },
-  changePositive: {
-    backgroundColor: 'rgba(16, 185, 129, 0.15)',
-  },
-  changeNegative: {
-    backgroundColor: 'rgba(239, 68, 68, 0.15)',
-  },
-  changeText: {
+  changeDash: {
     fontSize: TYPOGRAPHY.caption,
     fontFamily: theme.semiBoldFont,
-    fontWeight: '600',
-    marginLeft: 2,
-  },
-  changeTextPositive: {
-    color: '#10B981',
-  },
-  changeTextNegative: {
-    color: '#EF4444',
+    color: 'rgba(255, 255, 255, 0.45)',
+    height: SPACING.pillHeight,
+    lineHeight: SPACING.pillHeight,
+    textAlignVertical: 'center',
   },
   graphContainer: {
     width: '100%',

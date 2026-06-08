@@ -3,7 +3,6 @@ import { useContext } from 'react'
 import { useNavigation } from '@react-navigation/native'
 import { NativeStackNavigationProp } from '@react-navigation/native-stack'
 import { Text } from '../ui/text'
-import { AppButton } from '../ui/AppButton'
 import { PortfolioCardTile } from './PortfolioCardTile'
 import { ListingTileGrid } from '../ui/ListingTileGrid'
 import Ionicons from '@expo/vector-icons/Ionicons'
@@ -89,22 +88,12 @@ export function ProductGrid({
       columns={columnsProp}
       keyExtractor={(product) => String(product.id)}
       renderItem={(product) => {
-        const footer =
-          onQuickListPress && !product.isListed ? (
-            <AppButton
-              variant="filled"
-              size="sm"
-              tile
-              label="List"
-              fullWidth
-              onPress={() => onQuickListPress(product)}
-            />
-          ) : product.isListed ? (
-            <View style={styles.listedBadge}>
-              <Ionicons name="checkmark-circle" size={14} color={CARD_SURFACE.textPrimary} />
-              <Text style={styles.listedText}>Listed</Text>
-            </View>
-          ) : null
+        const footer = product.isListed ? (
+          <View style={styles.listedBadge}>
+            <Ionicons name="checkmark-circle" size={14} color={CARD_SURFACE.textPrimary} />
+            <Text style={styles.listedText}>Listed</Text>
+          </View>
+        ) : null
 
         return (
           <PortfolioCardTile

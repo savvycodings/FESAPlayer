@@ -4,7 +4,7 @@ import Ionicons from '@expo/vector-icons/Ionicons'
 import { ThemeContext } from '../../context'
 import { Text } from '../ui/text'
 import { Card, CardContent } from '../ui/card'
-import { PortfolioLineChart } from '../charts/PortfolioLineChart'
+import { ChartBrushLayout } from '../charts/ChartBrushLayout'
 import { SPACING, TYPOGRAPHY, RADIUS, PROFILE_CHART_ACCENT } from '../../constants/layout'
 import { loadCardPriceBundle } from '../../lib/cardPrices'
 
@@ -117,6 +117,8 @@ export function CardPriceSection({
   const showEbay = ebayUsd != null && ebayUsd > 0
   const showPriceTiles = showListed || showMarket || showEbay
 
+  const hasPriceHistory = chartDates.length >= 4 && chartSeries.length >= 4
+
   return (
     <View style={styles.wrap}>
       {showPriceTiles ? (
@@ -163,13 +165,15 @@ export function CardPriceSection({
           <Text style={styles.muted}>Loading price history…</Text>
         </View>
       ) : chartSeries.length > 0 ? (
-        <PortfolioLineChart
+        <ChartBrushLayout
           data={chartSeries}
           dates={chartDates.length > 0 ? chartDates : undefined}
           accentColor={accent}
-          height={150}
+          mainChartHeight={150}
+          brushHeight={56}
           compact
           maxChartWidth={SCREEN_WIDTH - SPACING.containerPadding * 2}
+          enabled={hasPriceHistory}
         />
       ) : null}
 

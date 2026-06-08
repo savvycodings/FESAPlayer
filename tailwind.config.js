@@ -51,6 +51,14 @@ module.exports = {
           DEFAULT: 'hsl(var(--card))',
           foreground: 'hsl(var(--card-foreground))',
         },
+        chart: {
+          line: 'hsl(var(--chart-line-primary))',
+          'line-secondary': 'hsl(var(--chart-line-secondary))',
+          grid: 'hsl(var(--chart-grid) / 0.1)',
+          'grid-strong': 'hsl(var(--chart-grid) / 0.22)',
+          crosshair: 'hsl(var(--chart-crosshair) / 0.5)',
+          brush: 'hsl(var(--chart-brush-border) / 0.12)',
+        },
       },
       borderRadius: {
         lg: 'var(--radius)',

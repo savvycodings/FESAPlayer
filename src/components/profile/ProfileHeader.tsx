@@ -1,4 +1,4 @@
-import { View, StyleSheet, TouchableOpacity, Dimensions, Image } from 'react-native'
+import { View, StyleSheet, TouchableOpacity, Image } from 'react-native'
 import { androidLabelStyle, compactLevelLineHeight } from '../../utils/platformHelpers'
 import { useContext, useState, useMemo } from 'react'
 import { Text } from '../ui/text'
@@ -15,9 +15,10 @@ import {
 import { ProgressBars } from '../store'
 import { LevelRewardModal } from '../store/LevelRewardModal'
 import { TrustedBadge } from '../ui/TrustedBadge'
-import { PortfolioLineChart, type ChartPeriod } from '../charts/PortfolioLineChart'
-
-const { width: SCREEN_WIDTH } = Dimensions.get('window')
+import { ChartBrushLayout } from '../charts/ChartBrushLayout'
+import type { ChartPeriod } from '../charts/PortfolioLineChart'
+import { ChangePercentPill } from '../ui/ChangePercentPill'
+import { computePortfolioChange } from '../../utils/portfolioChange'
 
 interface PortfolioStats {
   cards: number
@@ -142,10 +143,7 @@ export function ProfileHeader({
   const hasHistory = portfolioData && portfolioData.length > 1
   const hasData = chartData.length > 0
 
-  const latestValue = hasData ? (chartData[chartData.length - 1]?.y || 0) : 0
-  const previousValue = hasData && chartData.length > 1 ? (chartData[chartData.length - 2]?.y || 0) : 0
-  const change = latestValue - previousValue
-  const changePercent = previousValue !== 0 ? ((change / previousValue) * 100).toFixed(1) : '0.0'
+  const { change, changePercent } = useMemo(() => computePortfolioChange(chartData), [chartData])
 
   const initials = userName
     ? userName
@@ -283,18 +281,11 @@ export function ProfileHeader({
             <Text style={styles.portfolioLabel}>Portfolio Value</Text>
             <View style={styles.portfolioValueRow}>
               <Text style={[styles.portfolioValue, { color: chartAccent }]}>{portfolioValue}</Text>
-              {change !== 0 && hasHistory && (
-                <View style={[styles.changeBadge, change >= 0 ? styles.changePositive : styles.changeNegative]}>
-                  <Ionicons
-                    name={change >= 0 ? 'arrow-up' : 'arrow-down'}
-                    size={10}
-                    color={change >= 0 ? '#10B981' : '#EF4444'}
-                  />
-                  <Text style={[styles.changeText, change >= 0 ? styles.changeTextPositive : styles.changeTextNegative]}>
-                    {Math.abs(parseFloat(changePercent))}%
-                  </Text>
-                </View>
-              )}
+              <ChangePercentPill
+                change={change}
+                changePercent={changePercent}
+                visible={hasHistory && change !== 0}
+              />
             </View>
           </View>
 
@@ -331,43 +322,19 @@ export function ProfileHeader({
           )}
 
           {hasData ? (
-            <PortfolioLineChart
+            <ChartBrushLayout
               data={chartData}
               dates={chartDates}
               period={selectedPeriod}
+              onPeriodChange={setSelectedPeriod}
+              showPeriodToggle={Boolean(hasHistory && chartData.length > 7)}
               accentColor={chartAccent}
-              height={200}
+              mainChartHeight={200}
+              brushHeight={72}
+              enabled={Boolean(hasHistory && chartData.length >= 4)}
               roundYAxisThousands
-              maxChartWidth={SCREEN_WIDTH - SPACING.containerPadding * 2}
             />
           ) : null}
-
-        {hasHistory && chartData.length > 7 && (
-          <View style={styles.periodSelectorContainer}>
-            <View style={styles.periodSelector}>
-              {(['1M', '3M', '6M', '1Y'] as const).map((period) => (
-                <TouchableOpacity
-                  key={period}
-                  style={[
-                    styles.periodOption,
-                    selectedPeriod === period && styles.periodOptionActive,
-                  ]}
-                  onPress={() => setSelectedPeriod(period)}
-                  activeOpacity={0.7}
-                >
-                  <Text
-                    style={[
-                      styles.periodOptionText,
-                      selectedPeriod === period && styles.periodOptionTextActive,
-                    ]}
-                  >
-                    {period}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
-        )}
 
       </View>
 
@@ -593,7 +560,7 @@ const getStyles = (theme: any) => StyleSheet.create({
   },
   portfolioValueRow: {
     flexDirection: 'row',
-    alignItems: 'baseline',
+    alignItems: 'center',
     flexWrap: 'wrap',
     gap: SPACING.xs,
     marginTop: 0,
@@ -709,31 +676,6 @@ const getStyles = (theme: any) => StyleSheet.create({
     fontFamily: theme.semiBoldFont,
     color: theme.tintColor || '#73EC8B',
     fontWeight: '600',
-  },
-  changeBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: SPACING.xs,
-    paddingVertical: SPACING.xs / 2,
-    borderRadius: RADIUS.sm,
-    gap: 2,
-  },
-  changePositive: {
-    backgroundColor: 'rgba(16, 185, 129, 0.15)',
-  },
-  changeNegative: {
-    backgroundColor: 'rgba(239, 68, 68, 0.15)',
-  },
-  changeText: {
-    fontSize: TYPOGRAPHY.caption,
-    fontFamily: theme.semiBoldFont,
-    fontWeight: '600',
-  },
-  changeTextPositive: {
-    color: '#10B981',
-  },
-  changeTextNegative: {
-    color: '#EF4444',
   },
   userNameContainer: {
     flex: 1,

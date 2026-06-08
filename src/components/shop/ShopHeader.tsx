@@ -66,9 +66,10 @@ const getStyles = (theme: any) =>
     },
     nameRow: {
       flexDirection: 'row',
-      alignItems: 'flex-end',
+      alignItems: 'center',
       justifyContent: 'space-between',
       width: '100%',
+      minHeight: 34,
     },
     userNameWrap: {
       flex: 1,
@@ -81,12 +82,12 @@ const getStyles = (theme: any) =>
       color: theme.textColor,
       letterSpacing: -0.4,
       lineHeight: 34,
-      height: 34,
       includeFontPadding: false,
-      textAlignVertical: 'bottom',
+      textAlignVertical: 'center',
     },
     portfolioSlot: {
       flexShrink: 0,
-      alignItems: 'flex-end',
+      height: 34,
+      justifyContent: 'center',
     },
   })
